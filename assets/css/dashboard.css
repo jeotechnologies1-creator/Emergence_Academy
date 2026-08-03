@@ -284,3 +284,25 @@ display:none!important;
 }
 
 }
+.heading-xl {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+}
+
+.heading-lg {
+    font-size: clamp(1.5rem, 3vw, 2.3rem);
+    font-weight: 700;
+}
+
+.heading-md {
+    font-size: clamp(1.2rem, 2vw, 1.8rem);
+    font-weight: 600;
+}
+
+.text-body {
+    font-size: clamp(0.9rem, 1vw, 1rem);
+}
+
+.text-small {
+    font-size: clamp(0.75rem, 0.8vw, 0.9rem);
+}
