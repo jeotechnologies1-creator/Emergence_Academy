@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Emergence Academy - Register</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+
+<body class="bg-slate-50 min-h-screen">
+    <div class="min-h-screen flex items-center justify-center px-4 py-8">
+        <div class="w-full max-w-md rounded-3xl bg-white shadow-2xl p-8">
+            <div class="text-center">
+                <div
+                    class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-xl font-bold text-white">
+                    E</div>
+                <h1 class="text-2xl font-bold text-slate-900">Create your account</h1>
+                <p class="mt-1 text-sm text-slate-500">Join an office profile</p>
+            </div>
+            <form id="registerForm" class="mt-6 space-y-4">
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-slate-700">Full Name</label>
+                    <input id="registerName" type="text"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-slate-700">Email</label>
+                    <input id="registerEmail" type="email"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-slate-700">Password</label>
+                    <input id="registerPassword" type="password"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-slate-700">Role / Office</label>
+                    <select id="registerRole"
+                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="Student">Student</option>
+                        <option value="Parent">Parent</option>
+                        <option value="Teacher">Teacher</option>
+                        <option value="Executive">Executive</option>
+                        <option value="Admin">Admin</option>
+                    </select>
+                </div>
+                <div id="registerError"
+                    class="hidden rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-600"></div>
+                <button type="submit"
+                    class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white transition hover:bg-indigo-700">Create
+                    Account</button>
+            </form>
+            <div class="mt-4 text-center text-sm text-slate-500">
+                <a href="login.html" class="font-medium text-indigo-600 hover:text-indigo-700">Already have an
+                    account?</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/supabase.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const form = document.getElementById('registerForm');
+            const errorEl = document.getElementById('registerError');
+
+            if (!window.Auth) {
+                errorEl.textContent = 'Authentication module is unavailable.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            const currentUser = await Auth.currentUser();
+            const profile = await Auth.profile();
+
+            if (!currentUser || !profile || String(profile.role || '').toLowerCase() !== 'admin') {
+                errorEl.textContent = 'Only an admin can create office credentials.';
+                errorEl.classList.remove('hidden');
+                window.setTimeout(() => {
+                    window.location.replace('login.html');
+                }, 700);
+                return;
+            }
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                const payload = {
+                    email: document.getElementById('registerEmail').value.trim(),
+                    password: document.getElementById('registerPassword').value,
+                    role: document.getElementById('registerRole').value.toLowerCase(),
+                    first_name: document.getElementById('registerName').value.trim(),
+                    last_name: '',
+                    phone: ''
+                };
+
+                const result = await Auth.createOfficeAccount(payload);
+
+                if (result.success) {
+                    errorEl.className = 'rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-700';
+                    errorEl.textContent = `${result.message} Email: ${result.email} Password: ${result.password}`;
+                    errorEl.classList.remove('hidden');
+                } else {
+                    errorEl.className = 'rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-600';
+                    errorEl.textContent = result.message;
+                    errorEl.classList.remove('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

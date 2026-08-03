@@ -1,0 +1,43 @@
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #f8faff 0%, #eef2ff 100%);
+}
+
+.fade-in {
+    animation: fadeIn .35s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.bar-bg {
+    background: #e2e8f0;
+    border-radius: 9999px;
+    height: 8px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    border-radius: 9999px;
+}
+
+.card-glow {
+    box-shadow: 0 15px 35px rgba(79, 70, 229, 0.08);
+}
+
+.soft-panel {
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(226,232,240,0.8);
+}
