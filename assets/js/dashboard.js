@@ -155,4 +155,24 @@ document.addEventListener(
 
 );
 
+const menu = document.getElementById("menu-toggle");
+const sidebar = document.getElementById("sidebar");
+
+if (menu && sidebar) {
+
+    menu.addEventListener("click", () => {
+        sidebar.classList.toggle("-translate-x-full");
+    });
+
+    document.addEventListener("click", (e) => {
+        if (
+            window.innerWidth < 1024 &&
+            !sidebar.contains(e.target) &&
+            !menu.contains(e.target)
+        ) {
+            sidebar.classList.add("-translate-x-full");
+        }
+    });
+
+}
 window.Dashboard = Dashboard;
