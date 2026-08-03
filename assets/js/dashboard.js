@@ -1,8 +1,3 @@
-/* ==========================================================
-   EMERGENCE ACADEMY
-   DASHBOARD CONTROLLER
-========================================================== */
-
 class Dashboard {
 
     static initialized = false;
@@ -11,168 +6,116 @@ class Dashboard {
 
         if (this.initialized) return;
 
-        try {
+        this.registerModules();
 
-            if (!window.Router) {
+        this.registerNavigation();
 
-                throw new Error("Router not loaded.");
+        this.registerMobileMenu();
 
-            }
+        await Router.navigate("dashboard");
 
-            this.registerModules();
-
-            this.registerNavigation();
-
-            await Router.navigate("dashboard");
-
-            this.initialized = true;
-
-            console.log("Dashboard Initialized");
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-        }
+        this.initialized = true;
 
     }
-
-    /* ======================================================
-       MODULES
-    ====================================================== */
 
     static registerModules() {
 
         const modules = {
 
             dashboard: window.DashboardHome,
-
             students: window.StudentsModule,
-
             teachers: window.TeachersModule,
-
             parents: window.ParentsModule,
-
             attendance: window.AttendanceModule,
-
             assignments: window.AssignmentModule,
-
             grades: window.GradesModule,
-
             finance: window.FinanceModule,
-
             reports: window.ReportsModule,
-
             notifications: window.NotificationModule,
-
             ai: window.AIModule
 
         };
 
-        Object.entries(modules).forEach(
+        Object.entries(modules).forEach(([name, module]) => {
 
-            ([name, module]) => {
+            if (module && module.render) {
 
-                if (
-
-                    module &&
-
-                    typeof module.render === "function"
-
-                ) {
-
-                    Router.register(
-
-                        name,
-
-                        (container) => module.render(container)
-
-                    );
-
-                }
-
-                else {
-
-                    console.warn(
-
-                        `Module "${name}" is missing.`
-
-                    );
-
-                }
+                Router.register(name, container => module.render(container));
 
             }
 
-        );
+        });
 
     }
-
-    /* ======================================================
-       NAVIGATION
-    ====================================================== */
 
     static registerNavigation() {
 
-        document
+        const sidebar = document.getElementById("sidebar");
 
-            .querySelectorAll("[data-route]")
+        const overlay = document.getElementById("sidebar-overlay");
 
-            .forEach(item => {
+        document.querySelectorAll("[data-route]").forEach(button => {
 
-                item.addEventListener(
+            button.onclick = async () => {
 
-                    "click",
+                const route = button.dataset.route;
 
-                    async () => {
+                document.querySelectorAll("[data-route]").forEach(btn => {
 
-                        await Router.navigate(
+                    btn.classList.remove("active");
 
-                            item.dataset.route
+                });
 
-                        );
+                button.classList.add("active");
 
-                    }
+                await Router.navigate(route);
 
-                );
+                if (window.innerWidth < 1024) {
 
-            });
+                    sidebar.classList.add("-translate-x-full");
 
-    }
+                    overlay.classList.add("hidden");
 
-}
+                }
 
-document.addEventListener(
+            };
 
-    "DOMContentLoaded",
-
-    async () => {
-
-        await Dashboard.init();
+        });
 
     }
 
-);
+    static registerMobileMenu() {
 
-const menu = document.getElementById("menu-toggle");
-const sidebar = document.getElementById("sidebar");
+        const menu = document.getElementById("menu-toggle");
 
-if (menu && sidebar) {
+        const sidebar = document.getElementById("sidebar");
 
-    menu.addEventListener("click", () => {
-        sidebar.classList.toggle("-translate-x-full");
-    });
+        const overlay = document.getElementById("sidebar-overlay");
 
-    document.addEventListener("click", (e) => {
-        if (
-            window.innerWidth < 1024 &&
-            !sidebar.contains(e.target) &&
-            !menu.contains(e.target)
-        ) {
+        menu.onclick = () => {
+
+            sidebar.classList.toggle("-translate-x-full");
+
+            overlay.classList.toggle("hidden");
+
+        };
+
+        overlay.onclick = () => {
+
             sidebar.classList.add("-translate-x-full");
-        }
-    });
+
+            overlay.classList.add("hidden");
+
+        };
+
+    }
 
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    Dashboard.init();
+
+});
+
 window.Dashboard = Dashboard;
