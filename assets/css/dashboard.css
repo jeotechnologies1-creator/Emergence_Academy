@@ -1,0 +1,142 @@
+:root {
+  color-scheme: light;
+}
+
+body {
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.dashboard-shell {
+  min-height: 100vh;
+}
+
+#dashboard-content {
+  min-height: 0;
+}
+
+aside {
+  min-width: 0;
+  width: 18rem;
+}
+
+nav button[data-route] {
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+nav button[data-route]:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  transform: translateX(2px);
+}
+
+nav button[data-route].active {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #dbeafe;
+}
+
+.dashboard-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+}
+
+@media (max-width: 1024px) {
+  .dashboard-shell {
+    flex-direction: column;
+  }
+
+  aside {
+    width: 100%;
+    max-height: none;
+  }
+
+  .dashboard-shell > .flex-1 {
+    min-width: 0;
+  }
+
+  nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  header .flex.items-center.justify-between {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  header .flex.items-center.gap-5 {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  header input[type="text"] {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  main {
+    padding: 1rem;
+  }
+
+  header {
+    padding: 0;
+  }
+
+  header > div {
+    padding: 1rem;
+  }
+
+  .welcome-banner {
+    padding: 1.25rem;
+  }
+
+  .welcome-banner h2 {
+    font-size: 1.5rem;
+  }
+
+  nav {
+    grid-template-columns: 1fr;
+  }
+
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-shell {
+    overflow-x: auto;
+  }
+
+  .table-shell table {
+    min-width: 560px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar-logo {
+    padding: 1rem 1rem 1.25rem;
+  }
+
+  .sidebar-user {
+    padding: 1rem;
+  }
+
+  .sidebar-actions {
+    padding: 1rem;
+  }
+
+  .header-user {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  main {
+    padding: 0.75rem;
+  }
+}
