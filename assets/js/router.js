@@ -118,5 +118,28 @@ class Router {
     }
 
 }
+Router.register("*", container => {
+
+container.innerHTML = `
+
+<div class="flex flex-col items-center justify-center py-20">
+
+<h2 class="text-3xl font-bold">
+
+Module Not Found
+
+</h2>
+
+<p class="text-slate-500 mt-2">
+
+The requested page does not exist.
+
+</p>
+
+</div>
+
+`;
+
+});
 
 window.Router = Router;

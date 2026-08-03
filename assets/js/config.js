@@ -146,4 +146,16 @@ Object.freeze(CONFIG);
    Make globally accessible
 =========================================== */
 
+window.APP_CONFIG = {
+
+    schoolName: "Emergence Academy",
+
+    motto: "AI Learning Management System",
+
+    logo: "assets/images/logo.png",
+
+    favicon: "assets/images/favicon.png"
+
+};
+
 window.CONFIG = CONFIG;

@@ -12,7 +12,25 @@ class Dashboard {
 
         this.registerMobileMenu();
 
-        await Router.navigate("dashboard");
+        try {
+
+            await Router.navigate("dashboard");
+
+        } catch (error) {
+
+            console.error(error);
+
+            if (window.UI?.toast) {
+
+                UI.toast("Unable to load dashboard.");
+
+            } else {
+
+                alert("Unable to load dashboard.");
+
+            }
+
+        }
 
         this.initialized = true;
 
