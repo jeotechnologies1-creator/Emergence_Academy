@@ -2,117 +2,185 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Emergence Academy - Login</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergence Academy - Login</title>
 
-  <script src="assets/js/supabase.js"></script>
-  <script src="assets/js/login.js"></script>
-  <link rel="stylesheet" href="assets/css/style.css" />
+    <!-- Tailwind CSS (Development) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="assets/css/style.css">
+
+    <!-- JavaScript -->
+    <script src="assets/js/config.js" defer></script>
+    <script src="assets/js/supabase.js" defer></script>
+    <script src="assets/js/auth.js" defer></script>
+    <script src="assets/js/login.js" defer></script>
 </head>
 
 <body class="bg-slate-50 min-h-screen">
-  <div class="min-h-screen flex items-center justify-center px-4 py-8">
-    <div class="w-full max-w-md rounded-3xl bg-white shadow-2xl p-8">
-      <div class="text-center">
-        <!-- <div
-          class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-xl font-bold text-white">
-          E</div> -->
-        <img id="school-logo" alt="Emergence Academy Logo"
-          class=" mx-auto mb-3 flex w-16 h-16 object-contain rounded-2xl items-center justify-center">
-        <h1 class="text-2xl font-bold text-slate-900">Emergence Academy</h1>
-        <p class="mt-1 text-sm text-slate-500">Sign in to your office portal</p>
-      </div>
-      <form id="loginForm" class="mt-6 space-y-4">
-        <div>
-          <label class="mb-1 block text-sm font-medium text-slate-700">Office / Role</label>
-          <select id="loginRole"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="admin">Admin</option>
-            <option value="ceo">CEO</option>
-            <option value="executive">Executive</option>
-            <option value="teacher">Teacher</option>
-            <option value="student">Student</option>
-            <option value="parent">Parent</option>
-          </select>
+
+    <div class="min-h-screen flex items-center justify-center px-4 py-8">
+
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8">
+
+            <!-- Logo -->
+            <div class="text-center">
+
+                <img
+                    id="school-logo"
+                    src="assets/images/logo.png"
+                    alt="Emergence Academy Logo"
+                    class="mx-auto h-16 w-16 object-contain mb-4"
+                    onerror="this.style.display='none'">
+
+                <h1 class="text-2xl font-bold text-slate-900">
+                    Emergence Academy
+                </h1>
+
+                <p class="mt-2 text-sm text-slate-500">
+                    Sign in to your office portal
+                </p>
+
+            </div>
+
+            <!-- Login Form -->
+
+            <form id="loginForm" class="mt-8 space-y-5">
+
+                <!-- Role -->
+
+                <div>
+
+                    <label
+                        for="loginRole"
+                        class="block text-sm font-medium text-slate-700 mb-2">
+
+                        Office / Role
+
+                    </label>
+
+                    <select
+                        id="loginRole"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+
+                        <option value="admin">Administrator</option>
+                        <option value="ceo">CEO</option>
+                        <option value="executive">Executive</option>
+                        <option value="teacher">Teacher</option>
+                        <option value="student">Student</option>
+                        <option value="parent">Parent</option>
+
+                    </select>
+
+                </div>
+
+                <!-- Email -->
+
+                <div>
+
+                    <label
+                        for="loginEmail"
+                        class="block text-sm font-medium text-slate-700 mb-2">
+
+                        Email Address
+
+                    </label>
+
+                    <input
+                        id="loginEmail"
+                        type="email"
+                        autocomplete="username"
+                        value="admin@emergence.edu"
+                        placeholder="Enter your email"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+
+                </div>
+
+                <!-- Password -->
+
+                <div>
+
+                    <label
+                        for="loginPassword"
+                        class="block text-sm font-medium text-slate-700 mb-2">
+
+                        Password
+
+                    </label>
+
+                    <div class="relative">
+
+                        <input
+                            id="loginPassword"
+                            type="password"
+                            autocomplete="current-password"
+                            value="Emergence2026!"
+                            placeholder="Enter your password"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-14 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+
+                        <button
+                            type="button"
+                            id="togglePassword"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500 hover:text-indigo-600">
+
+                            Show
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <!-- Status -->
+
+                <div
+                    id="loginStatus"
+                    class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+
+                    Ready...
+
+                </div>
+
+                <!-- Error -->
+
+                <div
+                    id="loginError"
+                    class="hidden rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                </div>
+
+                <!-- Button -->
+
+                <button
+                    type="submit"
+                    class="w-full rounded-lg bg-indigo-600 py-3 text-white font-semibold hover:bg-indigo-700 transition">
+
+                    Sign In
+
+                </button>
+
+            </form>
+
+            <div class="mt-6 text-center">
+
+                <a
+                    href="register.html"
+                    class="text-sm text-indigo-600 hover:text-indigo-700">
+
+                    Administrator: Create Office Credentials
+
+                </a>
+
+            </div>
+
         </div>
-        <div>
-          <label class="mb-1 block text-sm font-medium text-slate-700">Email or Username</label>
-          <input id="loginEmail" type="text"
-            class="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="admin@emergence.edu" value="admin@emergence.edu" />
-        </div>
-        <div>
-          <label class="mb-1 block text-sm font-medium text-slate-700">Password</label>
-          <div class="relative">
-            <input id="loginPassword" type="password"
-              class="w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-12 outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="••••••••" value="Emergence2026!" />
-            <button type="button" id="togglePassword"
-              class="absolute inset-y-0 right-0 flex items-center px-3 text-sm text-slate-500"
-              aria-label="Show password">Show</button>
-          </div>
-        </div>
-        <div id="loginStatus" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-        </div>
-        <div id="loginError"
-          class="hidden rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-600"></div>
-        <button type="submit"
-          class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white transition hover:bg-indigo-700">Sign
-          In</button>
-      </form>
-      <div class="mt-4 text-center text-sm text-slate-500">
-        <a href="register.html" class="font-medium text-indigo-600 hover:text-indigo-700">Admin only: create office
-          credentials</a>
-      </div>
+
     </div>
-  </div>
 
-  <script src="assets/js/config.js"></script>
-  <script src="assets/js/supabase.js"></script>
-  <script src="assets/js/auth.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-      const form = document.getElementById('loginForm');
-      const passwordInput = document.getElementById('loginPassword');
-      const togglePassword = document.getElementById('togglePassword');
-      const statusEl = document.getElementById('loginStatus');
-
-      if (togglePassword && passwordInput) {
-        togglePassword.addEventListener('click', () => {
-          const isHidden = passwordInput.type === 'password';
-          passwordInput.type = isHidden ? 'text' : 'password';
-          togglePassword.textContent = isHidden ? 'Hide' : 'Show';
-        });
-      }
-
-      if (statusEl) {
-        statusEl.textContent = window.supabaseInitMessage || 'Supabase status unavailable.';
-      }
-
-      await Auth.bootstrapAdmin();
-
-      form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const email = document.getElementById('loginEmail').value.trim();
-        const password = document.getElementById('loginPassword').value;
-        const role = document.getElementById('loginRole').value;
-
-        const result = await Auth.login(email, password, role);
-
-        if (result.success) {
-          const dashboard = await Auth.getDashboard();
-          window.location.href = dashboard;
-        } else {
-          const errorEl = document.getElementById('loginError');
-          errorEl.textContent = result.message || 'Unable to sign in.';
-          errorEl.classList.remove('hidden');
-        }
-      });
-    });
-  </script>
 </body>
 
 </html>
