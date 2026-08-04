@@ -152,9 +152,9 @@ window.APP_CONFIG = {
 
     motto: "AI Learning Management System",
 
-    logo: "assets/images/logo.png",
+    logo: "/assets/images/logo.png",
 
-    favicon: "assets/images/favicon.png"
+    favicon: "/assets/images/favicon.png"
 
 };
 

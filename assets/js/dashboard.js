@@ -13,6 +13,11 @@ class Dashboard {
         this.registerMobileMenu();
 
         try {
+            const logo = document.getElementById("school-logo");
+
+            if (logo && window.APP_CONFIG?.logo) {
+                logo.src = window.APP_CONFIG.logo;
+            }
 
             await Router.navigate("dashboard");
 
@@ -86,7 +91,12 @@ class Dashboard {
 
                 button.classList.add("active");
 
-                await Router.navigate(route);
+                try {
+                    await Router.navigate(route);
+                } catch (err) {
+                    console.error(err);
+                    UI?.toast?.("Failed to open module.");
+                }
 
                 if (window.innerWidth < 1024) {
 
@@ -110,30 +120,30 @@ class Dashboard {
 
         const overlay = document.getElementById("sidebar-overlay");
 
-        menu.onclick = () => {
+        menu?.addEventListener("click", () => {
 
             sidebar.classList.toggle("-translate-x-full");
 
             overlay.classList.toggle("hidden");
 
-        };
+        });
 
-        overlay.onclick = () => {
+        overlay?.addEventListener("click", () => {
 
             sidebar.classList.add("-translate-x-full");
 
             overlay.classList.add("hidden");
 
-        };
+        });
 
     }
 
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+// document.addEventListener("DOMContentLoaded", () => {
 
-    Dashboard.init();
+//     Dashboard.init();
 
-});
+// });
 
 window.Dashboard = Dashboard;
