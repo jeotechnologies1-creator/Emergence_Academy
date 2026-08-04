@@ -6,6 +6,10 @@ class Dashboard {
 
         if (this.initialized) return;
 
+        await Profile.load();
+
+        await RoleRouter.redirect();
+
         this.registerModules();
         this.registerNavigation();
         this.registerMobileMenu();

@@ -83,6 +83,41 @@ class API {
     ====================================================== */
 
     static students = {
+        /* -----------------------------------------------
+   GENERATE ADMISSION NUMBER
+----------------------------------------------- */
+
+        generateAdmissionNumber() {
+
+            const year = new Date().getFullYear();
+
+            const random = Math.floor(
+                1000 + Math.random() * 9000
+            );
+
+            return `EA${year}${random}`;
+
+        },
+
+        /* -----------------------------------------------
+           GENERATE STUDENT ID
+        ----------------------------------------------- */
+
+        generateStudentID() {
+
+            return crypto.randomUUID();
+
+        },
+
+        /* -----------------------------------------------
+           DEFAULT PASSWORD
+        ----------------------------------------------- */
+
+        generatePassword() {
+
+            return "Emergence@2026";
+
+        },
 
         /* -----------------------------------------------
            GET ALL STUDENTS
@@ -210,12 +245,119 @@ class API {
         },
 
         /* -----------------------------------------------
-           CREATE STUDENT
-        ----------------------------------------------- */
+   CREATE STUDENT
+----------------------------------------------- */
 
-        async create(values) {
+        async create(student) {
 
-            return await API.insert("students", values);
+            const admissionNumber =
+                this.generateAdmissionNumber();
+
+            const studentID =
+                this.generateStudentID();
+
+            const password =
+                this.generatePassword();
+
+            /* -------------------------------
+               Create Auth User
+            ------------------------------- */
+
+            const {
+
+                data: authData,
+
+                error: authError
+
+            } = await window.supabaseClient.auth.admin.createUser({
+
+                email: student.email,
+
+                password,
+
+                email_confirm: true
+
+            });
+
+            if (authError) throw authError;
+
+            const user = authData.user;
+
+            /* -------------------------------
+               Create Profile
+            ------------------------------- */
+
+            const profile =
+                await API.insert("profiles", {
+
+                    id: user.id,
+
+                    email: student.email,
+
+                    role: "student",
+
+                    first_name: student.first_name,
+
+                    last_name: student.last_name,
+
+                    phone: student.phone,
+
+                    gender: student.gender,
+
+                    address: student.address,
+
+                    city: student.city,
+
+                    state: student.state,
+
+                    country: student.country,
+
+                    status: "active"
+
+                });
+
+            /* -------------------------------
+               Create Student
+            ------------------------------- */
+
+            const studentRecord =
+                await API.insert("students", {
+
+                    profile_id: profile.id,
+
+                    student_no: admissionNumber,
+
+                    student_id: studentID,
+
+                    admission_number: admissionNumber,
+
+                    class_id: student.class_id,
+
+                    admission_date:
+                        new Date().toISOString(),
+
+                    admission_year:
+                        new Date().getFullYear(),
+
+                    status: "active"
+
+                });
+
+            return {
+
+                profile,
+
+                student: studentRecord,
+
+                credentials: {
+
+                    username: admissionNumber,
+
+                    password
+
+                }
+
+            };
 
         },
 
