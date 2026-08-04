@@ -7,9 +7,7 @@ class Dashboard {
         if (this.initialized) return;
 
         this.registerModules();
-
         this.registerNavigation();
-
         this.registerMobileMenu();
 
         try {
@@ -53,6 +51,9 @@ class Dashboard {
             console.error("Dashboard initialization failed:", error);
 
         }
+
+    } // ← THIS BRACE WAS MISSING
+
     static registerModules() {
 
         const modules = {
@@ -73,9 +74,13 @@ class Dashboard {
 
         Object.entries(modules).forEach(([name, module]) => {
 
-            if (module && module.render) {
+            if (module && typeof module.render === "function") {
 
                 Router.register(name, container => module.render(container));
+
+            } else {
+
+                console.warn(`Module "${name}" is missing or has no render() method.`);
 
             }
 
@@ -86,7 +91,6 @@ class Dashboard {
     static registerNavigation() {
 
         const sidebar = document.getElementById("sidebar");
-
         const overlay = document.getElementById("sidebar-overlay");
 
         document.querySelectorAll("[data-route]").forEach(button => {
@@ -96,25 +100,27 @@ class Dashboard {
                 const route = button.dataset.route;
 
                 document.querySelectorAll("[data-route]").forEach(btn => {
-
                     btn.classList.remove("active");
-
                 });
 
                 button.classList.add("active");
 
                 try {
+
                     await Router.navigate(route);
+
                 } catch (err) {
+
                     console.error(err);
+
                     UI?.toast?.("Failed to open module.");
+
                 }
 
                 if (window.innerWidth < 1024) {
 
-                    sidebar.classList.add("-translate-x-full");
-
-                    overlay.classList.add("hidden");
+                    sidebar?.classList.add("-translate-x-full");
+                    overlay?.classList.add("hidden");
 
                 }
 
@@ -127,35 +133,25 @@ class Dashboard {
     static registerMobileMenu() {
 
         const menu = document.getElementById("menu-toggle");
-
         const sidebar = document.getElementById("sidebar");
-
         const overlay = document.getElementById("sidebar-overlay");
 
         menu?.addEventListener("click", () => {
 
-            sidebar.classList.toggle("-translate-x-full");
-
-            overlay.classList.toggle("hidden");
+            sidebar?.classList.toggle("-translate-x-full");
+            overlay?.classList.toggle("hidden");
 
         });
 
         overlay?.addEventListener("click", () => {
 
-            sidebar.classList.add("-translate-x-full");
-
-            overlay.classList.add("hidden");
+            sidebar?.classList.add("-translate-x-full");
+            overlay?.classList.add("hidden");
 
         });
 
     }
 
 }
-
-// document.addEventListener("DOMContentLoaded", () => {
-
-//     Dashboard.init();
-
-// });
 
 window.Dashboard = Dashboard;
