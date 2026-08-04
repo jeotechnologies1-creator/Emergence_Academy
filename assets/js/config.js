@@ -159,3 +159,65 @@ window.APP_CONFIG = {
 };
 
 window.CONFIG = CONFIG;
+
+/* ===========================================
+   AUTO LOAD SCHOOL LOGO
+=========================================== */
+
+// document.addEventListener("DOMContentLoaded", () => {
+
+//     const logo = document.getElementById("school-logo");
+
+//     if (!logo) return;
+
+//     logo.src = window.APP_CONFIG.logo;
+
+//     logo.onload = () => {
+//         console.log("✅ School logo loaded.");
+//     };
+
+//     logo.onerror = () => {
+//         console.error("❌ Unable to load:", logo.src);
+//     };
+
+// });
+
+/* ===========================================
+   AUTO LOAD SCHOOL LOGO
+=========================================== */
+
+(function loadSchoolLogo() {
+
+    function setLogo() {
+
+        const logos = document.querySelectorAll("#school-logo");
+
+        if (!logos.length) return;
+
+        logos.forEach(logo => {
+
+            logo.src = window.APP_CONFIG.logo;
+
+            logo.alt = window.APP_CONFIG.schoolName + " Logo";
+
+            logo.onerror = () => {
+
+                console.error("Failed to load logo:", logo.src);
+
+            };
+
+        });
+
+    }
+
+    if (document.readyState === "loading") {
+
+        document.addEventListener("DOMContentLoaded", setLogo);
+
+    } else {
+
+        setLogo();
+
+    }
+
+})();
