@@ -13,34 +13,46 @@ class Dashboard {
         this.registerMobileMenu();
 
         try {
-            const logo = document.getElementById("school-logo");
 
-            if (logo && window.APP_CONFIG?.logo) {
-                logo.src = window.APP_CONFIG.logo;
-            }
+            const loadLogo = () => {
 
-            await Router.navigate("dashboard");
+                const logo = document.getElementById("school-logo");
+
+                console.log("Logo element:", logo);
+                console.log("Logo path:", window.APP_CONFIG?.logo);
+
+                if (!logo) {
+                    console.warn("school-logo not found. Retrying...");
+                    setTimeout(loadLogo, 100);
+                    return;
+                }
+
+                const logoPath =
+                    window.APP_CONFIG?.logo ||
+                    window.CONFIG?.logo ||
+                    "assets/images/logo.jpeg";
+
+                logo.src = logoPath;
+
+                logo.onload = () => {
+                    console.log("✅ Logo loaded successfully");
+                };
+
+                logo.onerror = () => {
+                    console.error("❌ Failed to load logo:", logoPath);
+                };
+
+            };
+
+            loadLogo();
+
+            this.initialized = true;
 
         } catch (error) {
 
-            console.error(error);
-
-            if (window.UI?.toast) {
-
-                UI.toast("Unable to load dashboard.");
-
-            } else {
-
-                alert("Unable to load dashboard.");
-
-            }
+            console.error("Dashboard initialization failed:", error);
 
         }
-
-        this.initialized = true;
-
-    }
-
     static registerModules() {
 
         const modules = {
