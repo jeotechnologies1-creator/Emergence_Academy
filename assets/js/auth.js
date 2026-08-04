@@ -1,124 +1,112 @@
 /* ==========================================================
    EMERGENCE ACADEMY
-   AUTHENTICATION SYSTEM
-   Version: 2.0 Production
+   AUTHENTICATION ENGINE v5.0
 ========================================================== */
 
 class Auth {
 
     /* ======================================================
-       INITIALIZE
+       CONFIGURATION
     ====================================================== */
 
     static initialized = false;
 
-    static ensureSupabaseClient() {
-        if (window.supabaseClient?.auth && typeof window.supabaseClient.auth.signInWithPassword === "function" && typeof window.supabaseClient.auth.signUp === "function") {
-            return window.supabaseClient;
+    static currentProfile = null;
+
+    static currentPermissions = [];
+
+    static SESSION_KEY = "emergence_session";
+
+    static DASHBOARDS = {
+
+        ceo: "dashboard.html",
+
+        admin: "dashboard.html",
+
+        executive: "executive-dashboard.html",
+
+        teacher: "teacher-dashboard.html",
+
+        student: "student-dashboard.html",
+
+        parent: "parent-dashboard.html",
+
+        finance: "finance-dashboard.html",
+
+        hr: "hr-dashboard.html",
+
+        admission: "admission-dashboard.html",
+
+        exam: "exam-dashboard.html",
+
+        library: "library-dashboard.html"
+
+    };
+
+    /* ======================================================
+       SUPABASE CLIENT
+    ====================================================== */
+
+    static get client() {
+
+        if (!window.supabaseClient) {
+
+            throw new Error(
+                "Supabase client has not been initialized."
+            );
+
         }
 
-        const fallback = {
-            auth: {
-                onAuthStateChange() {},
-                getUser: async () => ({ data: { user: null }, error: null }),
-                getSession: async () => ({ data: { session: null }, error: null }),
-                signOut: async () => ({ error: null }),
-                signInWithPassword: async ({ email, password }) => {
-                    if (email === 'admin@emergence.edu' && password === 'Emergence2026!') {
-                        return {
-                            data: {
-                                user: {
-                                    id: 'admin-bootstrap',
-                                    email,
-                                    email_confirmed_at: new Date().toISOString(),
-                                    user_metadata: { role: 'admin' }
-                                },
-                                session: { access_token: 'fallback-admin-token' }
-                            },
-                            error: null
-                        };
-                    }
+        return window.supabaseClient;
 
-                    return { data: { user: null, session: null }, error: { message: 'Invalid login credentials' } };
-                },
-                signUp: async ({ email, password, options }) => {
-                    return {
-                        data: {
-                            user: {
-                                id: `fallback-${Date.now()}`,
-                                email,
-                                email_confirmed_at: new Date().toISOString(),
-                                user_metadata: options?.data || {}
-                            },
-                            session: { access_token: `fallback-${Date.now()}` }
-                        },
-                        error: null
-                    };
-                }
-            },
-            from() {
-                return {
-                    select: async () => ({ data: [], error: null }),
-                    insert: async () => ({ data: null, error: null }),
-                    update: async () => ({ data: null, error: null }),
-                    upsert: async () => ({ data: null, error: null })
-                };
-            }
-        };
-
-        window.supabaseClient = fallback;
-        return fallback;
     }
 
-    static init() {
+    /* ======================================================
+       INITIALIZE
+    ====================================================== */
+
+    static async init() {
 
         if (this.initialized) return;
 
-        if (!window.supabaseClient?.auth?.onAuthStateChange) {
+        const { data, error } =
+            await this.client.auth.getSession();
 
-            console.warn("Supabase auth client unavailable; skipping auth listener setup.");
+        if (error) {
 
-            this.initialized = true;
-
-            return;
+            console.error(error);
 
         }
 
-        window.supabaseClient.auth.onAuthStateChange(
+        window.currentSession = data.session;
+
+        this.client.auth.onAuthStateChange(
 
             async (event, session) => {
 
-                console.log("Auth Event:", event);
+                console.log("AUTH EVENT:", event);
+
+                window.currentSession = session;
 
                 switch (event) {
 
                     case "SIGNED_IN":
 
-                        console.log("User signed in.");
+                    case "TOKEN_REFRESHED":
+
+                        this.clearCache();
 
                         break;
 
                     case "SIGNED_OUT":
 
-                        console.log("User signed out.");
+                        this.clearCache();
 
-                        break;
-
-                    case "TOKEN_REFRESHED":
-
-                        console.log("Session refreshed.");
-
-                        break;
-
-                    case "USER_UPDATED":
-
-                        console.log("User updated.");
+                        sessionStorage.clear();
 
                         break;
 
                 }
-
-                window.currentSession = session;
 
             }
 
@@ -126,326 +114,233 @@ class Auth {
 
         this.initialized = true;
 
+        console.log("Authentication Engine Ready");
+
     }
 
     /* ======================================================
-       REGISTER USER
+       SESSION
     ====================================================== */
 
-    static async bootstrapAdmin() {
+    static async session() {
 
-        try {
+        const {
 
-            const client = this.ensureSupabaseClient();
-            const adminEmail = "admin@emergence.edu";
-            const adminPassword = "Emergence2026!";
+            data,
 
-            const { data, error } = await client.auth.signInWithPassword({
-                email: adminEmail,
-                password: adminPassword
-            });
+            error
 
-            if (error && error.message && error.message.includes("Invalid login credentials")) {
+        } = await this.client.auth.getSession();
 
-                const signUpResult = await client.auth.signUp({
-                    email: adminEmail,
-                    password: adminPassword,
-                    options: {
-                        emailRedirectTo: window.location.origin + "/login.html",
-                        data: {
-                            role: "admin",
-                            first_name: "System",
-                            last_name: "Admin",
-                            phone: "0000000000"
-                        }
-                    }
-                });
-
-                if (signUpResult.error) throw signUpResult.error;
-
-                await client.from("profiles").upsert({
-                    id: signUpResult.data.user.id,
-                    email: adminEmail,
-                    role: "admin",
-                    first_name: "System",
-                    last_name: "Admin",
-                    phone: "0000000000",
-                    status: "active"
-                });
-
-                return {
-                    success: true,
-                    message: "Admin bootstrap account created."
-                };
-
-            }
-
-            if (error) {
-                throw new Error(error.message || 'Unable to sign in to Supabase.');
-            }
-
-            await window.supabaseClient.from("profiles").upsert({
-                id: data.user.id,
-                email: adminEmail,
-                role: "admin",
-                first_name: "System",
-                last_name: "Admin",
-                phone: "0000000000",
-                status: "active"
-            });
-
-            return {
-                success: true,
-                message: "Admin bootstrap account ready."
-            };
-
-        }
-        catch (error) {
-            console.error(error);
-            return {
-                success: false,
-                message: error.message
-            };
-        }
-
-    }
-
-    static async createOfficeAccount(formData) {
-
-        try {
-
-            const currentUser = await this.currentUser();
-            const actingProfile = await this.profile();
-
-            if (!currentUser || !actingProfile || String(actingProfile.role || "").toLowerCase() !== "admin") {
-                return {
-                    success: false,
-                    message: "Only the admin can create office credentials."
-                };
-            }
-
-            const role = String(formData.role || "").trim().toLowerCase();
-            const officeRoles = ["admin", "executive", "ceo", "teacher", "student", "parent"];
-
-            if (!officeRoles.includes(role)) {
-                return {
-                    success: false,
-                    message: "Unsupported office role."
-                };
-            }
-
-            const email = formData.email || `${role}.${Date.now()}@emergence.edu`;
-            const password = formData.password || `${role.toUpperCase()}${Date.now().toString().slice(-4)}!`;
-            const firstName = formData.first_name || role;
-            const lastName = formData.last_name || "Office";
-            const phone = formData.phone || "0000000000";
-
-            const { data, error } = await window.supabaseClient.auth.signUp({
-                email,
-                password,
-                options: {
-                    emailRedirectTo: window.location.origin + "/login.html",
-                    data: {
-                        role,
-                        first_name: firstName,
-                        last_name: lastName,
-                        phone
-                    }
-                }
-            });
-
-            if (error) throw error;
-            if (!data.user) throw new Error("Credential creation failed.");
-
-            const { error: profileError } = await window.supabaseClient.from("profiles").upsert({
-                id: data.user.id,
-                email,
-                role,
-                first_name: firstName,
-                last_name: lastName,
-                phone,
-                status: "active"
-            });
-
-            if (profileError) console.error(profileError);
-
-            return {
-                success: true,
-                user: data.user,
-                role,
-                email,
-                password,
-                message: `${role} credentials created successfully.`
-            };
-
-        }
-        catch (error) {
-            console.error(error);
-            return {
-                success: false,
-                message: error.message
-            };
-        }
-
-    }
-
-    static async register(formData) {
-
-        try {
-
-            const currentUser = await this.currentUser();
-
-            if (!currentUser) {
-
-                return {
-
-                    success: false,
-
-                    message: "Only an admin can create office credentials. Please sign in as an admin first."
-
-                };
-
-            }
-
-            const actingProfile = await this.profile();
-
-            if (!actingProfile || String(actingProfile.role || "").toLowerCase() !== "admin") {
-
-                return {
-
-                    success: false,
-
-                    message: "Only an admin can create office credentials."
-
-                };
-
-            }
-
-            const {
-
-                email,
-                password,
-                role,
-                first_name,
-                last_name,
-                phone
-
-            } = formData;
-
-            const {
-
-                data,
-                error
-
-            } = await window.supabaseClient.auth.signUp({
-
-                email,
-
-                password,
-
-                options: {
-
-                    emailRedirectTo:
-
-                        window.location.origin +
-
-                        "/login.html",
-
-                    data: {
-
-                        role,
-
-                        first_name,
-
-                        last_name,
-
-                        phone
-
-                    }
-
-                }
-
-            });
-
-            if (error) throw error;
-
-            if (!data.user) {
-
-                throw new Error("Registration failed.");
-
-            }
-
-            /* ===========================================
-               CREATE PROFILE
-            =========================================== */
-
-            const {
-
-                error: profileError
-
-            }
-
-                = await window.supabaseClient
-
-                    .from("profiles")
-
-                    .upsert({
-
-                        id: data.user.id,
-
-                        email,
-
-                        role,
-
-                        first_name,
-
-                        last_name,
-
-                        phone,
-
-                        status: "active"
-
-                    });
-
-            if (profileError) {
-
-                console.error(profileError);
-
-            }
-
-            return {
-
-                success: true,
-
-                user: data.user,
-
-                session: data.session,
-
-                message:
-
-                    "Registration successful. Please verify your email."
-
-            };
-
-        }
-
-        catch (error) {
+        if (error) {
 
             console.error(error);
 
-            return {
-
-                success: false,
-
-                message: error.message
-
-            };
+            return null;
 
         }
+
+        return data.session;
 
     }
 
     /* ======================================================
+       ACCESS TOKEN
+    ====================================================== */
+
+    static async accessToken() {
+
+        const session =
+            await this.session();
+
+        return session?.access_token || null;
+
+    }
+
+    /* ======================================================
+       CURRENT USER
+    ====================================================== */
+
+    static async user() {
+
+        const {
+
+            data,
+
+            error
+
+        } = await this.client.auth.getUser();
+
+        if (error) {
+
+            console.error(error);
+
+            return null;
+
+        }
+
+        return data.user;
+
+    }
+
+    /* ======================================================
+       LOGGED IN
+    ====================================================== */
+
+    static async isLoggedIn() {
+
+        return !!(await this.session());
+
+    }
+
+    /* ======================================================
+       CLEAR CACHE
+    ====================================================== */
+
+    static clearCache() {
+
+        this.currentProfile = null;
+
+        this.currentPermissions = [];
+
+    }
+
+    /* ======================================================
+       PROFILE
+    ====================================================== */
+
+    static async profile(refresh = false) {
+
+        if (
+
+            this.currentProfile &&
+
+            !refresh
+
+        ) {
+
+            return this.currentProfile;
+
+        }
+
+        const user =
+            await this.user();
+
+        if (!user) {
+
+            return null;
+
+        }
+
+        const {
+
+            data,
+
+            error
+
+        } = await this.client
+
+            .from("profiles")
+
+            .select("*")
+
+            .eq("id", user.id)
+
+            .single();
+
+        if (error) {
+
+            console.error(error);
+
+            return null;
+
+        }
+
+        this.currentProfile = data;
+
+        sessionStorage.setItem(
+
+            "profile",
+
+            JSON.stringify(data)
+
+        );
+
+        return data;
+
+    }
+
+    /* ======================================================
+       ROLE
+    ====================================================== */
+
+    static async role() {
+
+        const profile =
+            await this.profile();
+
+        if (!profile) {
+
+            return null;
+
+        }
+
+        return String(
+
+            profile.role || ""
+
+        )
+
+            .trim()
+
+            .toLowerCase();
+
+    }
+
+    /* ======================================================
+       DISPLAY NAME
+    ====================================================== */
+
+    static async displayName() {
+
+        const profile =
+            await this.profile();
+
+        if (!profile) {
+
+            return "";
+
+        }
+
+        return `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
+
+    }
+
+    /* ======================================================
+       INITIALS
+    ====================================================== */
+
+    static async initials() {
+
+        const profile =
+            await this.profile();
+
+        if (!profile) {
+
+            return "";
+
+        }
+
+        return (
+
+            (profile.first_name?.charAt(0) || "") +
+
+            (profile.last_name?.charAt(0) || "")
+
+        ).toUpperCase();
+
+    }
+        /* ======================================================
        LOGIN
     ====================================================== */
 
@@ -453,78 +348,126 @@ class Auth {
 
         try {
 
-            const client = this.ensureSupabaseClient();
-
             const {
 
                 data,
+
                 error
 
-            }
+            } = await this.client.auth.signInWithPassword({
 
-                = await client.auth
+                email: email.trim().toLowerCase(),
 
-                    .signInWithPassword({
+                password
 
-                        email,
-
-                        password
-
-                    });
+            });
 
             if (error) {
 
-                throw error;
+                return this.error(error.message);
 
             }
 
-            if (!data.user.email_confirmed_at) {
+            if (!data.user) {
 
-                return {
-
-                    success: false,
-
-                    message:
-
-                        "Please verify your email before logging in."
-
-                };
+                return this.error(
+                    "Authentication failed."
+                );
 
             }
 
-            const profile = await this.profile();
-            const role = profile?.role || data.user?.user_metadata?.role || null;
+            const profile =
+                await this.profile(true);
 
-            if (selectedRole && role && String(role).toLowerCase() !== String(selectedRole).toLowerCase()) {
-                return {
-                    success: false,
-                    message: `This account is not assigned to the ${selectedRole} office.`
-                };
+            if (!profile) {
+
+                await this.client.auth.signOut();
+
+                return this.error(
+                    "User profile not found."
+                );
+
             }
 
-            return {
+            const accountStatus =
+                String(profile.status || "")
+                    .trim()
+                    .toLowerCase();
 
-                success: true,
+            if (
+                accountStatus &&
+                accountStatus !== "active"
+            ) {
+
+                await this.client.auth.signOut();
+
+                return this.error(
+                    "This account has been disabled."
+                );
+
+            }
+
+            const databaseRole =
+                String(profile.role || "")
+                    .trim()
+                    .toLowerCase();
+
+            const loginRole =
+                String(selectedRole || "")
+                    .trim()
+                    .toLowerCase();
+
+            if (
+
+                loginRole &&
+
+                databaseRole !== loginRole
+
+            ) {
+
+                await this.client.auth.signOut();
+
+                return this.error(
+
+                    `Access denied. This account belongs to the '${databaseRole}' portal.`
+
+                );
+
+            }
+
+            sessionStorage.setItem(
+
+                "profile",
+
+                JSON.stringify(profile)
+
+            );
+
+            this.currentProfile = profile;
+
+            return this.success({
 
                 user: data.user,
 
-                session: data.session
+                session: data.session,
 
-            };
+                profile
+
+            });
 
         }
 
-        catch (error) {
+        catch (err) {
 
-            console.error(error);
+            console.error(err);
 
-            return {
+            return this.error(
 
-                success: false,
+                err.message ||
 
-                message: error.message
+                "Login failed."
 
-            };
+            );
 
         }
 
@@ -538,164 +481,69 @@ class Auth {
 
         try {
 
-            await window.supabaseClient.auth.signOut();
-
-            localStorage.removeItem(
-
-                CONFIG?.SESSION_KEY ||
-
-                "emergence-session"
-
-            );
-
-            sessionStorage.clear();
-
-            window.location.href = "login.html";
+            await this.client.auth.signOut();
 
         }
 
-        catch (error) {
+        catch (err) {
 
-            console.error(error);
-
-        }
-
-    }
-    /* ======================================================
-   CURRENT USER
-====================================================== */
-
-    static async currentUser() {
-
-        try {
-
-            const { data, error } = await window.supabaseClient.auth.getUser();
-
-            if (error) throw error;
-
-            return data.user;
+            console.error(err);
 
         }
 
-        catch (error) {
+        this.clearCache();
 
-            console.error("Current User Error:", error);
+        sessionStorage.clear();
 
-            return null;
+        localStorage.removeItem(
 
-        }
+            this.SESSION_KEY
+
+        );
+
+        window.location.replace(
+
+            "login.html"
+
+        );
 
     }
 
     /* ======================================================
-       CURRENT SESSION
+       DASHBOARD
     ====================================================== */
 
-    static async currentSession() {
+    static async dashboard() {
 
-        try {
+        const role =
+            await this.role();
 
-            const { data, error } = await window.supabaseClient.auth.getSession();
+        if (!role) {
 
-            if (error) throw error;
-
-            return data.session;
-
-        }
-
-        catch (error) {
-
-            console.error("Session Error:", error);
-
-            return null;
+            return "login.html";
 
         }
+
+        return (
+
+            this.DASHBOARDS[role] ||
+
+            "dashboard.html"
+
+        );
 
     }
 
     /* ======================================================
-       CHECK LOGIN STATUS
+       REDIRECT
     ====================================================== */
 
-    static async isLoggedIn() {
+    static async redirect() {
 
-        const session = await this.currentSession();
+        const page =
+            await this.dashboard();
 
-        return session !== null;
-
-    }
-
-    /* ======================================================
-       USER PROFILE
-    ====================================================== */
-
-    static async profile() {
-
-        try {
-
-            const user = await this.currentUser();
-
-            if (!user) return null;
-
-            const { data, error } = await window.supabaseClient
-
-                .from("profiles")
-
-                .select("*")
-
-                .eq("id", user.id)
-
-                .single();
-
-            if (error) throw error;
-
-            return data;
-
-        }
-
-        catch (error) {
-
-            console.error("Profile Error:", error);
-
-            return null;
-
-        }
-
-    }
-
-    /* ======================================================
-       USER ROLE
-    ====================================================== */
-
-    static async role() {
-
-        const profile = await this.profile();
-
-        if (!profile) return null;
-
-        const rawRole = profile.role || profile.user_role || "";
-
-        if (!rawRole) return null;
-
-        const normalized = String(rawRole).trim().toLowerCase();
-
-        const roleMap = {
-
-            admin: "admin",
-
-            executive: "executive",
-
-            ceo: "ceo",
-
-            teacher: "teacher",
-
-            student: "student",
-
-            parent: "parent"
-
-        };
-
-        return roleMap[normalized] || normalized;
+        window.location.replace(page);
 
     }
 
@@ -705,11 +553,14 @@ class Auth {
 
     static async requireLogin() {
 
-        const loggedIn = await this.isLoggedIn();
+        const loggedIn =
+            await this.isLoggedIn();
 
         if (!loggedIn) {
 
-            window.location.replace("login.html");
+            window.location.replace(
+                "login.html"
+            );
 
             return false;
 
@@ -723,23 +574,52 @@ class Auth {
        REQUIRE ROLE
     ====================================================== */
 
-    static async requireRole(allowedRoles = []) {
+    static async requireRole(roles = []) {
 
-        const role = await this.role();
+        const ok =
+            await this.requireLogin();
 
-        if (!role) {
-
-            window.location.replace("login.html");
+        if (!ok) {
 
             return false;
 
         }
 
-        if (!allowedRoles.includes(role)) {
+        const currentRole =
+            await this.role();
 
-            alert("You do not have permission to access this page.");
+        if (!currentRole) {
 
-            window.location.replace("dashboard.html");
+            window.location.replace(
+                "login.html"
+            );
+
+            return false;
+
+        }
+
+        const allowedRoles =
+            roles.map(role =>
+                String(role)
+                    .trim()
+                    .toLowerCase()
+            );
+
+        if (
+
+            !allowedRoles.includes(
+                currentRole
+            )
+
+        ) {
+
+            alert(
+                "You do not have permission to access this page."
+            );
+
+            window.location.replace(
+                await this.dashboard()
+            );
 
             return false;
 
@@ -748,575 +628,597 @@ class Auth {
         return true;
 
     }
-
-    /* ======================================================
-       GET DASHBOARD
+        /* ======================================================
+       CREATE OFFICE ACCOUNT
+       (Uses Supabase Edge Function)
     ====================================================== */
 
-    static async getDashboard() {
-
-        const role = await this.role();
-
-        const dashboards = CONFIG?.DASHBOARDS || {};
-
-        if (!role) return "dashboard.html";
-
-        return dashboards[role] || dashboards[role.toLowerCase()] || "dashboard.html";
-
-    }
-
-    /* ======================================================
-       REDIRECT TO DASHBOARD
-    ====================================================== */
-
-    static async redirect() {
-
-        const dashboard = await this.getDashboard();
-
-        window.location.replace(dashboard);
-
-    }
-    /* ======================================================
-   PASSWORD RESET
-====================================================== */
-
-    static async sendResetEmail(email) {
+    static async createOfficeAccount(userData) {
 
         try {
 
-            const { error } = await window.supabaseClient.auth
-                .resetPasswordForEmail(email, {
+            const profile = await this.profile();
 
-                    redirectTo:
+            if (!profile) {
+                return this.error("You must be logged in.");
+            }
 
-                        window.location.origin +
+            const role = String(profile.role).toLowerCase();
 
-                        "/reset-password.html"
+            if (
+                role !== "ceo" &&
+                role !== "admin"
+            ) {
 
-                });
-
-            if (error) throw error;
-
-            return {
-
-                success: true,
-
-                message:
-
-                    "Password reset email sent successfully."
-
-            };
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-            return {
-
-                success: false,
-
-                message: error.message
-
-            };
-
-        }
-
-    }
-
-    /* ======================================================
-       UPDATE PASSWORD
-    ====================================================== */
-
-    static async updatePassword(newPassword) {
-
-        try {
-
-            const { error } = await window.supabaseClient.auth.updateUser({
-
-                password: newPassword
-
-            });
-
-            if (error) throw error;
-
-            return {
-
-                success: true,
-
-                message: "Password updated successfully."
-
-            };
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-            return {
-
-                success: false,
-
-                message: error.message
-
-            };
-
-        }
-
-    }
-
-    /* ======================================================
-       UPDATE PROFILE
-    ====================================================== */
-
-    static async updateProfile(profileData = {}) {
-
-        try {
-
-            const user = await this.currentUser();
-
-            if (!user) {
-
-                return {
-
-                    success: false,
-
-                    message: "User not logged in."
-
-                };
+                return this.error(
+                    "Only the CEO or Admin can create users."
+                );
 
             }
 
-            profileData.updated_at = new Date().toISOString();
+            const session =
+                await this.session();
 
-            const { error } = await window.supabaseClient
+            if (!session) {
 
-                .from("profiles")
-
-                .update(profileData)
-
-                .eq("id", user.id);
-
-            if (error) throw error;
-
-            return {
-
-                success: true,
-
-                message: "Profile updated successfully."
-
-            };
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-            return {
-
-                success: false,
-
-                message: error.message
-
-            };
-
-        }
-
-    }
-
-    /* ======================================================
-       UPLOAD PROFILE AVATAR
-    ====================================================== */
-
-    static async uploadAvatar(file) {
-
-        try {
-
-            const user = await this.currentUser();
-
-            if (!user) {
-
-                return {
-
-                    success: false,
-
-                    message: "User not logged in."
-
-                };
+                return this.error(
+                    "Authentication session expired."
+                );
 
             }
 
-            const extension = file.name.split(".").pop();
+            const response =
+                await this.client.functions.invoke(
+                    "create-user",
+                    {
 
-            const fileName = `${user.id}.${extension}`;
+                        body: {
 
-            const { error: uploadError } =
+                            email: userData.email,
 
-                await window.supabaseClient.storage
+                            password: userData.password,
 
-                    .from("profile-images")
+                            role: userData.role,
 
-                    .upload(fileName, file, {
+                            first_name: userData.first_name,
 
-                        cacheControl: "3600",
+                            last_name: userData.last_name,
 
-                        upsert: true
+                            phone: userData.phone,
 
-                    });
+                            created_by: profile.id
 
-            if (uploadError) throw uploadError;
+                        }
 
-            const {
+                    }
 
-                data
+                );
 
-            } = window.supabaseClient.storage
+            if (response.error) {
 
-                .from("profile-images")
+                console.error(response.error);
 
-                .getPublicUrl(fileName);
+                return this.error(
+                    response.error.message
+                );
 
-            await this.updateProfile({
+            }
 
-                avatar_url: data.publicUrl
+            await this.log(
 
-            });
+                "CREATE_USER",
 
-            return {
+                `${userData.role} - ${userData.email}`
 
-                success: true,
+            );
 
-                url: data.publicUrl
-
-            };
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-            return {
-
-                success: false,
-
-                message: error.message
-
-            };
+            return this.success(
+                response.data
+            );
 
         }
 
-    }
+        catch (err) {
 
-    /* ======================================================
-       REFRESH PROFILE
-    ====================================================== */
+            console.error(err);
 
-    static async refreshProfile() {
+            return this.error(
+                err.message
+            );
 
-        return await this.profile();
-
-    }
-
-    /* ======================================================
-       VERIFY EMAIL STATUS
-    ====================================================== */
-
-    static async isEmailVerified() {
-
-        const user = await this.currentUser();
-
-        if (!user) return false;
-
-        return !!user.email_confirmed_at;
+        }
 
     }
 
     /* ======================================================
-       REFRESH SESSION
+       ACTIVATE USER
     ====================================================== */
 
-    static async refreshSession() {
+    static async activateUser(id) {
 
         try {
 
-            const {
+            const { error } =
+                await this.client
 
+                    .from("profiles")
+
+                    .update({
+
+                        status: "active",
+
+                        updated_at:
+                            new Date().toISOString()
+
+                    })
+
+                    .eq("id", id);
+
+            if (error) {
+
+                return this.error(
+                    error.message
+                );
+
+            }
+
+            await this.log(
+
+                "ACTIVATE_USER",
+
+                id
+
+            );
+
+            return this.success();
+
+        }
+
+        catch (err) {
+
+            console.error(err);
+
+            return this.error(
+                err.message
+            );
+
+        }
+
+    }
+
+    /* ======================================================
+       SUSPEND USER
+    ====================================================== */
+
+    static async suspendUser(id) {
+
+        try {
+
+            const { error } =
+                await this.client
+
+                    .from("profiles")
+
+                    .update({
+
+                        status: "inactive",
+
+                        updated_at:
+                            new Date().toISOString()
+
+                    })
+
+                    .eq("id", id);
+
+            if (error) {
+
+                return this.error(
+                    error.message
+                );
+
+            }
+
+            await this.log(
+
+                "SUSPEND_USER",
+
+                id
+
+            );
+
+            return this.success();
+
+        }
+
+        catch (err) {
+
+            console.error(err);
+
+            return this.error(
+                err.message
+            );
+
+        }
+
+    }
+
+    /* ======================================================
+       UPDATE USER
+    ====================================================== */
+
+    static async updateUser(id, updates = {}) {
+
+        try {
+
+            updates.updated_at =
+                new Date().toISOString();
+
+            const { error } =
+                await this.client
+
+                    .from("profiles")
+
+                    .update(updates)
+
+                    .eq("id", id);
+
+            if (error) {
+
+                return this.error(
+                    error.message
+                );
+
+            }
+
+            await this.log(
+
+                "UPDATE_USER",
+
+                id
+
+            );
+
+            return this.success();
+
+        }
+
+        catch (err) {
+
+            console.error(err);
+
+            return this.error(
+                err.message
+            );
+
+        }
+
+    }
+
+    /* ======================================================
+       DELETE USER
+       (Uses Edge Function)
+    ====================================================== */
+
+    static async deleteUser(id) {
+
+        try {
+
+            const response =
+                await this.client.functions.invoke(
+                    "delete-user",
+                    {
+
+                        body: {
+                            id
+                        }
+
+                    }
+
+                );
+
+            if (response.error) {
+
+                return this.error(
+                    response.error.message
+                );
+
+            }
+
+            await this.log(
+
+                "DELETE_USER",
+
+                id
+
+            );
+
+            return this.success();
+
+        }
+
+        catch (err) {
+
+            console.error(err);
+
+            return this.error(
+                err.message
+            );
+
+        }
+
+    }
+        /* ======================================================
+       UPDATE USER
+    ====================================================== */
+
+    static async updateUser(id, updates = {}) {
+
+        try {
+
+            updates.updated_at =
+                new Date().toISOString();
+
+            const { error } =
+                await this.client
+                    .from("profiles")
+                    .update(updates)
+                    .eq("id", id);
+
+            if (error) {
+
+                return this.error(error.message);
+
+            }
+
+            await this.log(
+                "UPDATE_USER",
+                id
+            );
+
+            return this.success();
+
+        }
+
+        catch (err) {
+
+            console.error(err);
+
+            return this.error(err.message);
+
+        }
+
+    }
+
+    /* ======================================================
+       DELETE USER
+    ====================================================== */
+
+    static async deleteUser(id) {
+
+        try {
+
+            const session =
+                await this.session();
+
+            if (!session) {
+
+                return this.error(
+                    "Authentication required."
+                );
+
+            }
+
+            const response = await fetch(
+
+                `${window.SUPABASE_URL}/functions/v1/delete-user`,
+
+                {
+
+                    method: "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json",
+
+                        Authorization:
+                            `Bearer ${session.access_token}`
+
+                    },
+
+                    body: JSON.stringify({
+
+                        id
+
+                    })
+
+                }
+
+            );
+
+            const result =
+                await response.json();
+
+            if (!response.ok) {
+
+                return this.error(
+
+                    result.error ||
+                    "Unable to delete user."
+
+                );
+
+            }
+
+            await this.log(
+
+                "DELETE_USER",
+
+                id
+
+            );
+
+            return this.success(result);
+
+        }
+
+        catch (err) {
+
+            console.error(err);
+
+            return this.error(err.message);
+
+        }
+
+    }
+
+    /* ======================================================
+       GET ALL USERS
+    ====================================================== */
+
+    static async users(role = null) {
+
+        try {
+
+            let query =
+                this.client
+                    .from("profiles")
+                    .select("*")
+                    .order(
+                        "created_at",
+                        {
+                            ascending: false
+                        }
+                    );
+
+            if (role) {
+
+                query =
+                    query.eq(
+                        "role",
+                        role.toLowerCase()
+                    );
+
+            }
+
+            const {
                 data,
-
                 error
+            } = await query;
 
-            } = await window.supabaseClient.auth.refreshSession();
+            if (error) {
 
-            if (error) throw error;
+                console.error(error);
 
-            return {
-
-                success: true,
-
-                session: data.session
-
-            };
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-            return {
-
-                success: false,
-
-                message: error.message
-
-            };
-
-        }
-
-    }
-    /* ======================================================
-   RESEND EMAIL VERIFICATION
-====================================================== */
-
-    static async resendVerificationEmail(email) {
-
-        try {
-
-            const { error } =
-                await window.supabaseClient.auth.resend({
-
-                    type: "signup",
-
-                    email: email,
-
-                    options: {
-
-                        emailRedirectTo:
-
-                            window.location.origin +
-
-                            "/login.html"
-
-                    }
-
-                });
-
-            if (error) throw error;
-
-            return {
-
-                success: true,
-
-                message:
-
-                    "Verification email sent successfully."
-
-            };
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-            return {
-
-                success: false,
-
-                message: error.message
-
-            };
-
-        }
-
-    }
-
-    /* ======================================================
-       DELETE ACCOUNT
-    ====================================================== */
-
-    static async deleteAccount() {
-
-        try {
-
-            const user = await this.currentUser();
-
-            if (!user) {
-
-                return {
-
-                    success: false,
-
-                    message: "No authenticated user."
-
-                };
+                return [];
 
             }
 
-            /*
-                NOTE
-
-                Supabase does NOT allow deleting authenticated
-                users from the browser using the anon key.
-
-                The actual Auth user deletion should be done
-                using an Edge Function or your backend with the
-                Service Role Key.
-
-                This method only marks the account inactive.
-            */
-
-            const { error } = await window.supabaseClient
-
-                .from("profiles")
-
-                .update({
-
-                    status: "inactive",
-
-                    updated_at: new Date().toISOString()
-
-                })
-
-                .eq("id", user.id);
-
-            if (error) throw error;
-
-            await this.logout();
-
-            return {
-
-                success: true,
-
-                message: "Account deactivated."
-
-            };
+            return data || [];
 
         }
 
-        catch (error) {
+        catch (err) {
 
-            console.error(error);
+            console.error(err);
 
-            return {
-
-                success: false,
-
-                message: error.message
-
-            };
+            return [];
 
         }
 
     }
 
     /* ======================================================
-       PROFILE COMPLETION
+       GET USER
     ====================================================== */
 
-    static async profileCompletion() {
+    static async getUser(id) {
 
-        const profile = await this.profile();
+        try {
 
-        if (!profile) return 0;
+            const {
+                data,
+                error
+            } =
+                await this.client
+                    .from("profiles")
+                    .select("*")
+                    .eq("id", id)
+                    .single();
 
-        const fields = [
+            if (error) {
 
-            "first_name",
+                console.error(error);
 
-            "last_name",
-
-            "email",
-
-            "phone",
-
-            "gender",
-
-            "date_of_birth",
-
-            "address",
-
-            "city",
-
-            "state",
-
-            "country",
-
-            "avatar_url"
-
-        ];
-
-        let completed = 0;
-
-        fields.forEach(field => {
-
-            if (
-
-                profile[field] !== null &&
-
-                profile[field] !== "" &&
-
-                profile[field] !== undefined
-
-            ) {
-
-                completed++;
+                return null;
 
             }
 
-        });
+            return data;
 
-        return Math.round(
+        }
 
-            (completed / fields.length) * 100
+        catch (err) {
 
-        );
+            console.error(err);
+
+            return null;
+
+        }
 
     }
 
     /* ======================================================
-       GET USER INITIALS
+       SEARCH USERS
     ====================================================== */
 
-    static async initials() {
+    static async search(keyword) {
 
-        const profile = await this.profile();
+        try {
 
-        if (!profile) return "";
+            const {
+                data,
+                error
+            } =
+                await this.client
+                    .from("profiles")
+                    .select("*")
+                    .or(
 
-        return (
+                        `first_name.ilike.%${keyword}%,
+last_name.ilike.%${keyword}%,
+email.ilike.%${keyword}%`
 
-            (profile.first_name?.charAt(0) || "") +
+                    )
+                    .order(
+                        "created_at",
+                        {
+                            ascending: false
+                        }
+                    );
 
-            (profile.last_name?.charAt(0) || "")
+            if (error) {
 
-        ).toUpperCase();
+                console.error(error);
+
+                return [];
+
+            }
+
+            return data || [];
+
+        }
+
+        catch (err) {
+
+            console.error(err);
+
+            return [];
+
+        }
 
     }
-
-    /* ======================================================
-       DISPLAY NAME
-    ====================================================== */
-
-    static async displayName() {
-
-        const profile = await this.profile();
-
-        if (!profile) return "";
-
-        return `${profile.first_name ?? ""
-
-            } ${profile.last_name ?? ""
-
-            }`.trim();
-
-    }
-
-    /* ======================================================
+        /* ======================================================
        AUTH STATUS
     ====================================================== */
 
@@ -1324,326 +1226,23 @@ class Auth {
 
         return {
 
-            loggedIn: await this.isLoggedIn(),
+            loggedIn:
+                await this.isLoggedIn(),
 
-            verified: await this.isEmailVerified(),
+            session:
+                await this.session(),
 
-            role: await this.role(),
+            user:
+                await this.user(),
 
-            profile: await this.profile()
+            profile:
+                await this.profile(),
 
-        };
+            role:
+                await this.role(),
 
-    }
-
-    /* ======================================================
-       ERROR HELPER
-    ====================================================== */
-
-    static handleError(error) {
-
-        console.error(
-
-            "[AUTH ERROR]",
-
-            error
-
-        );
-
-        return {
-
-            success: false,
-
-            message:
-
-                error?.message ||
-
-                "An unexpected authentication error occurred."
-
-        };
-
-    }
-    /* ======================================================
-   RESEND EMAIL VERIFICATION
-====================================================== */
-
-    static async resendVerificationEmail(email) {
-
-        try {
-
-            const { error } =
-                await window.supabaseClient.auth.resend({
-
-                    type: "signup",
-
-                    email: email,
-
-                    options: {
-
-                        emailRedirectTo:
-
-                            window.location.origin +
-
-                            "/login.html"
-
-                    }
-
-                });
-
-            if (error) throw error;
-
-            return {
-
-                success: true,
-
-                message:
-
-                    "Verification email sent successfully."
-
-            };
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-            return {
-
-                success: false,
-
-                message: error.message
-
-            };
-
-        }
-
-    }
-
-    /* ======================================================
-       DELETE ACCOUNT
-    ====================================================== */
-
-    static async deleteAccount() {
-
-        try {
-
-            const user = await this.currentUser();
-
-            if (!user) {
-
-                return {
-
-                    success: false,
-
-                    message: "No authenticated user."
-
-                };
-
-            }
-
-            /*
-                NOTE
-
-                Supabase does NOT allow deleting authenticated
-                users from the browser using the anon key.
-
-                The actual Auth user deletion should be done
-                using an Edge Function or your backend with the
-                Service Role Key.
-
-                This method only marks the account inactive.
-            */
-
-            const { error } = await window.supabaseClient
-
-                .from("profiles")
-
-                .update({
-
-                    status: "inactive",
-
-                    updated_at: new Date().toISOString()
-
-                })
-
-                .eq("id", user.id);
-
-            if (error) throw error;
-
-            await this.logout();
-
-            return {
-
-                success: true,
-
-                message: "Account deactivated."
-
-            };
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-            return {
-
-                success: false,
-
-                message: error.message
-
-            };
-
-        }
-
-    }
-
-    /* ======================================================
-       PROFILE COMPLETION
-    ====================================================== */
-
-    static async profileCompletion() {
-
-        const profile = await this.profile();
-
-        if (!profile) return 0;
-
-        const fields = [
-
-            "first_name",
-
-            "last_name",
-
-            "email",
-
-            "phone",
-
-            "gender",
-
-            "date_of_birth",
-
-            "address",
-
-            "city",
-
-            "state",
-
-            "country",
-
-            "avatar_url"
-
-        ];
-
-        let completed = 0;
-
-        fields.forEach(field => {
-
-            if (
-
-                profile[field] !== null &&
-
-                profile[field] !== "" &&
-
-                profile[field] !== undefined
-
-            ) {
-
-                completed++;
-
-            }
-
-        });
-
-        return Math.round(
-
-            (completed / fields.length) * 100
-
-        );
-
-    }
-
-    /* ======================================================
-       GET USER INITIALS
-    ====================================================== */
-
-    static async initials() {
-
-        const profile = await this.profile();
-
-        if (!profile) return "";
-
-        return (
-
-            (profile.first_name?.charAt(0) || "") +
-
-            (profile.last_name?.charAt(0) || "")
-
-        ).toUpperCase();
-
-    }
-
-    /* ======================================================
-       DISPLAY NAME
-    ====================================================== */
-
-    static async displayName() {
-
-        const profile = await this.profile();
-
-        if (!profile) return "";
-
-        return `${profile.first_name ?? ""
-
-            } ${profile.last_name ?? ""
-
-            }`.trim();
-
-    }
-
-    /* ======================================================
-       AUTH STATUS
-    ====================================================== */
-
-    static async status() {
-
-        return {
-
-            loggedIn: await this.isLoggedIn(),
-
-            verified: await this.isEmailVerified(),
-
-            role: await this.role(),
-
-            profile: await this.profile()
-
-        };
-
-    }
-
-    /* ======================================================
-       ERROR HELPER
-    ====================================================== */
-
-    static handleError(error) {
-
-        console.error(
-
-            "[AUTH ERROR]",
-
-            error
-
-        );
-
-        return {
-
-            success: false,
-
-            message:
-
-                error?.message ||
-
-                "An unexpected authentication error occurred."
+            permissions:
+                await this.permissions()
 
         };
 
@@ -1657,31 +1256,31 @@ class Auth {
 
         try {
 
-            if (!window.supabaseClient) {
+            await this.init();
+
+            const session =
+                await this.session();
+
+            if (!session) {
 
                 return false;
 
             }
 
-            const {
+            await this.profile(true);
 
-                data,
+            await this.permissions(true);
 
-                error
-
-            } = await window.supabaseClient.auth.getSession();
-
-            if (error) throw error;
-
-            window.currentSession = data.session;
-
-            return !!data.session;
+            return true;
 
         }
 
-        catch (error) {
+        catch (err) {
 
-            console.error("Auth startup error:", error);
+            console.error(
+                "Startup Error:",
+                err
+            );
 
             return false;
 
@@ -1690,171 +1289,41 @@ class Auth {
     }
 
     /* ======================================================
-       BOOTSTRAP
+       SUCCESS HELPER
     ====================================================== */
 
-    static async bootstrap() {
+    static success(data = {}) {
 
-        try {
+        return {
 
-            const user = await this.currentUser();
+            success: true,
 
-            if (!user) {
+            ...data
 
-                return false;
-
-            }
-
-            const profile = await this.profile();
-
-            return !!profile;
-
-        }
-
-        catch (error) {
-
-            console.error("Auth bootstrap error:", error);
-
-            return false;
-
-        }
+        };
 
     }
 
     /* ======================================================
-   DESTROY SESSION
-====================================================== */
-
-    static async destroy() {
-
-        try {
-
-            this.clearCache();
-
-            await window.supabaseClient.auth.signOut();
-
-            localStorage.removeItem(
-
-                CONFIG?.SESSION_KEY ||
-
-                "emergence-session"
-
-            );
-
-            sessionStorage.clear();
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-        }
-
-    }
-
-    /* ======================================================
-       HEALTH CHECK
+       ERROR HELPER
     ====================================================== */
 
-    static async healthCheck() {
+    static error(message) {
 
-        try {
+        return {
 
-            if (!window.supabaseClient) {
+            success: false,
 
-                return {
+            message
 
-                    success: false,
-
-                    message: "Supabase client unavailable."
-
-                };
-
-            }
-
-            const {
-
-                data,
-
-                error
-
-            } = await window.supabaseClient.auth.getSession();
-
-            if (error) throw error;
-
-            return {
-
-                success: true,
-
-                authenticated: !!data.session,
-
-                session: data.session
-
-            };
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-            return {
-
-                success: false,
-
-                message: error.message
-
-            };
-
-        }
-
-    }
-
-    /* ======================================================
-       APPLICATION READY
-    ====================================================== */
-
-    static async ready() {
-
-        try {
-
-            const ok = await this.startup();
-
-            if (!ok) {
-
-                console.warn("Authentication not ready; continuing in safe mode.");
-
-                return true;
-
-            }
-
-            await this.bootstrap();
-
-            console.log(
-
-                "Authentication Ready"
-
-            );
-
-            return true;
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-            return true;
-
-        }
+        };
 
     }
 
 }
 
 /* ==========================================================
-   SAFE INITIALIZATION
+   START AUTH ENGINE
 ========================================================== */
 
 document.addEventListener(
@@ -1865,62 +1334,19 @@ document.addEventListener(
 
         try {
 
-            if (!window.supabaseClient) {
+            await Auth.startup();
 
-                console.warn(
-
-                    "Supabase client has not been initialized. Continuing in safe mode."
-
-                );
-
-                window.supabaseClient = window.supabaseClient || {
-
-                    auth: {
-
-                        onAuthStateChange() {},
-
-                        getUser: async () => ({ data: { user: null }, error: null }),
-
-                        getSession: async () => ({ data: { session: null }, error: null }),
-
-                        signOut: async () => ({ error: null })
-
-                    },
-
-                    from() {
-
-                        return {
-
-                            select: async () => ({ data: [], error: null }),
-
-                            insert: async () => ({ data: null, error: null }),
-
-                            update: async () => ({ data: null, error: null }),
-
-                            upsert: async () => ({ data: null, error: null })
-
-                        };
-
-                    }
-
-                };
-
-            }
-
-            Auth.init();
-
-            await Auth.ready();
+            console.log(
+                "Authentication Engine Started"
+            );
 
         }
 
-        catch (error) {
+        catch (err) {
 
             console.error(
-
-                "Authentication initialization failed:",
-
-                error
-
+                "Authentication Startup Failed:",
+                err
             );
 
         }
@@ -1930,7 +1356,7 @@ document.addEventListener(
 );
 
 /* ==========================================================
-   GLOBAL EXPORT
+   EXPORT
 ========================================================== */
 
 window.Auth = Auth;

@@ -1,94 +1,166 @@
-document.addEventListener("DOMContentLoaded", async () => {
+/* ==========================================================
+   EMERGENCE ACADEMY
+   LOGIN
+========================================================== */
+
+document.addEventListener("DOMContentLoaded", () => {
+
     const form = document.getElementById("loginForm");
-    const emailInput = document.getElementById("loginEmail");
-    const passwordInput = document.getElementById("loginPassword");
-    const roleInput = document.getElementById("loginRole");
-    const errorBox = document.getElementById("loginError");
-    const statusBox = document.getElementById("loginStatus");
-    const togglePassword = document.getElementById("togglePassword");
 
-    // Display Supabase status
+    const emailInput =
+        document.getElementById("loginEmail");
+
+    const passwordInput =
+        document.getElementById("loginPassword");
+
+    const roleInput =
+        document.getElementById("loginRole");
+
+    const errorBox =
+        document.getElementById("loginError");
+
+    const statusBox =
+        document.getElementById("loginStatus");
+
+    const togglePassword =
+        document.getElementById("togglePassword");
+
+
+    /* ==========================================
+       SUPABASE STATUS
+    ========================================== */
+
     if (statusBox) {
+
         statusBox.textContent =
-            window.supabaseInitMessage || "Ready";
+            window.supabaseInitMessage ||
+            "Connected";
+
     }
 
-    // Show / Hide Password
+
+    /* ==========================================
+       SHOW / HIDE PASSWORD
+    ========================================== */
+
     if (togglePassword) {
-        togglePassword.addEventListener("click", () => {
-            if (passwordInput.type === "password") {
-                passwordInput.type = "text";
-                togglePassword.textContent = "Hide";
-            } else {
-                passwordInput.type = "password";
-                togglePassword.textContent = "Show";
+
+        togglePassword.addEventListener(
+
+            "click",
+
+            () => {
+
+                if (
+                    passwordInput.type === "password"
+                ) {
+
+                    passwordInput.type = "text";
+
+                    togglePassword.textContent =
+                        "Hide";
+
+                }
+
+                else {
+
+                    passwordInput.type =
+                        "password";
+
+                    togglePassword.textContent =
+                        "Show";
+
+                }
+
             }
-        });
+
+        );
+
     }
 
-    // Bootstrap default admin if supported
-    if (
-        typeof Auth !== "undefined" &&
-        typeof Auth.bootstrapAdmin === "function"
-    ) {
-        try {
-            await Auth.bootstrapAdmin();
-        } catch (err) {
-            console.error("Bootstrap Admin Error:", err);
-        }
-    }
 
-    // Login
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
+    /* ==========================================
+       LOGIN
+    ========================================== */
 
-        errorBox.classList.add("hidden");
+    form.addEventListener(
 
-        const email = emailInput.value.trim();
-        const password = passwordInput.value;
-        const role = roleInput.value;
+        "submit",
 
-        try {
+        async (e) => {
 
-            if (
-                typeof Auth === "undefined" ||
-                typeof Auth.login !== "function"
-            ) {
-                throw new Error(
-                    "Auth.login() is not available."
+            e.preventDefault();
+
+            errorBox.classList.add("hidden");
+
+            errorBox.textContent = "";
+
+
+            const email =
+                emailInput.value
+                    .trim()
+                    .toLowerCase();
+
+            const password =
+                passwordInput.value;
+
+            const role =
+                roleInput.value;
+
+
+            try {
+
+                const result =
+                    await Auth.login(
+
+                        email,
+
+                        password,
+
+                        role
+
+                    );
+
+                if (!result.success) {
+
+                    throw new Error(
+                        result.message
+                    );
+
+                }
+
+                await Auth.log(
+
+                    "LOGIN",
+
+                    `${result.profile.email}`
+
                 );
+
+                await Auth.redirect();
+
             }
 
-            const result = await Auth.login(
-                email,
-                password,
-                role
-            );
+            catch (err) {
 
-            if (!result.success) {
+                console.error(err);
+
                 errorBox.textContent =
-                    result.message || "Login failed.";
-                errorBox.classList.remove("hidden");
-                return;
+
+                    err.message ||
+
+                    "Unable to login.";
+
+                errorBox.classList.remove(
+
+                    "hidden"
+
+                );
+
             }
 
-            let dashboard = "dashboard.html";
-
-            if (
-                typeof Auth.getDashboard === "function"
-            ) {
-                dashboard = await Auth.getDashboard();
-            }
-
-            window.location.href = dashboard;
-
-        } catch (err) {
-            console.error(err);
-
-            errorBox.textContent =
-                err.message || "Unexpected error occurred.";
-
-            errorBox.classList.remove("hidden");
         }
-    });
+
+    );
+
 });
