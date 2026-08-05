@@ -206,6 +206,37 @@ class Auth {
     }
 
     /* ======================================================
+       ACTIVITY LOG
+    ====================================================== */
+
+    static async log(action, details = "") {
+
+        try {
+
+            const user = await this.user();
+
+            if (!user) return;
+
+            await this.client
+                .from("activity_logs")
+                .insert({
+                    user_id: user.id,
+                    action,
+                    details,
+                    created_at: new Date().toISOString()
+                });
+
+        }
+
+        catch (err) {
+
+            console.error(err);
+
+        }
+
+    }
+
+    /* ======================================================
        PROFILE
     ====================================================== */
 
