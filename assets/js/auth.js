@@ -227,7 +227,21 @@ class Auth {
         }
     }
 
-    static async profile(refresh = false) {
+    static buildProfileFallback(user, preferredRole = null) {
+        const fallbackRole = String(preferredRole || user?.user_metadata?.role || this.config.DEFAULT_ROLE).trim().toLowerCase();
+        return {
+            id: user?.id || null,
+            email: user?.email || "",
+            first_name: user?.user_metadata?.first_name || user?.user_metadata?.full_name || "",
+            last_name: user?.user_metadata?.last_name || "",
+            role: fallbackRole || this.config.DEFAULT_ROLE,
+            status: this.config.STATUS?.ACTIVE || "active",
+            created_at: new Date().toISOString(),
+            source: "auth-fallback"
+        };
+    }
+
+    static async profile(refresh = false, preferredRole = null) {
         if (this.currentProfile && !refresh) {
             return this.currentProfile;
         }
@@ -242,18 +256,17 @@ class Auth {
             .single();
         if (error) {
             const message = String(error.message || "").toLowerCase();
+            const errorCode = String(error.code || "").toLowerCase();
+            const policyRecursion = errorCode === "42p17" || message.includes("infinite recursion") || message.includes("policy");
+            if (policyRecursion) {
+                const policyFallback = this.buildProfileFallback(user, preferredRole);
+                this.currentProfile = policyFallback;
+                this.storageSession.setItem("profile", JSON.stringify(policyFallback));
+                return policyFallback;
+            }
             const missingProfile = message.includes("no rows") || message.includes("not found") || message.includes("could not find") || String(error.details || "").toLowerCase().includes("not found");
             if (missingProfile) {
-                const fallbackRole = String(user.user_metadata?.role || this.config.DEFAULT_ROLE).trim().toLowerCase();
-                const fallbackProfile = {
-                    id: user.id,
-                    email: user.email,
-                    first_name: user.user_metadata?.first_name || user.user_metadata?.full_name || "",
-                    last_name: user.user_metadata?.last_name || "",
-                    role: fallbackRole || this.config.DEFAULT_ROLE,
-                    status: this.config.STATUS?.ACTIVE || "active",
-                    created_at: new Date().toISOString()
-                };
+                const fallbackProfile = this.buildProfileFallback(user, preferredRole);
                 const { data: createdProfile, error: insertError } = await this.client
                     .from("profiles")
                     .insert(fallbackProfile)
@@ -261,7 +274,9 @@ class Auth {
                     .single();
                 if (insertError) {
                     console.error("Profile fallback creation failed:", insertError);
-                    return null;
+                    this.currentProfile = fallbackProfile;
+                    this.storageSession.setItem("profile", JSON.stringify(fallbackProfile));
+                    return fallbackProfile;
                 }
                 this.currentProfile = createdProfile;
                 this.storageSession.setItem("profile", JSON.stringify(createdProfile));
@@ -302,7 +317,7 @@ class Auth {
             if (!data.user) {
                 return this.error("Authentication failed.");
             }
-            const profile = await this.profile(true);
+            const profile = await this.profile(true, selectedRole);
             if (!profile) {
                 await this.client.auth.signOut();
                 return this.error("User profile not found.");
