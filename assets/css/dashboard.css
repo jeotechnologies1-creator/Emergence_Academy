@@ -29,6 +29,14 @@ main {
 #sidebar {
   min-width: 0;
   width: 16rem;
+  overflow: hidden;
+}
+
+#sidebar nav {
+  min-height: 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
 
 nav button[data-route] {
@@ -83,6 +91,7 @@ nav button[data-route].active {
     position: fixed;
     height: 100vh;
     z-index: 50;
+    max-height: 100vh;
   }
 
   .dashboard-shell > .flex-1 {
