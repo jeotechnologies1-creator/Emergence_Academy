@@ -449,20 +449,40 @@ class Auth {
             if (!session) {
                 return this.error("Authentication session expired.");
             }
+
+            const firstName = String(userData.first_name || "").trim();
+            const lastName = String(userData.last_name || "").trim();
+            const fullName = `${firstName} ${lastName}`.trim();
+
             const response = await this.client.functions.invoke("create-user", {
                 body: {
                     email: userData.email,
                     password: userData.password,
                     role: userData.role,
-                    first_name: userData.first_name,
-                    last_name: userData.last_name,
+                    first_name: firstName,
+                    last_name: lastName,
+                    full_name: fullName,
                     phone: userData.phone,
                     created_by: profile.id
                 }
             });
             if (response.error) {
                 console.error(response.error);
-                return this.error(response.error.message);
+
+                let message = response.error.message || "Unable to create office account.";
+
+                try {
+                    const details = await response.error.context?.json?.();
+                    message = details?.error || details?.message || message;
+                } catch (parseError) {
+                    console.error("Unable to parse edge function error payload:", parseError);
+                }
+
+                if (String(message).includes("non-2xx")) {
+                    message = "Create-user function failed (non-2xx). Check function deployment, env secrets, or if the email already exists.";
+                }
+
+                return this.error(message);
             }
             await this.log("CREATE_USER", `${userData.role} - ${userData.email}`);
             return this.success(response.data || { message: "User created successfully." });
