@@ -7,6 +7,17 @@ body {
   overflow-x: hidden;
 }
 
+main,
+#dashboard-content,
+#sidebar,
+table {
+  -webkit-overflow-scrolling: touch;
+}
+
+main {
+  scroll-padding-top: 6rem;
+}
+
 .dashboard-shell {
   min-height: 100vh;
 }
