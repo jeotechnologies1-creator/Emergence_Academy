@@ -7,10 +7,11 @@ const vm = require('vm');
   const routerCode = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'router.js'), 'utf8');
   const dashboardCode = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'dashboard.js'), 'utf8');
 
+  const mount = { innerHTML: '' };
   const document = {
     getElementById: (id) => {
       if (id === 'dashboard-content' || id === 'app') {
-        return { innerHTML: '' };
+        return mount;
       }
       return null;
     },
@@ -57,9 +58,8 @@ const vm = require('vm');
   const Dashboard = vm.runInContext('Dashboard', vmContext);
   Dashboard.registerModules();
 
-  const container = { innerHTML: '' };
   await vm.runInContext('Router.navigate("dashboard")', vmContext);
 
-  assert.strictEqual(container.innerHTML, '<div>loaded</div>');
+  assert.strictEqual(mount.innerHTML, '<div>loaded</div>');
   console.log('router regression test passed');
 })();

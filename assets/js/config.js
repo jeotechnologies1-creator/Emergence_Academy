@@ -4,220 +4,103 @@
 ========================================================== */
 
 const CONFIG = {
-
-    /* ===========================================
-       APPLICATION
-    =========================================== */
-
     APP_NAME: "Emergence Academy",
-
     VERSION: "2.0.0",
-
     ENVIRONMENT: "production",
-
     DEBUG: true,
-
     DEFAULT_ROLE: "student",
-
-    SESSION_KEY: "emergence-session",
-
-    /* ===========================================
-       SUPABASE
-       Replace these with YOUR own credentials
-    =========================================== */
-
-    SUPABASE: {
-
-        URL: "https://yzvtwoqeosnsmnfpbisc.supabase.co",
-
-        ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6dnR3b3Flb3Nuc21uZnBiaXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzOTM4ODcsImV4cCI6MjEwMDk2OTg4N30.KN_s6XhmFcBnNIuFcfcYKs0m-J_3iDY2l1zfSvu_u2I"
-
-    },
-
-    /* ===========================================
-       DASHBOARD ROUTES
-    =========================================== */
-
+    SESSION_KEY: "emergence_session",
     DASHBOARDS: {
-
-        ceo: "ceo.html",
-
-        executive: "executive.html",
-
-        admin: "admin.html",
-
-        teacher: "teacher.html",
-
-        student: "student.html",
-
-        parent: "parent.html"
-
+        ceo: "dashboard.html",
+        admin: "dashboard.html",
+        executive: "dashboard.html",
+        teacher: "dashboard.html",
+        student: "dashboard.html",
+        parent: "dashboard.html",
+        finance: "dashboard.html",
+        hr: "dashboard.html",
+        admission: "dashboard.html",
+        exam: "dashboard.html",
+        library: "dashboard.html"
     },
-
-    /* ===========================================
-       DATABASE TABLES
-    =========================================== */
-
+    SUPABASE: {
+        URL: "https://yzvtwoqeosnsmnfpbisc.supabase.co",
+        ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6dnR3b3Flb3Nuc21uZnBiaXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzOTM4ODcsImV4cCI6MjEwMDk2OTg4N30.KN_s6XhmFcBnNIuFcfcYKs0m-J_3iDY2l1zfSvu_u2I"
+    },
     TABLES: {
-
         profiles: "profiles",
-
         students: "students",
-
         teachers: "teachers",
-
         parents: "parents",
-
         classes: "classes",
-
         subjects: "subjects",
-
         attendance: "attendance",
-
         assignments: "assignments",
-
         grades: "grades",
-
         payments: "payments",
-
         announcements: "announcements",
-
         notifications: "notifications",
-
-        roles: "roles"
-
+        roles: "roles",
+        audit_logs: "activity_logs"
     },
-
-    /* ===========================================
-       STORAGE BUCKETS
-    =========================================== */
-
     STORAGE: {
-
         PROFILE_IMAGES: "profile-images",
-
         ASSIGNMENTS: "assignments",
-
-        DOCUMENTS: "documents"
-
+        DOCUMENTS: "documents",
+        GALLERY: "gallery",
+        CERTIFICATES: "certificates"
     },
-
-    /* ===========================================
-       APPLICATION SETTINGS
-    =========================================== */
-
     SETTINGS: {
-
         ITEMS_PER_PAGE: 10,
-
         AUTO_LOGOUT_MINUTES: 60,
-
         DATE_FORMAT: "DD/MM/YYYY",
-
         TIME_FORMAT: "HH:mm"
-
     },
-
-    /* ===========================================
-       STATUS VALUES
-    =========================================== */
-
     STATUS: {
-
         ACTIVE: "active",
-
         INACTIVE: "inactive",
-
         PENDING: "pending",
-
         SUSPENDED: "suspended"
-
+    },
+    APP_DETAILS: {
+        SCHOOL_NAME: "Emergence Academy",
+        MOTTO: "AI Learning Management System",
+        LOGO: "assets/images/logo.png",
+        FAVICON: "assets/images/favicon.png",
+        CONTACT_EMAIL: "support@emergence.edu",
+        CONTACT_PHONE: "+234-000-000-0000",
+        ADDRESS: "123 Academy Drive, Lagos, Nigeria"
     }
-
 };
-
-/* ===========================================
-   Prevent accidental modification
-=========================================== */
 
 Object.freeze(CONFIG);
 
-/* ===========================================
-   Make globally accessible
-=========================================== */
-
+window.CONFIG = CONFIG;
 window.APP_CONFIG = {
-
-    schoolName: "Emergence Academy",
-
-    motto: "AI Learning Management System",
-
-    logo: "assets/images/logo.jpeg",
-
-    favicon: "assets/images/favicon.png"
-
+    schoolName: CONFIG.APP_DETAILS.SCHOOL_NAME,
+    motto: CONFIG.APP_DETAILS.MOTTO,
+    logo: CONFIG.APP_DETAILS.LOGO,
+    favicon: CONFIG.APP_DETAILS.FAVICON,
+    contactEmail: CONFIG.APP_DETAILS.CONTACT_EMAIL,
+    contactPhone: CONFIG.APP_DETAILS.CONTACT_PHONE,
+    address: CONFIG.APP_DETAILS.ADDRESS
 };
 
-window.CONFIG = CONFIG;
-
-/* ===========================================
-   AUTO LOAD SCHOOL LOGO
-=========================================== */
-
-// document.addEventListener("DOMContentLoaded", () => {
-
-//     const logo = document.getElementById("school-logo");
-
-//     if (!logo) return;
-
-//     logo.src = window.APP_CONFIG.logo;
-
-//     logo.onload = () => {
-//         console.log("✅ School logo loaded.");
-//     };
-
-//     logo.onerror = () => {
-//         console.error("❌ Unable to load:", logo.src);
-//     };
-
-// });
-
-/* ===========================================
-   AUTO LOAD SCHOOL LOGO
-=========================================== */
-
 (function loadSchoolLogo() {
-
     function setLogo() {
-
         const logos = document.querySelectorAll("#school-logo");
-
         if (!logos.length) return;
-
         logos.forEach(logo => {
-
             logo.src = window.APP_CONFIG.logo;
-
-            logo.alt = window.APP_CONFIG.schoolName + " Logo";
-
+            logo.alt = `${window.APP_CONFIG.schoolName} Logo`;
             logo.onerror = () => {
-
                 console.error("Failed to load logo:", logo.src);
-
             };
-
         });
-
     }
-
     if (document.readyState === "loading") {
-
         document.addEventListener("DOMContentLoaded", setLogo);
-
     } else {
-
         setLogo();
-
     }
-
 })();

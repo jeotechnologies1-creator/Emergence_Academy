@@ -1,140 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
-     <meta charset="UTF-8">
-
-     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-     <title>Emergence Academy - AI Learning Management System</title>
-
-     <!-- Tailwind CSS -->
-     <script src="https://cdn.tailwindcss.com"></script>
-
-     <!-- Phosphor Icons -->
-     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-
-     <!-- Supabase -->
-     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-     <!-- <script src="js/supabase.js"></script> -->
-
-     <!-- Google Fonts -->
-     <link rel="preconnect" href="https://fonts.googleapis.com">
-
-     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-     <!-- Main Styles -->
-     <link rel="stylesheet" href="assets/css/style.css">
-
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Emergence Academy</title>
+    <script>
+        window.location.replace('login.html');
+    </script>
 </head>
-
-<body class="bg-slate-100 font-[Inter]">
-
-     <script>
-          const isEntryPage = window.location.pathname === "/" || window.location.pathname.endsWith("/index.html");
-
-          if (isEntryPage) {
-               window.location.replace("login.html");
-          }
-     </script>
-
-     <!-- Loading Screen -->
-
-     <div id="loading-screen" class="fixed inset-0 flex items-center justify-center bg-white z-50">
-
-          <div class="text-center">
-
-               <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto">
-               </div>
-
-               <p class="mt-4 text-gray-600 text-lg">
-
-                    Loading Emergence Academy...
-
-               </p>
-
-          </div>
-
-     </div>
-
-     <!-- Application Root -->
-
-     <div id="app"></div>
-
-     <!-- Floating Error Message -->
-
-     <div id="error-message"
-          class="hidden fixed bottom-5 right-5 bg-red-600 text-white px-5 py-3 rounded-lg shadow-xl z-50">
-     </div>
-
-     <!-- ======================================================
-         CORE FILES
-    ======================================================= -->
-
-     <script src="assets/js/config.js"></script>
-
-     <script src="assets/js/supabase.js"></script>
-
-     <script src="assets/js/auth.js"></script>
-
-     <script src="assets/js/utilities.js"></script>
-
-     <!-- ======================================================
-         API
-    ======================================================= -->
-
-     <script src="assets/js/api/index.js"></script>
-
-     <!-- ======================================================
-         ROUTER
-    ======================================================= -->
-
-     <script src="assets/js/router.js"></script>
-
-     <!-- ======================================================
-         DASHBOARD MODULES
-    ======================================================= -->
-
-     <script src="assets/js/dashboard/dashboard-home.js"></script>
-
-     <script src="assets/js/dashboard/students.js"></script>
-
-     <script src="assets/js/dashboard/teachers.js"></script>
-
-     <script src="assets/js/dashboard/parents.js"></script>
-
-     <script src="assets/js/dashboard/attendance.js"></script>
-
-     <script src="assets/js/dashboard/assignments.js"></script>
-
-     <script src="assets/js/dashboard/grades.js"></script>
-
-     <script src="assets/js/dashboard/finance.js"></script>
-
-     <script src="assets/js/dashboard/reports.js"></script>
-
-     <script src="assets/js/dashboard/notifications.js"></script>
-
-     <script src="assets/js/dashboard/ai.js"></script>
-
-     <script src="assets/js/dashboard/module-stub.js"></script>
-
-     <!-- ======================================================
-         DASHBOARD CONTROLLER
-    ======================================================= -->
-
-     <script src="assets/js/dashboard.js"></script>
-
-     <!-- ======================================================
-         MAIN APPLICATION (LOAD LAST)
-    ======================================================= -->
-
-     <script src="assets/js/app.js"></script>
-
+<body>
+    <p>Redirecting to <a href="login.html">login</a>...</p>
 </body>
-
 </html>

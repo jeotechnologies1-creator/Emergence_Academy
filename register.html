@@ -104,7 +104,8 @@
 
                 if (result.success) {
                     errorEl.className = 'rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-700';
-                    errorEl.textContent = `${result.message} Email: ${result.email} Password: ${result.password}`;
+                    const okMessage = result.message || result.data?.message || 'Account created successfully.';
+                    errorEl.textContent = okMessage;
                     errorEl.classList.remove('hidden');
                 } else {
                     errorEl.className = 'rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-600';
