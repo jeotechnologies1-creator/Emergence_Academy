@@ -3,11 +3,11 @@
    GLOBAL CONFIGURATION
 ========================================================== */
 
-const CONFIG = {
+const DEFAULT_CONFIG = {
     APP_NAME: "Emergence Academy",
     VERSION: "2.0.0",
     ENVIRONMENT: "production",
-    DEBUG: true,
+    DEBUG: false,
     DEFAULT_ROLE: "student",
     SESSION_KEY: "emergence_session",
     DASHBOARDS: {
@@ -72,6 +72,30 @@ const CONFIG = {
         ADDRESS: "123 Academy Drive, Lagos, Nigeria"
     }
 };
+
+function deepMerge(base, override) {
+    const output = { ...base };
+    Object.keys(override || {}).forEach((key) => {
+        const baseValue = output[key];
+        const overrideValue = override[key];
+        if (
+            baseValue &&
+            overrideValue &&
+            typeof baseValue === "object" &&
+            typeof overrideValue === "object" &&
+            !Array.isArray(baseValue) &&
+            !Array.isArray(overrideValue)
+        ) {
+            output[key] = deepMerge(baseValue, overrideValue);
+            return;
+        }
+        output[key] = overrideValue;
+    });
+    return output;
+}
+
+const runtimeOverride = window.__EMERGENCE_CONFIG__ || {};
+const CONFIG = deepMerge(DEFAULT_CONFIG, runtimeOverride);
 
 Object.freeze(CONFIG);
 

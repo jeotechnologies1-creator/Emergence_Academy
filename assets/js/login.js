@@ -25,6 +25,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const togglePassword =
         document.getElementById("togglePassword");
 
+    if (!form || !emailInput || !passwordInput || !roleInput || !errorBox) {
+        console.error("Login page is missing required form elements.");
+        return;
+    }
+
 
     /* ==========================================
        SUPABASE STATUS
@@ -109,6 +114,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
             try {
+                if (!email || !password) {
+                    throw new Error("Email and password are required.");
+                }
 
                 const result =
                     await Auth.login(
