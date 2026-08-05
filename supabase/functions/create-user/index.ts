@@ -2,6 +2,88 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.0";
 
 console.log("========== CREATE USER FUNCTION ==========");
 
+const ALLOWED_ROLES = new Set([
+  "ceo",
+  "admin",
+  "executive",
+  "teacher",
+  "student",
+  "parent",
+  "finance",
+  "hr",
+  "admission",
+  "exam",
+  "library",
+]);
+
+function normalizeRole(value: unknown) {
+  const role = String(value || "student").trim().toLowerCase();
+  return ALLOWED_ROLES.has(role) ? role : "student";
+}
+
+function splitName(firstName: string, lastName: string, fullName: string) {
+  const normalizedFirst = String(firstName || "").trim();
+  const normalizedLast = String(lastName || "").trim();
+  const normalizedFull = String(fullName || "").trim();
+
+  if (normalizedFirst || normalizedLast) {
+    return {
+      first_name: normalizedFirst,
+      last_name: normalizedLast,
+      full_name: `${normalizedFirst} ${normalizedLast}`.trim(),
+    };
+  }
+
+  if (!normalizedFull) {
+    return {
+      first_name: "",
+      last_name: "",
+      full_name: "",
+    };
+  }
+
+  const [first, ...rest] = normalizedFull.split(" ");
+  return {
+    first_name: first || "",
+    last_name: rest.join(" ").trim(),
+    full_name: normalizedFull,
+  };
+}
+
+async function upsertProfileWithFallback(supabaseAdmin: any, payload: Record<string, unknown>) {
+  let draft: Record<string, unknown> = { ...payload };
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .upsert(draft, { onConflict: "id" });
+
+    if (!error) {
+      return { success: true, droppedColumns: [] as string[] };
+    }
+
+    const message = String(error.message || "");
+    const missingColumn = message.match(/column\s+"([^"]+)"/i)?.[1];
+
+    if (missingColumn && Object.prototype.hasOwnProperty.call(draft, missingColumn)) {
+      delete draft[missingColumn];
+      continue;
+    }
+
+    return {
+      success: false,
+      error,
+      droppedColumns: Object.keys(payload).filter((key) => !(key in draft)),
+    };
+  }
+
+  return {
+    success: false,
+    error: { message: "Profile insert failed after retries" },
+    droppedColumns: Object.keys(payload).filter((key) => !(key in draft)),
+  };
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -67,6 +149,8 @@ Deno.serve(async (req) => {
       email,
       password,
       full_name,
+      first_name,
+      last_name,
       role,
       phone,
     } = body;
@@ -88,6 +172,28 @@ Deno.serve(async (req) => {
         }
       );
     }
+
+    if (String(password).length < 8) {
+      return new Response(
+        JSON.stringify({
+          error: "Password must be at least 8 characters.",
+        }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
+    const normalizedRole = normalizeRole(role);
+    const nameParts = splitName(
+      String(first_name || ""),
+      String(last_name || ""),
+      String(full_name || "")
+    );
 
 
     console.log(
@@ -163,10 +269,10 @@ Deno.serve(async (req) => {
           email_confirm: true,
 
           user_metadata: {
-            full_name:
-              full_name || "",
-            role:
-              role || "student",
+            full_name: nameParts.full_name,
+            first_name: nameParts.first_name,
+            last_name: nameParts.last_name,
+            role: normalizedRole,
             phone:
               phone || "",
           },
@@ -219,20 +325,23 @@ Deno.serve(async (req) => {
       Change table name if yours differs
     */
 
-    const { error: profileError } =
-      await supabaseAdmin
-        .from("profiles")
-        .insert({
-          id:
-            authUser.user!.id,
-          email,
-          full_name:
-            full_name || "",
-          role:
-            role || "student",
-          phone:
-            phone || "",
-        });
+    const profilePayload = {
+      id: authUser.user!.id,
+      email,
+      role: normalizedRole,
+      status: "active",
+      first_name: nameParts.first_name,
+      last_name: nameParts.last_name,
+      full_name: nameParts.full_name,
+      phone: phone || "",
+    };
+
+    const profileResult = await upsertProfileWithFallback(
+      supabaseAdmin,
+      profilePayload
+    );
+
+    const profileError = (profileResult as any).error;
 
 
     if (profileError) {
@@ -256,6 +365,8 @@ Deno.serve(async (req) => {
         success: true,
         message:
           "User created successfully",
+        role: normalizedRole,
+        profile_saved: !profileError,
         user:
           authUser.user,
       }),

@@ -541,8 +541,12 @@ No announcements available.
                 }
 
                 const okMessage = result?.data?.message || "Office account created successfully.";
+                const profileSaved = result?.data?.profile_saved;
+                const suffix = profileSaved === false
+                    ? " User can still log in using credentials; profile sync will complete on first login."
+                    : "";
 
-                this.setOfficeStatus(`${okMessage} Temporary password: ${payload.password}`, "success");
+                this.setOfficeStatus(`${okMessage}${suffix} Temporary password: ${payload.password}`, "success");
 
                 this.appendRecentAccount({
                     first_name: payload.first_name,
