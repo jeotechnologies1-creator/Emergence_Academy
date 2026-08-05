@@ -25,7 +25,7 @@ const DEFAULT_CONFIG = {
     },
     SUPABASE: {
         URL: "https://yzvtwoqeosnsmnfpbisc.supabase.co",
-        ANON_KEY: ""
+        ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6dnR3b3Flb3Nuc21uZnBiaXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzOTM4ODcsImV4cCI6MjEwMDk2OTg4N30.KN_s6XhmFcBnNIuFcfcYKs0m-J_3iDY2l1zfSvu_u2I"
     },
     TABLES: {
         profiles: "profiles",

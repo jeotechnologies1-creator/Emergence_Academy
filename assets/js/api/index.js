@@ -47,89 +47,79 @@ class API {
 
     static dashboard = {
 
+        async countTable(tableName) {
+
+            try {
+
+                const { count, error } = await API.db
+                    .from(tableName)
+                    .select("*", {
+                        head: true,
+                        count: "exact"
+                    });
+
+                if (error) throw error;
+
+                return count || 0;
+
+            }
+
+            catch (error) {
+
+                return 0;
+
+            }
+
+        },
+
         async stats() {
 
             try {
 
-                const db = API.db;
-
                 const [
-
                     students,
-
                     teachers,
-
                     parents,
-
                     classes,
-
-                    subjects
-
+                    subjects,
+                    attendance,
+                    assignments,
+                    grades,
+                    payments,
+                    notifications,
+                    announcements,
+                    activity
                 ] = await Promise.all([
-
-                    db
-                        .from("students")
-                        .select("*", {
-
-                            head: true,
-
-                            count: "exact"
-
-                        }),
-
-                    db
-                        .from("teachers")
-                        .select("*", {
-
-                            head: true,
-
-                            count: "exact"
-
-                        }),
-
-                    db
-                        .from("parents")
-                        .select("*", {
-
-                            head: true,
-
-                            count: "exact"
-
-                        }),
-
-                    db
-                        .from("classes")
-                        .select("*", {
-
-                            head: true,
-
-                            count: "exact"
-
-                        }),
-
-                    db
-                        .from("subjects")
-                        .select("*", {
-
-                            head: true,
-
-                            count: "exact"
-
-                        })
-
+                    this.countTable("students"),
+                    this.countTable("teachers"),
+                    this.countTable("parents"),
+                    this.countTable("classes"),
+                    this.countTable("subjects"),
+                    this.countTable("attendance"),
+                    this.countTable("assignments"),
+                    this.countTable("grades"),
+                    this.countTable("payments"),
+                    this.countTable("notifications"),
+                    this.countTable("announcements"),
+                    this.countTable("activity_logs")
                 ]);
 
                 return {
 
-                    students: students.count || 0,
-
-                    teachers: teachers.count || 0,
-
-                    parents: parents.count || 0,
-
-                    classes: classes.count || 0,
-
-                    subjects: subjects.count || 0
+                    students,
+                    teachers,
+                    parents,
+                    classes,
+                    subjects,
+                    attendance,
+                    assignments,
+                    grades,
+                    payments,
+                    notifications,
+                    announcements,
+                    activity,
+                    reports: activity,
+                    finance: payments
 
                 };
 
@@ -155,9 +145,205 @@ class API {
 
                     classes: 0,
 
-                    subjects: 0
+                    subjects: 0,
+
+                    attendance: 0,
+
+                    assignments: 0,
+
+                    grades: 0,
+
+                    payments: 0,
+
+                    notifications: 0,
+
+                    announcements: 0,
+
+                    activity: 0,
+
+                    reports: 0,
+
+                    finance: 0
 
                 };
+
+            }
+
+        }
+
+        ,
+
+        async recentActivity(limit = 10, options = {}) {
+
+            const {
+                role = "",
+                userId = ""
+            } = options;
+
+            try {
+
+                let query = API.db
+                    .from("activity_logs")
+                    .select("*")
+                    .order("created_at", { ascending: false })
+                    .limit(limit);
+
+                const normalizedRole = String(role || "").toLowerCase();
+                const normalizedUserId = String(userId || "");
+
+                if (
+                    normalizedUserId &&
+                    ["teacher", "student", "parent"].includes(normalizedRole)
+                ) {
+                    query = query.eq("user_id", normalizedUserId);
+                }
+
+                const { data, error } = await query;
+
+                if (error) throw error;
+
+                return data || [];
+
+            }
+
+            catch (error) {
+
+                console.error("Recent activity load failed:", error);
+
+                return [];
+
+            }
+
+        }
+
+    };
+
+    /* ======================================================
+       GENERIC RECORDS API
+    ====================================================== */
+
+    static records = {
+
+        async getAll(tableName, options = {}) {
+
+            const {
+                orderBy = "created_at",
+                ascending = false,
+                select = "*"
+            } = options;
+
+            try {
+
+                let query = API.db
+                    .from(tableName)
+                    .select(select);
+
+                if (orderBy && typeof query.order === "function") {
+                    query = query.order(orderBy, { ascending });
+                }
+
+                let { data, error } = await query;
+
+                if (error && orderBy) {
+                    const retry = await API.db
+                        .from(tableName)
+                        .select(select);
+                    data = retry.data;
+                    error = retry.error;
+                }
+
+                if (error) throw error;
+
+                return data || [];
+
+            }
+
+            catch (error) {
+
+                console.error(`Records getAll failed for ${tableName}:`, error);
+
+                return [];
+
+            }
+
+        },
+
+        async create(tableName, payload) {
+
+            try {
+
+                const { data, error } = await API.db
+                    .from(tableName)
+                    .insert(payload)
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                return API.response(true, data, "Record created successfully.");
+
+            }
+
+            catch (error) {
+
+                console.error(`Records create failed for ${tableName}:`, error);
+
+                return API.response(false, null, error.message || "Unable to create record.");
+
+            }
+
+        },
+
+        async update(tableName, id, payload) {
+
+            try {
+
+                const { data, error } = await API.db
+                    .from(tableName)
+                    .update({
+                        ...payload,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq("id", id)
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                return API.response(true, data, "Record updated successfully.");
+
+            }
+
+            catch (error) {
+
+                console.error(`Records update failed for ${tableName}:`, error);
+
+                return API.response(false, null, error.message || "Unable to update record.");
+
+            }
+
+        },
+
+        async remove(tableName, id) {
+
+            try {
+
+                const { error } = await API.db
+                    .from(tableName)
+                    .delete()
+                    .eq("id", id);
+
+                if (error) throw error;
+
+                return API.response(true, null, "Record deleted successfully.");
+
+            }
+
+            catch (error) {
+
+                console.error(`Records delete failed for ${tableName}:`, error);
+
+                return API.response(false, null, error.message || "Unable to delete record.");
 
             }
 
@@ -252,10 +438,30 @@ class API {
             }
 
         },
-                /* ==============================================
-           GET STUDENT BY ID
-        ============================================== */
 
+                    parents: 0,
+
+                    classes: 0,
+
+                    subjects: 0,
+
+                    attendance: 0,
+
+                    assignments: 0,
+
+                    grades: 0,
+
+                    payments: 0,
+
+                    notifications: 0,
+
+                    announcements: 0,
+
+                    activity: 0,
+
+                    reports: 0,
+
+                    finance: 0
         async getById(id) {
 
             try {

@@ -25,6 +25,21 @@ class Router {
 
     static async navigate(name) {
 
+        if (
+            name !== "dashboard" &&
+            window.RoleRouter &&
+            typeof window.RoleRouter.isAllowedRoute === "function" &&
+            !window.RoleRouter.isAllowedRoute(name)
+        ) {
+            const fallback = window.RoleRouter.getDefaultRoute?.() || "dashboard";
+
+            if (name !== fallback) {
+                return this.navigate(fallback);
+            }
+
+            return;
+        }
+
         const route = this.routes[name];
 
         if (!route) {

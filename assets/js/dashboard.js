@@ -2,19 +2,23 @@ class Dashboard {
 
     static initialized = false;
 
+    static roleConfig = null;
+
     static async init() {
 
         if (this.initialized) return;
 
         await Profile.load();
 
-        await RoleRouter.redirect();
+        this.roleConfig = await RoleRouter.redirect();
 
         this.activateLogout();
 
         this.registerModules();
         this.registerNavigation();
         this.registerMobileMenu();
+
+        await this.navigateInitialRoute();
 
         try {
 
@@ -133,6 +137,38 @@ class Dashboard {
             };
 
         });
+
+    }
+
+    static async navigateInitialRoute() {
+
+        const hashRoute = String(window.location.hash || "")
+            .replace("#", "")
+            .trim()
+            .toLowerCase();
+
+        const defaultRoute =
+            window.RoleRouter?.getDefaultRoute?.() ||
+            this.roleConfig?.defaultRoute ||
+            "dashboard";
+
+        const initialRoute = hashRoute || defaultRoute;
+
+        const targetRoute = window.RoleRouter?.isAllowedRoute?.(initialRoute)
+            ? initialRoute
+            : defaultRoute;
+
+        const activeButton = document.querySelector(`[data-route="${targetRoute}"]`);
+
+        document.querySelectorAll("[data-route]").forEach((button) => {
+            button.classList.remove("active");
+        });
+
+        if (activeButton) {
+            activeButton.classList.add("active");
+        }
+
+        await Router.navigate(targetRoute);
 
     }
 

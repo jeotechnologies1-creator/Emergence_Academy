@@ -21,6 +21,15 @@ function normalizeRole(value: unknown) {
   return ALLOWED_ROLES.has(role) ? role : "student";
 }
 
+function generatePassword(length = 12) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$!";
+  let value = "";
+  for (let i = 0; i < length; i += 1) {
+    value += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return value;
+}
+
 function splitName(firstName: string, lastName: string, fullName: string) {
   const normalizedFirst = String(firstName || "").trim();
   const normalizedLast = String(lastName || "").trim();
@@ -145,22 +154,18 @@ Deno.serve(async (req) => {
     );
 
 
-    const {
-      email,
-      password,
-      full_name,
-      first_name,
-      last_name,
-      role,
-      phone,
-    } = body;
+    const rawEmail = String(body?.email ?? body?.user?.email ?? "").trim().toLowerCase();
+    const rawPassword = String(body?.password ?? body?.user?.password ?? "").trim();
+    const full_name = body?.full_name;
+    const first_name = body?.first_name;
+    const last_name = body?.last_name;
+    const role = body?.role;
+    const phone = body?.phone;
 
-
-    if (!email || !password) {
+    if (!rawEmail) {
       return new Response(
         JSON.stringify({
-          error:
-            "Email and password are required",
+          error: "Email is required",
         }),
         {
           status: 400,
@@ -173,7 +178,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (String(password).length < 8) {
+    const generatedPassword = !rawPassword;
+    const effectivePassword = rawPassword || generatePassword();
+
+    if (String(effectivePassword).length < 8) {
       return new Response(
         JSON.stringify({
           error: "Password must be at least 8 characters.",
@@ -227,7 +235,7 @@ Deno.serve(async (req) => {
       existingUsers.users.find(
         (user) =>
           user.email?.toLowerCase() ===
-          email.toLowerCase()
+          rawEmail.toLowerCase()
       );
 
 
@@ -262,8 +270,8 @@ Deno.serve(async (req) => {
     } =
       await supabaseAdmin.auth.admin.createUser(
         {
-          email,
-          password,
+          email: rawEmail,
+          password: effectivePassword,
 
           // Automatically verify account
           email_confirm: true,
@@ -327,7 +335,7 @@ Deno.serve(async (req) => {
 
     const profilePayload = {
       id: authUser.user!.id,
-      email,
+      email: rawEmail,
       role: normalizedRole,
       status: "active",
       first_name: nameParts.first_name,
@@ -367,6 +375,8 @@ Deno.serve(async (req) => {
           "User created successfully",
         role: normalizedRole,
         profile_saved: !profileError,
+        temporary_password: effectivePassword,
+        password_generated: generatedPassword,
         user:
           authUser.user,
       }),

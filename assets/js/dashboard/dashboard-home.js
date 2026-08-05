@@ -7,6 +7,170 @@
 class DashboardHome {
 
     static RECENT_ACCOUNTS_KEY = "emergence_recent_accounts";
+    static ACTIVITY_FILTERS = {
+        module: "all",
+        action: "all",
+        period: "7d"
+    };
+
+    static ROLE_COPY = {
+        ceo: "Executive overview of academic performance, operations, and finance.",
+        admin: "Monitor school-wide operations and keep every office in sync.",
+        executive: "Track strategic indicators and align cross-office execution.",
+        teacher: "Manage classes, attendance, assignments, and learner progress.",
+        student: "Follow your coursework, attendance, grades, and announcements.",
+        parent: "Track your child\'s attendance, performance, and school updates.",
+        finance: "Manage collections, balances, and accounting visibility.",
+        hr: "Coordinate workforce records, assignments, and staff updates.",
+        admission: "Track admissions, onboarding, and parent engagement.",
+        exam: "Oversee assessments, grading progress, and result integrity.",
+        library: "Coordinate learning resources and institutional circulation insights."
+    };
+
+    static ROLE_METRICS = {
+        ceo: ["students", "teachers", "finance", "reports"],
+        admin: ["students", "teachers", "attendance", "notifications"],
+        executive: ["students", "grades", "finance", "reports"],
+        teacher: ["students", "attendance", "assignments", "grades"],
+        student: ["assignments", "grades", "attendance", "notifications"],
+        parent: ["students", "attendance", "grades", "finance"],
+        finance: ["finance", "reports", "notifications", "activity"],
+        hr: ["teachers", "reports", "notifications", "activity"],
+        admission: ["students", "parents", "notifications", "reports"],
+        exam: ["assignments", "grades", "reports", "notifications"],
+        library: ["students", "teachers", "reports", "activity"]
+    };
+
+    static METRIC_META = {
+        students: { label: "Students", icon: "👨‍🎓" },
+        teachers: { label: "Teachers", icon: "👩‍🏫" },
+        parents: { label: "Parents", icon: "👨‍👩‍👧" },
+        classes: { label: "Classes", icon: "🏫" },
+        subjects: { label: "Subjects", icon: "📚" },
+        attendance: { label: "Attendance", icon: "🗓️" },
+        assignments: { label: "Assignments", icon: "📝" },
+        grades: { label: "Grades", icon: "📊" },
+        finance: { label: "Finance", icon: "💳" },
+        reports: { label: "Reports", icon: "📈" },
+        notifications: { label: "Notifications", icon: "🔔" },
+        activity: { label: "Activity Logs", icon: "🧾" }
+    };
+
+    static ROLE_WIDGETS = {
+        ceo: [
+            "Institution performance snapshot across academics and finance.",
+            "Executive queue: review cross-office reports and major alerts.",
+            "Governance pulse: monitor notification flow and activity trails."
+        ],
+        admin: [
+            "Operational command center for student and staff records.",
+            "Compliance watch: attendance and grade cycle completeness.",
+            "Communication board: announcement and notification readiness."
+        ],
+        executive: [
+            "Strategy dashboard for results, delivery pace, and collections.",
+            "Coordination lane for high-impact module follow-ups.",
+            "Leadership tracker for school-wide activity volume."
+        ],
+        teacher: [
+            "Class delivery monitor for attendance and assignment flow.",
+            "Assessment tracker for grading velocity and feedback loops.",
+            "Engagement feed for class-level notifications and updates."
+        ],
+        student: [
+            "Learning queue for assignments due and grade publications.",
+            "Attendance heartbeat to keep your record in good standing.",
+            "Academic feed for notices and AI-assisted study prompts."
+        ],
+        parent: [
+            "Child performance watch across attendance and grades.",
+            "Finance touchpoint for payments and billing updates.",
+            "School channel for alerts, reports, and follow-up notices."
+        ],
+        finance: [
+            "Collections visibility and reconciliation checkpoints.",
+            "Reporting lane for finance summaries and trends.",
+            "Audit trail pulse for payment-related operations."
+        ],
+        hr: [
+            "Workforce records health for staff and profile updates.",
+            "Staff communication queue and office-wide notices.",
+            "HR reporting touchpoint for workforce activity metrics."
+        ],
+        admission: [
+            "Enrollment pipeline monitor for student onboarding.",
+            "Guardian engagement lane for parent profile readiness.",
+            "Admission reporting board for conversion progress."
+        ],
+        exam: [
+            "Assessment readiness monitor for assignments and grades.",
+            "Result publication lane and performance reporting.",
+            "Exam communication board for schedule and integrity notices."
+        ],
+        library: [
+            "Academic resource coordination for learners and staff.",
+            "Library reporting lane for engagement and usage oversight.",
+            "Operational pulse for notifications and activity traces."
+        ]
+    };
+
+    static ROLE_ACTIONS = {
+        ceo: [
+            { label: "Open Reports", route: "reports" },
+            { label: "Open Finance", route: "finance" },
+            { label: "Open Notifications", route: "notifications" }
+        ],
+        admin: [
+            { label: "Manage Students", route: "students" },
+            { label: "Manage Teachers", route: "teachers" },
+            { label: "Open AI Assistant", route: "ai" }
+        ],
+        executive: [
+            { label: "Open Dashboard", route: "dashboard" },
+            { label: "Open Reports", route: "reports" },
+            { label: "Open Grades", route: "grades" }
+        ],
+        teacher: [
+            { label: "Take Attendance", route: "attendance" },
+            { label: "Post Assignment", route: "assignments" },
+            { label: "Open Grades", route: "grades" }
+        ],
+        student: [
+            { label: "View Assignments", route: "assignments" },
+            { label: "Check Grades", route: "grades" },
+            { label: "Open AI Assistant", route: "ai" }
+        ],
+        parent: [
+            { label: "Track Attendance", route: "attendance" },
+            { label: "View Grades", route: "grades" },
+            { label: "Open Finance", route: "finance" }
+        ],
+        finance: [
+            { label: "Open Finance", route: "finance" },
+            { label: "Open Reports", route: "reports" },
+            { label: "View Notifications", route: "notifications" }
+        ],
+        hr: [
+            { label: "Open Teachers", route: "teachers" },
+            { label: "Open Reports", route: "reports" },
+            { label: "View Notifications", route: "notifications" }
+        ],
+        admission: [
+            { label: "Open Students", route: "students" },
+            { label: "Open Parents", route: "parents" },
+            { label: "Open Reports", route: "reports" }
+        ],
+        exam: [
+            { label: "Open Assignments", route: "assignments" },
+            { label: "Open Grades", route: "grades" },
+            { label: "Open Reports", route: "reports" }
+        ],
+        library: [
+            { label: "Open Students", route: "students" },
+            { label: "Open Teachers", route: "teachers" },
+            { label: "Open Reports", route: "reports" }
+        ]
+    };
 
     /* ======================================================
        RENDER
@@ -26,7 +190,9 @@ class DashboardHome {
 
                 announcements,
 
-                permissions
+                permissions,
+
+                recentActivity
 
             ] = await Promise.all([
 
@@ -36,9 +202,14 @@ class DashboardHome {
 
                 API.announcements.getLatest(),
 
-                Auth.permissions()
+
+                Auth.permissions(),
+
+                this.fetchRecentActivity()
 
             ]);
+
+            this.currentActivity = Array.isArray(recentActivity) ? recentActivity : [];
 
             container.innerHTML = this.template(
 
@@ -48,7 +219,9 @@ class DashboardHome {
 
                 announcements,
 
-                permissions
+                permissions,
+
+                recentActivity
 
             );
 
@@ -70,7 +243,10 @@ class DashboardHome {
        TEMPLATE
     ====================================================== */
 
-    static template(profile, stats, announcements, permissions) {
+    static template(profile, stats, announcements, permissions, recentActivity) {
+
+        const role = String(profile?.role || "student").toLowerCase();
+        const copy = this.ROLE_COPY[role] || this.ROLE_COPY.student;
 
         return `
 
@@ -90,18 +266,34 @@ class DashboardHome {
 
         </p>
 
+        <p class="mt-2 text-sm text-slate-600">
+
+            ${copy}
+
+        </p>
+
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
-        ${this.card("Students", stats.students, "👨‍🎓")}
+        ${this.roleCards(role, stats)}
 
-        ${this.card("Teachers", stats.teachers, "👩‍🏫")}
+    </div>
 
-        ${this.card("Classes", stats.classes, "🏫")}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        ${this.card("Subjects", stats.subjects, "📚")}
+        ${this.roleWidgets(role)}
 
+    </div>
+
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+            <h3 class="text-lg font-semibold text-slate-800">Quick Actions</h3>
+            <span class="text-xs uppercase tracking-wide text-slate-500">${role} office</span>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-3">
+            ${this.roleActions(role)}
+        </div>
     </div>
 
     <div class="bg-white rounded-xl shadow p-6">
@@ -116,11 +308,173 @@ class DashboardHome {
 
     </div>
 
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+            <h3 class="text-xl font-bold">Recent Activity</h3>
+            ${this.activityFilterControls(recentActivity)}
+        </div>
+        <div id="dashboard-activity-timeline">
+            ${this.activityTimeline(this.filterActivity(recentActivity))}
+        </div>
+    </div>
+
     ${this.officeGenerator(profile, permissions)}
 
 </div>
 
 `;
+
+    }
+
+    static async fetchRecentActivity() {
+
+        try {
+            const profile = await Auth.profile();
+            return await API.dashboard.recentActivity(8, {
+                role: profile?.role || "",
+                userId: profile?.id || ""
+            });
+        } catch (error) {
+            console.error(error);
+            return [];
+        }
+
+    }
+
+    static activityTimeline(items) {
+
+        if (!items || !items.length) {
+            return '<div class="text-slate-500 text-sm">No activity recorded yet.</div>';
+        }
+
+        return items.map((item) => {
+            const action = this.safeText(String(item.action || "activity").replace(/_/g, " "));
+            const module = this.safeText(String(item.module || "general").replace(/_/g, " "));
+            const details = this.safeText(String(item.details || "").slice(0, 180));
+            const created = item.created_at ? new Date(item.created_at).toLocaleString() : "";
+
+            return `
+<div class="py-3 border-b border-slate-100 last:border-b-0">
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div class="font-semibold text-slate-800 uppercase text-sm">${action}</div>
+        <div class="text-xs text-slate-500">${this.safeText(created)}</div>
+    </div>
+    <div class="text-xs uppercase tracking-wide text-slate-500 mt-1">${module}</div>
+    <div class="text-sm text-slate-600 mt-1 break-words">${details || "No additional details"}</div>
+</div>
+`;
+        }).join("");
+
+    }
+
+    static activityFilterControls(items) {
+
+        const moduleOptions = ["all", ...this.uniqueValues(items, "module")];
+        const actionOptions = ["all", ...this.uniqueValues(items, "action")];
+        const moduleValue = this.ACTIVITY_FILTERS.module;
+        const actionValue = this.ACTIVITY_FILTERS.action;
+        const periodValue = this.ACTIVITY_FILTERS.period;
+
+        const renderOptions = (list, selected, emptyLabel) => list.map((value) => {
+            const safe = this.safeText(String(value || ""));
+            const label = safe === "all"
+                ? emptyLabel
+                : this.safeText(String(value || "").replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()));
+            return `<option value="${safe}" ${safe === selected ? "selected" : ""}>${label}</option>`;
+        }).join("");
+
+        return `
+<div class="flex items-center gap-2 flex-wrap">
+    <select id="activity-filter-module" class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
+        ${renderOptions(moduleOptions, moduleValue, "All Modules")}
+    </select>
+    <select id="activity-filter-action" class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
+        ${renderOptions(actionOptions, actionValue, "All Actions")}
+    </select>
+    <select id="activity-filter-period" class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
+        <option value="24h" ${periodValue === "24h" ? "selected" : ""}>Last 24 Hours</option>
+        <option value="7d" ${periodValue === "7d" ? "selected" : ""}>Last 7 Days</option>
+        <option value="30d" ${periodValue === "30d" ? "selected" : ""}>Last 30 Days</option>
+        <option value="all" ${periodValue === "all" ? "selected" : ""}>All Time</option>
+    </select>
+</div>
+`;
+
+    }
+
+    static uniqueValues(items, key) {
+
+        const out = new Set();
+        (items || []).forEach((item) => {
+            const value = String(item?.[key] || "").trim().toLowerCase();
+            if (value) out.add(value);
+        });
+        return Array.from(out);
+
+    }
+
+    static filterActivity(items) {
+
+        const source = Array.isArray(items) ? items : [];
+        const moduleFilter = this.ACTIVITY_FILTERS.module;
+        const actionFilter = this.ACTIVITY_FILTERS.action;
+        const periodFilter = this.ACTIVITY_FILTERS.period;
+
+        const now = Date.now();
+        const timeWindow = {
+            "24h": 24 * 60 * 60 * 1000,
+            "7d": 7 * 24 * 60 * 60 * 1000,
+            "30d": 30 * 24 * 60 * 60 * 1000
+        };
+
+        return source.filter((item) => {
+            const module = String(item?.module || "").trim().toLowerCase();
+            const action = String(item?.action || "").trim().toLowerCase();
+            const createdAt = item?.created_at ? new Date(item.created_at).getTime() : NaN;
+
+            if (moduleFilter !== "all" && module !== moduleFilter) return false;
+            if (actionFilter !== "all" && action !== actionFilter) return false;
+
+            if (periodFilter !== "all") {
+                const maxAge = timeWindow[periodFilter] || timeWindow["7d"];
+                if (!Number.isFinite(createdAt) || (now - createdAt) > maxAge) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+    }
+
+    static bindActivityFilters() {
+
+        const moduleSelect = document.getElementById("activity-filter-module");
+        const actionSelect = document.getElementById("activity-filter-action");
+        const periodSelect = document.getElementById("activity-filter-period");
+
+        if (!moduleSelect || !actionSelect || !periodSelect) return;
+
+        const onChange = () => {
+            this.ACTIVITY_FILTERS.module = String(moduleSelect.value || "all").toLowerCase();
+            this.ACTIVITY_FILTERS.action = String(actionSelect.value || "all").toLowerCase();
+            this.ACTIVITY_FILTERS.period = String(periodSelect.value || "7d").toLowerCase();
+            this.renderActivityTimeline();
+        };
+
+        moduleSelect.addEventListener("change", onChange);
+        actionSelect.addEventListener("change", onChange);
+        periodSelect.addEventListener("change", onChange);
+
+    }
+
+    static renderActivityTimeline() {
+
+        const container = document.getElementById("dashboard-activity-timeline");
+        if (!container) return;
+
+        const source = Array.isArray(this.currentActivity) ? this.currentActivity : [];
+        container.innerHTML = this.activityTimeline(this.filterActivity(source));
 
     }
 
@@ -163,6 +517,47 @@ class DashboardHome {
 </div>
 
 `;
+
+    }
+
+    static roleCards(role, stats) {
+
+        const keys = this.ROLE_METRICS[role] || this.ROLE_METRICS.student;
+
+        return keys.map((key) => {
+            const meta = this.METRIC_META[key] || { label: key, icon: "📌" };
+            const value = Number(stats?.[key] ?? 0);
+            return this.card(meta.label, value, meta.icon);
+        }).join("");
+
+    }
+
+    static roleWidgets(role) {
+
+        const widgets = this.ROLE_WIDGETS[role] || this.ROLE_WIDGETS.student;
+
+        return widgets.map((copy, index) => `
+<div class="bg-white rounded-xl shadow p-5 border border-slate-100">
+    <div class="text-xs uppercase tracking-wide text-blue-600 font-semibold">Office Widget ${index + 1}</div>
+    <p class="mt-2 text-slate-700 leading-relaxed">${copy}</p>
+</div>
+`).join("");
+
+    }
+
+    static roleActions(role) {
+
+        const actions = this.ROLE_ACTIONS[role] || this.ROLE_ACTIONS.student;
+
+        return actions.map((action) => `
+<button
+    type="button"
+    class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+    data-dashboard-action-route="${this.safeText(action.route)}"
+>
+    ${this.safeText(action.label)}
+</button>
+`).join("");
 
     }
 
@@ -542,18 +937,19 @@ No announcements available.
 
                 const okMessage = result?.data?.message || "Office account created successfully.";
                 const profileSaved = result?.data?.profile_saved;
+                const effectivePassword = result?.data?.temporary_password || payload.password;
                 const suffix = profileSaved === false
                     ? " User can still log in using credentials; profile sync will complete on first login."
                     : "";
 
-                this.setOfficeStatus(`${okMessage}${suffix} Temporary password: ${payload.password}`, "success");
+                this.setOfficeStatus(`${okMessage}${suffix} Temporary password: ${effectivePassword}`, "success");
 
                 this.appendRecentAccount({
                     first_name: payload.first_name,
                     last_name: payload.last_name,
                     email: payload.email,
                     role: payload.role,
-                    temp_password: payload.password,
+                    temp_password: effectivePassword,
                     created_at: new Date().toISOString()
                 });
 
@@ -570,6 +966,29 @@ No announcements available.
             }
 
         };
+
+    }
+
+    static bindRoleActions() {
+
+        document.querySelectorAll("[data-dashboard-action-route]").forEach((button) => {
+            button.addEventListener("click", async () => {
+                const route = button.getAttribute("data-dashboard-action-route");
+
+                if (!route) return;
+
+                try {
+                    await Router.navigate(route);
+
+                    document.querySelectorAll("[data-route]").forEach((nav) => {
+                        nav.classList.toggle("active", nav.getAttribute("data-route") === route);
+                    });
+                } catch (error) {
+                    console.error(error);
+                    this.setOfficeStatus("Unable to open the selected module.", "error");
+                }
+            });
+        });
 
     }
 
@@ -620,6 +1039,8 @@ Unable to load dashboard.
     static initialize() {
 
         this.bindOfficeGenerator();
+        this.bindRoleActions();
+        this.bindActivityFilters();
 
         console.log("Dashboard Home Loaded");
 
