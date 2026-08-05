@@ -42,11 +42,16 @@
                     <label class="mb-1 block text-sm font-medium text-slate-700">Role / Office</label>
                     <select id="registerRole"
                         class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500">
-                        <option value="Student">Student</option>
-                        <option value="Parent">Parent</option>
-                        <option value="Teacher">Teacher</option>
-                        <option value="Executive">Executive</option>
-                        <option value="Admin">Admin</option>
+                        <option value="student">Student</option>
+                        <option value="parent">Parent</option>
+                        <option value="teacher">Teacher</option>
+                        <option value="executive">Executive</option>
+                        <option value="finance">Finance</option>
+                        <option value="hr">HR</option>
+                        <option value="admission">Admission</option>
+                        <option value="exam">Exam</option>
+                        <option value="library">Library</option>
+                        <option value="admin">Admin</option>
                     </select>
                 </div>
                 <div id="registerError"
@@ -94,7 +99,7 @@
                 const payload = {
                     email: document.getElementById('registerEmail').value.trim(),
                     password: document.getElementById('registerPassword').value,
-                    role: document.getElementById('registerRole').value.toLowerCase(),
+                    role: document.getElementById('registerRole').value,
                     first_name: document.getElementById('registerName').value.trim(),
                     last_name: '',
                     phone: ''

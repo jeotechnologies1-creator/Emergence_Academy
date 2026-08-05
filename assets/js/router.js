@@ -40,7 +40,7 @@ class Router {
             return;
         }
 
-        const route = this.routes[name];
+        const route = this.routes[name] || this.routes["*"];
 
         if (!route) {
 

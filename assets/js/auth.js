@@ -23,6 +23,37 @@ class Auth {
         library: "dashboard.html"
     };
 
+    static ROLE_ALIASES = {
+        administrator: "admin",
+        "super admin": "admin",
+        super_admin: "admin",
+        admissions: "admission",
+        "admission office": "admission",
+        exams: "exam",
+        "exam office": "exam",
+        librarian: "library",
+        "library office": "library",
+        accounting: "finance",
+        accounts: "finance",
+        "finance office": "finance",
+        "human resources": "hr",
+        human_resource: "hr"
+    };
+
+    static normalizeRole(rawRole) {
+        const role = String(rawRole || "")
+            .trim()
+            .toLowerCase()
+            .replace(/[\-_]+/g, " ")
+            .replace(/\s+/g, " ");
+
+        if (!role) {
+            return "";
+        }
+
+        return this.ROLE_ALIASES[role] || role;
+    }
+
     static get runtime() {
         return typeof window !== "undefined" ? window : globalThis;
     }
@@ -229,17 +260,17 @@ class Auth {
     }
 
     static buildProfileFallback(user, preferredRole = null) {
-        const fallbackRole = String(
+        const fallbackRole = this.normalizeRole(String(
             this.resolvePreferredRole(preferredRole) ||
             user?.user_metadata?.role ||
             this.config.DEFAULT_ROLE
-        ).trim().toLowerCase();
+        ));
         return {
             id: user?.id || null,
             email: user?.email || "",
             first_name: user?.user_metadata?.first_name || user?.user_metadata?.full_name || "",
             last_name: user?.user_metadata?.last_name || "",
-            role: fallbackRole || this.config.DEFAULT_ROLE,
+            role: fallbackRole || this.normalizeRole(this.config.DEFAULT_ROLE),
             status: this.config.STATUS?.ACTIVE || "active",
             created_at: new Date().toISOString(),
             source: "auth-fallback"
@@ -247,21 +278,21 @@ class Auth {
     }
 
     static resolvePreferredRole(preferredRole = null) {
-        const direct = String(preferredRole || "").trim().toLowerCase();
+        const direct = this.normalizeRole(preferredRole || "");
         if (direct) return direct;
 
         try {
             const cachedProfileRaw = this.storageSession.getItem("profile");
             if (cachedProfileRaw) {
                 const cachedProfile = JSON.parse(cachedProfileRaw);
-                const cachedRole = String(cachedProfile?.role || "").trim().toLowerCase();
+                const cachedRole = this.normalizeRole(cachedProfile?.role || "");
                 if (cachedRole) return cachedRole;
             }
         } catch (error) {
             console.error("Unable to parse cached profile role:", error);
         }
 
-        const lastRole = String(this.storageSession.getItem(this.LAST_LOGIN_ROLE_KEY) || "").trim().toLowerCase();
+        const lastRole = this.normalizeRole(this.storageSession.getItem(this.LAST_LOGIN_ROLE_KEY) || "");
         if (lastRole) return lastRole;
 
         return "";
@@ -319,7 +350,7 @@ class Auth {
     static async role() {
         const profile = await this.profile();
         if (!profile) return null;
-        return String(profile.role || "").trim().toLowerCase();
+        return this.normalizeRole(profile.role || "");
     }
 
     static async displayName() {
@@ -353,8 +384,8 @@ class Auth {
                 await this.client.auth.signOut();
                 return this.error("This account has been disabled.");
             }
-            const databaseRole = String(profile.role || "").trim().toLowerCase();
-            const loginRole = String(selectedRole || "").trim().toLowerCase();
+            const databaseRole = this.normalizeRole(profile.role || "");
+            const loginRole = this.normalizeRole(selectedRole || "");
             if (loginRole && databaseRole !== loginRole) {
                 await this.client.auth.signOut();
                 return this.error(`Access denied. This account belongs to the '${databaseRole}' portal.`);
@@ -386,7 +417,7 @@ class Auth {
     }
 
     static async dashboard() {
-        const role = await this.role();
+        const role = this.normalizeRole(await this.role());
         if (!role) return "login.html";
         const configuredDashboards = this.config.DASHBOARDS || {};
         return configuredDashboards[role] || this.DASHBOARDS[role] || "dashboard.html";
@@ -441,7 +472,7 @@ class Auth {
             if (!profile) {
                 return this.error("You must be logged in.");
             }
-            const role = String(profile.role).toLowerCase();
+            const role = this.normalizeRole(profile.role);
             if (role !== "ceo" && role !== "admin") {
                 return this.error("Only the CEO or Admin can create users.");
             }
@@ -455,7 +486,7 @@ class Auth {
             const fullName = `${firstName} ${lastName}`.trim();
             const email = String(userData.email || "").trim().toLowerCase();
             const password = String(userData.password || "").trim();
-            const targetRole = String(userData.role || this.config.DEFAULT_ROLE || "student").trim().toLowerCase();
+            const targetRole = this.normalizeRole(userData.role || this.config.DEFAULT_ROLE || "student");
             const phone = String(userData.phone || "").trim();
 
             if (!email || !password) {

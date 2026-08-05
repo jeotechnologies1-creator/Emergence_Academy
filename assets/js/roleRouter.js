@@ -4,6 +4,29 @@
 ========================================================== */
 
 const RoleRouter = {
+    ROLE_ALIASES: {
+        "administrator": "admin",
+        "super admin": "admin",
+        "super_admin": "admin",
+        "ceo office": "ceo",
+        "executive office": "executive",
+        "teacher office": "teacher",
+        "student office": "student",
+        "parent office": "parent",
+        "finance office": "finance",
+        "accounts": "finance",
+        "account": "finance",
+        "accounting": "finance",
+        "admissions": "admission",
+        "admission office": "admission",
+        "exam office": "exam",
+        "exams": "exam",
+        "library office": "library",
+        "librarian": "library",
+        "human resources": "hr",
+        "human_resource": "hr"
+    },
+
     ROLE_CONFIGS: {
         ceo: {
             title: "CEO Office",
@@ -75,10 +98,25 @@ const RoleRouter = {
 
     currentRole: "student",
 
+    normalizeRole(rawRole) {
+        const base = String(rawRole || "")
+            .trim()
+            .toLowerCase()
+            .replace(/[\-_]+/g, " ")
+            .replace(/\s+/g, " ");
+
+        if (!base) return "student";
+
+        if (this.ROLE_CONFIGS[base]) {
+            return base;
+        }
+
+        return this.ROLE_ALIASES[base] || "student";
+    },
+
     async redirect() {
         const rawRole = await Auth.role();
-        const role = String(rawRole || "student").toLowerCase();
-        this.currentRole = this.ROLE_CONFIGS[role] ? role : "student";
+        this.currentRole = this.normalizeRole(rawRole);
         this.applyRole(this.currentRole);
         return this.getCurrentConfig();
     },
