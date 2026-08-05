@@ -2,7 +2,6 @@ const assert = require('assert');
 const path = require('path');
 
 (async () => {
-  require(path.join(__dirname, '..', 'assets', 'js', 'database.js'));
   const { registerUser } = require(path.join(__dirname, '..', 'assets', 'js', 'auth.js'));
 
   const user = await registerUser({

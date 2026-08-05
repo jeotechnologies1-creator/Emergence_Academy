@@ -5,305 +5,491 @@
 
 class StudentsModule {
 
-    static students = [];
+    static state = {
+        container: null,
+        students: [],
+        classes: [],
+        profile: null,
+        query: "",
+        modal: {
+            open: false,
+            mode: "create",
+            studentId: null
+        }
+    };
 
-    static classes = [];
+    static CREATE_ROLES = ["ceo", "admin", "executive", "admission"];
+    static EDIT_ROLES = ["ceo", "admin", "executive", "admission"];
+    static ARCHIVE_ROLES = ["ceo", "admin", "executive"];
 
-    static currentPage = 1;
+    static safe(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
 
-    static pageSize = 10;
+    static role() {
+        return String(this.state.profile?.role || "").trim().toLowerCase();
+    }
 
-    /* ==========================================
-       RENDER
-    ========================================== */
+    static canCreate() {
+        return this.CREATE_ROLES.includes(this.role());
+    }
+
+    static canEdit() {
+        return this.EDIT_ROLES.includes(this.role());
+    }
+
+    static canArchive() {
+        return this.ARCHIVE_ROLES.includes(this.role());
+    }
+
+    static showMessage(text, tone = "success") {
+        const fallback = String(text || "Action completed.");
+
+        if (tone === "success" && window.Utils?.success) {
+            Utils.success(fallback);
+            return;
+        }
+
+        if (tone === "error" && window.Utils?.error) {
+            Utils.error(fallback);
+            return;
+        }
+
+        const targetId = tone === "success" ? "success-message" : "error-message";
+        const target = document.getElementById(targetId);
+
+        if (!target) {
+            console[tone === "error" ? "error" : "log"](fallback);
+            return;
+        }
+
+        target.textContent = fallback;
+        target.classList.remove("hidden");
+
+        setTimeout(() => {
+            target.classList.add("hidden");
+        }, 3500);
+    }
+
+    static loading() {
+        return `
+<div class="bg-white rounded-xl shadow p-8 text-center text-slate-500">
+  Loading Students...
+</div>
+`;
+    }
+
+    static error(message = "Unable to load students.") {
+        return `
+<div class="bg-white rounded-xl shadow p-8 text-center text-red-600">
+  ${this.safe(message)}
+</div>
+`;
+    }
 
     static async render(container) {
-
+        this.state.container = container;
         container.innerHTML = this.loading();
 
         try {
-
             await this.load();
-
-            container.innerHTML = this.template();
-
-            this.events();
-
+            this.redraw();
         }
-
         catch (error) {
-
             console.error(error);
-
-            container.innerHTML = this.error();
-
+            container.innerHTML = this.error(error.message);
         }
-
     }
-
-    /* ==========================================
-       LOAD DATA
-    ========================================== */
 
     static async load() {
-
-        const [
-
-            students,
-
-            classes
-
-        ] = await Promise.all([
-
+        const [students, classes, profile] = await Promise.all([
             API.students.getAll(),
-
-            API.classes.getAll()
-
+            API.classes.getAll(),
+            Auth.profile()
         ]);
 
-        this.students = students;
-
-        this.classes = classes;
-
+        this.state.students = Array.isArray(students) ? students : [];
+        this.state.classes = Array.isArray(classes) ? classes : [];
+        this.state.profile = profile || null;
     }
-    static template() {
+
+    static currentStudent() {
+        if (!this.state.modal.studentId) return null;
+        return this.state.students.find((student) => String(student.id) === String(this.state.modal.studentId)) || null;
+    }
+
+    static generatePassword(length = 12) {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$!";
+        let output = "";
+
+        for (let index = 0; index < length; index += 1) {
+            output += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        return output;
+    }
+
+    static filteredStudents() {
+        const query = String(this.state.query || "").trim().toLowerCase();
+
+        if (!query) {
+            return this.state.students;
+        }
+
+        return this.state.students.filter((student) => {
+            const haystack = [
+                student.student_no,
+                student.admission_number,
+                student.status,
+                student.profiles?.first_name,
+                student.profiles?.last_name,
+                student.profiles?.email,
+                student.profiles?.phone,
+                student.classes?.class_name
+            ].join(" ").toLowerCase();
+
+            return haystack.includes(query);
+        });
+    }
+
+    static classOptions(selectedValue = "") {
+        return this.state.classes.map((item) => `
+<option value="${this.safe(item.id)}" ${String(item.id) === String(selectedValue) ? "selected" : ""}>
+  ${this.safe(item.class_name || item.class_code || item.id)}
+</option>`).join("");
+    }
+
+    static modalTemplate() {
+        if (!this.state.modal.open) {
+            return "";
+        }
+
+        const mode = this.state.modal.mode;
+        const student = this.currentStudent();
+
+        if (mode === "edit" && !student) {
+            return "";
+        }
+
+        const title = mode === "create" ? "Admit Student" : "Edit Student";
+        const passwordValue = mode === "create" ? this.generatePassword() : "";
 
         return `
-
-<div class="space-y-6">
-
-<div class="flex justify-between items-center">
-
-<h2 class="text-3xl font-bold">
-
-Students
-
-</h2>
-
-<button
-
-id="addStudent"
-
-class="bg-blue-600 text-white px-5 py-2 rounded"
-
->
-
-Add Student
-
-</button>
-
+<div class="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center px-4" data-student-overlay>
+  <div class="w-full max-w-3xl bg-white rounded-2xl shadow-2xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-bold text-slate-800">${title}</h3>
+      <button type="button" data-student-close class="text-slate-500 hover:text-slate-700">Close</button>
+    </div>
+    <form id="student-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div id="student-form-error" class="hidden md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"></div>
+      ${mode === "create" ? `
+      <label class="block">
+        <span class="text-sm text-slate-700">First Name *</span>
+        <input name="first_name" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
+      </label>
+      <label class="block">
+        <span class="text-sm text-slate-700">Last Name *</span>
+        <input name="last_name" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
+      </label>
+      <label class="block md:col-span-2">
+        <span class="text-sm text-slate-700">Email *</span>
+        <input name="email" type="email" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
+      </label>
+      <label class="block">
+        <span class="text-sm text-slate-700">Phone</span>
+        <input name="phone" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+      </label>
+      <label class="block">
+        <span class="text-sm text-slate-700">Class *</span>
+        <select name="class_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required>
+          <option value="">Select Class</option>
+          ${this.classOptions()}
+        </select>
+      </label>
+      <label class="block">
+        <span class="text-sm text-slate-700">Admission Date</span>
+        <input name="admission_date" type="date" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+      </label>
+      <label class="block">
+        <span class="text-sm text-slate-700">Temporary Password *</span>
+        <input name="password" value="${this.safe(passwordValue)}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
+      </label>
+      ` : `
+      <label class="block">
+        <span class="text-sm text-slate-700">Student Number</span>
+        <input name="student_no" value="${this.safe(student?.student_no || "")}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+      </label>
+      <label class="block">
+        <span class="text-sm text-slate-700">Admission Number</span>
+        <input name="admission_number" value="${this.safe(student?.admission_number || "")}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+      </label>
+      <label class="block">
+        <span class="text-sm text-slate-700">Class</span>
+        <select name="class_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
+          <option value="">Select Class</option>
+          ${this.classOptions(student?.class_id || "")}
+        </select>
+      </label>
+      <label class="block">
+        <span class="text-sm text-slate-700">Status</span>
+        <select name="status" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
+          ${["active", "inactive", "graduated", "suspended", "pending"].map((status) => `
+          <option value="${status}" ${String(student?.status || "") === status ? "selected" : ""}>${status}</option>`).join("")}
+        </select>
+      </label>
+      <label class="block md:col-span-2">
+        <span class="text-sm text-slate-700">Admission Date</span>
+        <input name="admission_date" type="date" value="${this.safe(String(student?.admission_date || "").slice(0, 10))}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+      </label>
+      `}
+      <div class="md:col-span-2 flex items-center justify-end gap-3 mt-2">
+        <button type="button" data-student-close class="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Save</button>
+      </div>
+    </form>
+  </div>
 </div>
-
-<div class="bg-white rounded-lg shadow p-5">
-
-<input
-
-id="studentSearch"
-
-type="text"
-
-placeholder="Search students..."
-
-class="w-full border rounded px-4 py-2 mb-4"
-
->
-
-<div id="studentTable">
-
-${this.table()}
-
-</div>
-
-</div>
-
-</div>
-
 `;
-
     }
+
     static table() {
+        const rows = this.filteredStudents();
+        const canEdit = this.canEdit();
+        const canArchive = this.canArchive();
 
-        if (this.students.length === 0) {
-
-            return `
-
-<p class="text-center">
-
-No students found.
-
-</p>
-
-`;
-
+        if (!rows.length) {
+            return '<div class="text-center py-8 text-slate-500">No students found.</div>';
         }
 
         return `
-
-<table class="w-full">
-
-<thead>
-
-<tr>
-
-<th>Name</th>
-
-<th>Class</th>
-
-<th>Email</th>
-
-<th>Phone</th>
-
-<th></th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-${this.filteredStudents().map(student => `
-
-<tr class="border-b">
-
-<td class="px-4 py-3">
-
-${student.student_no || "-"}
-
-</td>
-
-<td class="px-4 py-3">
-
-${student.profiles?.first_name || ""}
-
-${student.profiles?.last_name || ""}
-
-</td>
-
-<td class="px-4 py-3">
-
-${student.profiles?.email || "-"}
-
-</td>
-
-<td class="px-4 py-3">
-
-${student.classes?.class_name || "-"}
-
-</td>
-
-<td class="px-4 py-3">
-
-${student.status}
-
-</td>
-
-<td class="px-4 py-3">
-
-<button
-class="editStudent text-blue-600 mr-3"
-data-id="${student.id}">
-
-Edit
-
-</button>
-
-<button
-class="deleteStudent text-red-600"
-data-id="${student.id}">
-
-Delete
-
-</button>
-
-</td>
-
-</tr>
-
-`).join("")}
-
-</tbody>
-
-</table>
-
+<div class="overflow-x-auto">
+  <table class="min-w-full text-sm">
+    <thead>
+      <tr class="border-b border-slate-200 text-left text-slate-600">
+        <th class="px-3 py-2.5 font-semibold">Student No</th>
+        <th class="px-3 py-2.5 font-semibold">Name</th>
+        <th class="px-3 py-2.5 font-semibold">Class</th>
+        <th class="px-3 py-2.5 font-semibold">Email</th>
+        <th class="px-3 py-2.5 font-semibold">Phone</th>
+        <th class="px-3 py-2.5 font-semibold">Status</th>
+        <th class="px-3 py-2.5 font-semibold text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map((student) => `
+      <tr class="border-b border-slate-100 hover:bg-slate-50">
+        <td class="px-3 py-2.5">${this.safe(student.student_no || student.admission_number || "-")}</td>
+        <td class="px-3 py-2.5">${this.safe(`${student.profiles?.first_name || ""} ${student.profiles?.last_name || ""}`.trim() || "-")}</td>
+        <td class="px-3 py-2.5">${this.safe(student.classes?.class_name || "-")}</td>
+        <td class="px-3 py-2.5">${this.safe(student.profiles?.email || "-")}</td>
+        <td class="px-3 py-2.5">${this.safe(student.profiles?.phone || "-")}</td>
+        <td class="px-3 py-2.5">${this.safe(student.status || "-")}</td>
+        <td class="px-3 py-2.5 text-right">
+          ${canEdit ? `<button data-action="edit" data-id="${this.safe(student.id)}" class="text-blue-600 hover:text-blue-700 mr-3">Edit</button>` : ""}
+          ${canArchive && String(student.status || "").toLowerCase() !== "inactive" ? `<button data-action="archive" data-id="${this.safe(student.id)}" class="text-red-600 hover:text-red-700">Archive</button>` : ""}
+          ${!canEdit && !canArchive ? '<span class="text-slate-400">Read only</span>' : ''}
+        </td>
+      </tr>`).join("")}
+    </tbody>
+  </table>
+</div>
 `;
-
-    }
-    static events() {
-        document
-
-            .getElementById("addStudent")
-
-        ?.addEventListener(
-
-            "click",
-
-            () => {
-
-                this.openAdmissionForm();
-
-            }
-
-        );
-
     }
 
-    static async search(keyword) {
+    static template() {
+        return `
+<div class="space-y-6">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div>
+      <h2 class="text-3xl font-bold text-slate-800">Students</h2>
+      <p class="text-sm text-slate-500 mt-1">Manage student admissions, class placement, and active records.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      ${this.canCreate() ? '<button id="addStudent" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Admit Student</button>' : ''}
+      <button id="refreshStudents" class="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">Refresh</button>
+    </div>
+  </div>
 
-        if (keyword === "") {
+  <div class="bg-white rounded-xl shadow p-5">
+    <input id="studentSearch" type="text" value="${this.safe(this.state.query)}" placeholder="Search by name, email, student number, class, or status..." class="w-full rounded-lg border border-slate-300 px-4 py-2.5 mb-4" />
+    ${this.table()}
+  </div>
 
+  ${this.modalTemplate()}
+</div>
+`;
+    }
+
+    static redraw() {
+        if (!this.state.container) return;
+        this.state.container.innerHTML = this.template();
+        this.bindEvents();
+    }
+
+    static openModal(mode, studentId = null) {
+        this.state.modal = {
+            open: true,
+            mode,
+            studentId
+        };
+        this.redraw();
+    }
+
+    static closeModal() {
+        this.state.modal = {
+            open: false,
+            mode: "create",
+            studentId: null
+        };
+        this.redraw();
+    }
+
+    static showFormError(message) {
+        const errorBox = document.getElementById("student-form-error");
+        if (!errorBox) return;
+        errorBox.textContent = String(message || "Unable to save student.");
+        errorBox.classList.remove("hidden");
+    }
+
+    static async submitCreate(form) {
+        const payload = {
+            first_name: String(form.get("first_name") || "").trim(),
+            last_name: String(form.get("last_name") || "").trim(),
+            email: String(form.get("email") || "").trim().toLowerCase(),
+            phone: String(form.get("phone") || "").trim(),
+            class_id: String(form.get("class_id") || "").trim(),
+            admission_date: String(form.get("admission_date") || "").trim() || null,
+            password: String(form.get("password") || "").trim() || this.generatePassword()
+        };
+
+        if (!payload.first_name || !payload.last_name || !payload.email || !payload.class_id || !payload.password) {
+            this.showFormError("First name, last name, email, class, and password are required.");
+            return;
+        }
+
+        const result = await API.students.admit(payload);
+
+        if (!result?.success) {
+            this.showFormError(result?.message || "Unable to admit student.");
+            return;
+        }
+
+        this.showMessage(`Student admitted successfully. Temporary password: ${payload.password}`, "success");
+        this.closeModal();
+        await this.load();
+        this.redraw();
+    }
+
+    static async submitEdit(form) {
+        const student = this.currentStudent();
+        if (!student) {
+            this.showFormError("Student record was not found.");
+            return;
+        }
+
+        const payload = {
+            student_no: String(form.get("student_no") || "").trim() || null,
+            admission_number: String(form.get("admission_number") || "").trim() || null,
+            class_id: String(form.get("class_id") || "").trim() || null,
+            status: String(form.get("status") || "").trim() || "active",
+            admission_date: String(form.get("admission_date") || "").trim() || null
+        };
+
+        const result = await API.students.update(student.id, payload);
+
+        if (!result?.success) {
+            this.showFormError(result?.message || "Unable to update student.");
+            return;
+        }
+
+        this.showMessage(result.message || "Student updated successfully.", "success");
+        this.closeModal();
+        await this.load();
+        this.redraw();
+    }
+
+    static bindEvents() {
+        const container = this.state.container;
+        if (!container) return;
+
+        const search = container.querySelector("#studentSearch");
+        if (search) {
+            search.addEventListener("input", (event) => {
+                this.state.query = event.target.value || "";
+                this.redraw();
+            });
+        }
+
+        container.querySelector("#addStudent")?.addEventListener("click", () => {
+            this.openModal("create");
+        });
+
+        container.querySelector("#refreshStudents")?.addEventListener("click", async () => {
             await this.load();
+            this.redraw();
+            this.showMessage("Students refreshed.", "success");
+        });
 
+        container.querySelectorAll("[data-action='edit']").forEach((button) => {
+            button.addEventListener("click", () => {
+                this.openModal("edit", button.getAttribute("data-id"));
+            });
+        });
+
+        container.querySelectorAll("[data-action='archive']").forEach((button) => {
+            button.addEventListener("click", async () => {
+                const id = button.getAttribute("data-id");
+                const confirmed = window.confirm("Archive this student record? The account stays in Supabase, but the student will be marked inactive.");
+
+                if (!confirmed || !id) return;
+
+                const result = await API.students.update(id, { status: "inactive" });
+
+                if (!result?.success) {
+                    this.showMessage(result?.message || "Unable to archive student.", "error");
+                    return;
+                }
+
+                this.showMessage("Student archived successfully.", "success");
+                await this.load();
+                this.redraw();
+            });
+        });
+
+        container.querySelectorAll("[data-student-close]").forEach((button) => {
+            button.addEventListener("click", () => this.closeModal());
+        });
+
+        const overlay = container.querySelector("[data-student-overlay]");
+        if (overlay) {
+            overlay.addEventListener("click", (event) => {
+                if (event.target === overlay) {
+                    this.closeModal();
+                }
+            });
         }
 
-        else {
+        const form = container.querySelector("#student-form");
+        if (form) {
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
 
-            this.students =
+                const formData = new FormData(form);
 
-                await Students.search(
+                if (this.state.modal.mode === "create") {
+                    await this.submitCreate(formData);
+                    return;
+                }
 
-                    keyword
-
-                );
-
+                await this.submitEdit(formData);
+            });
         }
-
-        document
-
-            .getElementById(
-
-                "studentTable"
-
-            )
-
-            .innerHTML = this.table();
-
-    }
-    static loading() {
-
-        return `
-
-<div class="text-center py-20">
-
-Loading Students...
-
-</div>
-
-`;
-
-    }
-
-    static error() {
-
-        return `
-
-<div class="text-center py-20 text-red-500">
-
-Unable to load students.
-
-</div>
-
-`;
-
     }
 
 }

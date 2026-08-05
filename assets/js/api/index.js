@@ -439,29 +439,6 @@ class API {
 
         },
 
-                    parents: 0,
-
-                    classes: 0,
-
-                    subjects: 0,
-
-                    attendance: 0,
-
-                    assignments: 0,
-
-                    grades: 0,
-
-                    payments: 0,
-
-                    notifications: 0,
-
-                    announcements: 0,
-
-                    activity: 0,
-
-                    reports: 0,
-
-                    finance: 0
         async getById(id) {
 
             try {
@@ -567,6 +544,49 @@ class API {
         },
 
         /* ==============================================
+           ADMIT STUDENT
+        ============================================== */
+
+        async admit(studentData) {
+
+            try {
+
+                const { data, error } = await API.db.functions.invoke(
+                    "admit-student",
+                    {
+                        body: studentData
+                    }
+                );
+
+                if (error) throw error;
+
+                if (data?.error) {
+                    throw new Error(data.error);
+                }
+
+                return API.response(
+                    true,
+                    data,
+                    "Student admitted successfully."
+                );
+
+            }
+
+            catch (error) {
+
+                console.error(error);
+
+                return API.response(
+                    false,
+                    null,
+                    error.message || "Unable to admit student."
+                );
+
+            }
+
+        },
+
+        /* ==============================================
            CREATE STUDENT
         ============================================== */
 
@@ -613,6 +633,49 @@ class API {
                     error.message
 
                 );
+
+            }
+
+        },
+
+        /* ==============================================
+           STUDENTS BY CLASS
+        ============================================== */
+
+        async getByClass(classId) {
+
+            try {
+
+                const { data, error } = await API.db
+
+                    .from("students")
+
+                    .select(`
+                        *,
+                        profiles:profile_id(
+                            id,
+                            first_name,
+                            last_name
+                        )
+                    `)
+
+                    .eq("class_id", classId)
+
+                    .order("created_at", {
+                        ascending: false
+                    });
+
+                if (error) throw error;
+
+                return data || [];
+
+            }
+
+            catch (error) {
+
+                console.error(error);
+
+                return [];
 
             }
 
@@ -1069,6 +1132,39 @@ specialization.ilike.%${keyword}%`
             }
 
         }
+
+        /* ==============================================
+           STUDENT COUNT
+        ============================================== */
+
+        async count() {
+
+            try {
+
+                const { count, error } = await API.db
+
+                    .from("students")
+
+                    .select("*", {
+                        count: "exact",
+                        head: true
+                    });
+
+                if (error) throw error;
+
+                return count || 0;
+
+            }
+
+            catch (error) {
+
+                console.error(error);
+
+                return 0;
+
+            }
+
+        },
 
     };
 

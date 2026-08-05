@@ -39,11 +39,12 @@ const vm = require('vm');
   vm.runInContext(source, vmContext);
 
   const client = vm.runInContext('window.supabaseClient', vmContext);
-  assert.ok(client.auth.signInWithPassword, 'fallback client should expose signInWithPassword');
-  assert.ok(client.auth.signUp, 'fallback client should expose signUp');
+  const ready = vm.runInContext('window.supabaseReady', vmContext);
+  const message = vm.runInContext('window.supabaseInitMessage', vmContext);
 
-  const adminResult = await client.auth.signInWithPassword({ email: 'admin@emergence.edu', password: 'Emergence2026!' });
-  assert.strictEqual(adminResult.data.user.email, 'admin@emergence.edu', 'admin fallback login should work');
+  assert.strictEqual(client, null, 'client should be null when SDK is missing');
+  assert.strictEqual(ready, false, 'supabaseReady should be false when initialization fails');
+  assert.ok(String(message).includes('missing'), 'init message should indicate missing SDK/config');
 
-  console.log('supabase fallback auth test passed');
+  console.log('supabase strict initialization test passed');
 })();

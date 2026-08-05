@@ -87,86 +87,11 @@ class Auth {
 
     static ensureSupabaseClient() {
         const runtime = this.runtime;
-        if (runtime.supabaseClient) {
+        if (runtime.supabaseClient && runtime.supabaseReady !== false) {
             return runtime.supabaseClient;
         }
 
-        let currentUser = null;
-        let currentSession = null;
-
-        runtime.supabaseClient = {
-            auth: {
-                onAuthStateChange() {
-                    return { data: { subscription: { unsubscribe() {} } } };
-                },
-                async signInWithPassword({ email, password }) {
-                    const normalizedEmail = String(email || "").trim().toLowerCase();
-                    if (normalizedEmail === "admin@emergence.edu" && password === "Emergence2026!") {
-                        currentUser = {
-                            id: "fallback-admin-id",
-                            email: normalizedEmail,
-                            user_metadata: { role: "admin", first_name: "Admin" }
-                        };
-                        currentSession = { access_token: "fallback-access-token", user: currentUser };
-                        return { data: { user: currentUser, session: currentSession }, error: null };
-                    }
-                    return { data: { user: null, session: null }, error: { message: "Invalid login credentials" } };
-                },
-                async signUp({ email, options = {} }) {
-                    currentUser = {
-                        id: `fallback-${Date.now()}`,
-                        email: String(email || "").trim().toLowerCase(),
-                        user_metadata: options.data || {}
-                    };
-                    currentSession = { access_token: "fallback-signup-token", user: currentUser };
-                    return { data: { user: currentUser, session: currentSession }, error: null };
-                },
-                async signOut() {
-                    currentUser = null;
-                    currentSession = null;
-                    return { error: null };
-                },
-                async getUser() {
-                    return { data: { user: currentUser }, error: null };
-                },
-                async getSession() {
-                    return { data: { session: currentSession }, error: null };
-                }
-            },
-            from() {
-                return {
-                    select() {
-                        return {
-                            eq() {
-                                return {
-                                    async single() {
-                                        return { data: null, error: { message: "No rows found" } };
-                                    }
-                                };
-                            }
-                        };
-                    },
-                    insert(row) {
-                        return {
-                            select() {
-                                return {
-                                    async single() {
-                                        return { data: row || null, error: null };
-                                    }
-                                };
-                            }
-                        };
-                    }
-                };
-            },
-            functions: {
-                async invoke() {
-                    return { data: { id: `fallback-${Date.now()}` }, error: null };
-                }
-            }
-        };
-
-        return runtime.supabaseClient;
+        throw new Error("Supabase client is not initialized. Check SUPABASE URL, ANON KEY, and SDK load order.");
     }
 
     static get client() {

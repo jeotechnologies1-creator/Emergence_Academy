@@ -19,11 +19,12 @@ const vm = require('vm');
   vm.runInContext(authCode, sandbox);
 
   const Auth = vm.runInContext('Auth', sandbox);
-  const client = Auth.ensureSupabaseClient();
 
-  assert.ok(client, 'a client object should be created');
-  assert.equal(typeof client.auth.signInWithPassword, 'function', 'signInWithPassword should be available');
-  assert.equal(typeof client.auth.signUp, 'function', 'signUp should be available');
+  assert.throws(
+    () => Auth.ensureSupabaseClient(),
+    /Supabase client is not initialized/,
+    'auth should fail fast when Supabase client is unavailable'
+  );
 
-  console.log('supabase fallback auth test passed');
+  console.log('supabase strict auth initialization test passed');
 })();
