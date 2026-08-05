@@ -162,17 +162,39 @@ class Dashboard {
 
         document.querySelectorAll(".logout-btn").forEach((button) => {
 
-            button.onclick = async () => {
-
-                const confirmed = window.confirm("Are you sure you want to logout?");
-
-                if (!confirmed) return;
-
-                await Auth.logout();
-
-            };
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                await this.handleLogout();
+            });
 
         });
+
+        document.addEventListener("click", async (event) => {
+
+            const trigger = event.target.closest("[data-action='logout']");
+
+            if (!trigger) return;
+
+            event.preventDefault();
+
+            await this.handleLogout();
+
+        });
+
+    }
+
+    static async handleLogout() {
+
+        const confirmed = window.confirm("Are you sure you want to logout?");
+
+        if (!confirmed) return;
+
+        try {
+            await Auth.logout();
+        } catch (error) {
+            console.error("Logout failed:", error);
+            window.location.replace("login.html");
+        }
 
     }
 

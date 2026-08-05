@@ -24,7 +24,9 @@ class DashboardHome {
 
                 stats,
 
-                announcements
+                announcements,
+
+                permissions
 
             ] = await Promise.all([
 
@@ -32,7 +34,9 @@ class DashboardHome {
 
                 API.dashboard.stats(),
 
-                API.announcements.getLatest()
+                API.announcements.getLatest(),
+
+                Auth.permissions()
 
             ]);
 
@@ -42,7 +46,9 @@ class DashboardHome {
 
                 stats,
 
-                announcements
+                announcements,
+
+                permissions
 
             );
 
@@ -64,7 +70,7 @@ class DashboardHome {
        TEMPLATE
     ====================================================== */
 
-    static template(profile, stats, announcements) {
+    static template(profile, stats, announcements, permissions) {
 
         return `
 
@@ -110,7 +116,7 @@ class DashboardHome {
 
     </div>
 
-    ${this.officeGenerator(profile)}
+    ${this.officeGenerator(profile, permissions)}
 
 </div>
 
@@ -210,11 +216,12 @@ No announcements available.
 
     }
 
-    static officeGenerator(profile) {
+    static officeGenerator(profile, permissions = null) {
 
         const role = String(profile?.role || "").toLowerCase();
+        const canCreateUsers = role === "admin" || role === "ceo" || Boolean(permissions?.canDelete);
 
-        if (!["admin", "ceo"].includes(role)) {
+        if (!canCreateUsers) {
             return "";
         }
 

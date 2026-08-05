@@ -8,6 +8,7 @@ class Auth {
     static currentProfile = null;
     static currentPermissions = [];
     static SESSION_KEY = "emergence_session";
+    static LAST_LOGIN_ROLE_KEY = "emergence_last_login_role";
     static DASHBOARDS = {
         ceo: "dashboard.html",
         admin: "dashboard.html",
@@ -228,7 +229,11 @@ class Auth {
     }
 
     static buildProfileFallback(user, preferredRole = null) {
-        const fallbackRole = String(preferredRole || user?.user_metadata?.role || this.config.DEFAULT_ROLE).trim().toLowerCase();
+        const fallbackRole = String(
+            this.resolvePreferredRole(preferredRole) ||
+            user?.user_metadata?.role ||
+            this.config.DEFAULT_ROLE
+        ).trim().toLowerCase();
         return {
             id: user?.id || null,
             email: user?.email || "",
@@ -239,6 +244,27 @@ class Auth {
             created_at: new Date().toISOString(),
             source: "auth-fallback"
         };
+    }
+
+    static resolvePreferredRole(preferredRole = null) {
+        const direct = String(preferredRole || "").trim().toLowerCase();
+        if (direct) return direct;
+
+        try {
+            const cachedProfileRaw = this.storageSession.getItem("profile");
+            if (cachedProfileRaw) {
+                const cachedProfile = JSON.parse(cachedProfileRaw);
+                const cachedRole = String(cachedProfile?.role || "").trim().toLowerCase();
+                if (cachedRole) return cachedRole;
+            }
+        } catch (error) {
+            console.error("Unable to parse cached profile role:", error);
+        }
+
+        const lastRole = String(this.storageSession.getItem(this.LAST_LOGIN_ROLE_KEY) || "").trim().toLowerCase();
+        if (lastRole) return lastRole;
+
+        return "";
     }
 
     static async profile(refresh = false, preferredRole = null) {
@@ -332,6 +358,9 @@ class Auth {
             if (loginRole && databaseRole !== loginRole) {
                 await this.client.auth.signOut();
                 return this.error(`Access denied. This account belongs to the '${databaseRole}' portal.`);
+            }
+            if (loginRole) {
+                this.storageSession.setItem(this.LAST_LOGIN_ROLE_KEY, loginRole);
             }
             this.storageSession.setItem("profile", JSON.stringify(profile));
             this.currentProfile = profile;
@@ -473,7 +502,7 @@ class Auth {
             await this.init();
             const session = await this.session();
             if (!session) return false;
-            await this.profile(true);
+            await this.profile(true, this.resolvePreferredRole());
             await this.permissions(true);
             return true;
         } catch (err) {
