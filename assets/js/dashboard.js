@@ -10,6 +10,8 @@ class Dashboard {
 
         await RoleRouter.redirect();
 
+        this.activateLogout();
+
         this.registerModules();
         this.registerNavigation();
         this.registerMobileMenu();
@@ -32,7 +34,7 @@ class Dashboard {
                 const logoPath =
                     window.APP_CONFIG?.logo ||
                     window.CONFIG?.logo ||
-                    "assets/images/logo.jpeg";
+                    "assets/images/logo.png";
 
                 logo.src = logoPath;
 
@@ -151,6 +153,24 @@ class Dashboard {
 
             sidebar?.classList.add("-translate-x-full");
             overlay?.classList.add("hidden");
+
+        });
+
+    }
+
+    static activateLogout() {
+
+        document.querySelectorAll(".logout-btn").forEach((button) => {
+
+            button.onclick = async () => {
+
+                const confirmed = window.confirm("Are you sure you want to logout?");
+
+                if (!confirmed) return;
+
+                await Auth.logout();
+
+            };
 
         });
 

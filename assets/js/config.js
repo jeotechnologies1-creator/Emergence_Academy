@@ -65,7 +65,7 @@ const DEFAULT_CONFIG = {
     APP_DETAILS: {
         SCHOOL_NAME: "Emergence Academy",
         MOTTO: "AI Learning Management System",
-        LOGO: "assets/images/logo.jpeg",
+        LOGO: "assets/images/logo.png",
         FAVICON: "assets/images/favicon.png",
         CONTACT_EMAIL: "support@emergence.edu",
         CONTACT_PHONE: "+234-000-000-0000",
@@ -116,11 +116,11 @@ window.APP_CONFIG = {
         if (!logos.length) return;
         logos.forEach(logo => {
             const preferred = window.APP_CONFIG.logo;
-            const fallback = "assets/images/logo.jpeg";
+            const fallback = "assets/images/logo.png";
             logo.src = preferred;
             logo.alt = `${window.APP_CONFIG.schoolName} Logo`;
             logo.onerror = () => {
-                if (logo.src.endsWith("logo.jpeg")) {
+                if (logo.src.endsWith("logo.png")) {
                     console.error("Failed to load logo:", logo.src);
                     return;
                 }
