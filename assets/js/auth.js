@@ -453,16 +453,24 @@ class Auth {
             const firstName = String(userData.first_name || "").trim();
             const lastName = String(userData.last_name || "").trim();
             const fullName = `${firstName} ${lastName}`.trim();
+            const email = String(userData.email || "").trim().toLowerCase();
+            const password = String(userData.password || "").trim();
+            const targetRole = String(userData.role || this.config.DEFAULT_ROLE || "student").trim().toLowerCase();
+            const phone = String(userData.phone || "").trim();
+
+            if (!email || !password) {
+                return this.error("Email and password are required.");
+            }
 
             const response = await this.client.functions.invoke("create-user", {
                 body: {
-                    email: userData.email,
-                    password: userData.password,
-                    role: userData.role,
+                    email,
+                    password,
+                    role: targetRole,
                     first_name: firstName,
                     last_name: lastName,
                     full_name: fullName,
-                    phone: userData.phone,
+                    phone,
                     created_by: profile.id
                 }
             });
@@ -470,10 +478,22 @@ class Auth {
                 console.error(response.error);
 
                 let message = response.error.message || "Unable to create office account.";
+                let statusCode = null;
 
                 try {
-                    const details = await response.error.context?.json?.();
-                    message = details?.error || details?.message || message;
+                    const ctx = response.error.context;
+                    if (ctx) {
+                        statusCode = ctx.status || null;
+                        const rawText = await ctx.clone().text();
+                        if (rawText) {
+                            try {
+                                const details = JSON.parse(rawText);
+                                message = details?.error || details?.message || message;
+                            } catch {
+                                message = rawText;
+                            }
+                        }
+                    }
                 } catch (parseError) {
                     console.error("Unable to parse edge function error payload:", parseError);
                 }
@@ -482,9 +502,13 @@ class Auth {
                     message = "Create-user function failed (non-2xx). Check function deployment, env secrets, or if the email already exists.";
                 }
 
+                if (statusCode) {
+                    message = `Create-user failed (${statusCode}): ${message}`;
+                }
+
                 return this.error(message);
             }
-            await this.log("CREATE_USER", `${userData.role} - ${userData.email}`);
+            await this.log("CREATE_USER", `${targetRole} - ${email}`);
             return this.success(response.data || { message: "User created successfully." });
         } catch (err) {
             console.error(err);
