@@ -106,9 +106,11 @@ Deno.serve(async (req) => {
     const user = authData?.user;
     if (authError || !user) return json({ error: authError?.message || "Unable to create the student account." }, 400);
 
-    const { error: createProfileError } = await admin.from("profiles").insert({
+    // Some projects create a profile automatically from an auth.users trigger.
+    // Upsert supports both that setup and projects without the trigger.
+    const { error: createProfileError } = await admin.from("profiles").upsert({
       id: user.id, email, role: "student", first_name: firstName, last_name: lastName, phone, status: "active",
-    });
+    }, { onConflict: "id" });
     if (createProfileError) {
       await admin.auth.admin.deleteUser(user.id);
       return json({ error: createProfileError.message }, 400);
