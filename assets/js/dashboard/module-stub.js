@@ -533,6 +533,11 @@ class OfficeModuleEngine {
     return "text";
   }
 
+  static generatedFieldValue(moduleClass, field) {
+    const generator = moduleClass.config.fieldGenerators?.[field];
+    return typeof generator === "function" ? String(generator() || "") : "";
+  }
+
   static buildColumns(rows, moduleClass) {
     const configured = moduleClass.config.columns || [];
     if (configured.length) return configured;
@@ -1072,7 +1077,7 @@ ${this.modalTemplate(moduleClass)}
       .filter((field) => !["id", "created_at", "updated_at"].includes(field))
       .map((field) => {
         const label = field.replace(/_/g, " ").replace(/\b\w/g, (chr) => chr.toUpperCase());
-        const value = row ? this.normalizeRowValue(row[field]) : "";
+        const value = row ? this.normalizeRowValue(row[field]) : this.generatedFieldValue(moduleClass, field);
         const safeValue = this.safe(value === "-" ? "" : value);
 
         const options = moduleClass.config.fieldOptions?.[field] || null;
@@ -1107,10 +1112,14 @@ ${this.modalTemplate(moduleClass)}
         }
 
         const inputType = this.getInputType(moduleClass, field);
+        const canGenerate = !row && typeof moduleClass.config.fieldGenerators?.[field] === "function";
         return `
 <label class="block">
   <span class="text-sm text-slate-700">${this.safe(label)}${required ? " *" : ""}</span>
-  <input type="${inputType}" name="${this.safe(field)}" value="${safeValue}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+  <div class="mt-1 flex gap-2">
+    <input type="${inputType}" name="${this.safe(field)}" value="${safeValue}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+    ${canGenerate ? `<button type="button" data-generate-field="${this.safe(field)}" class="shrink-0 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">Generate</button>` : ""}
+  </div>
   <span data-field-error="${this.safe(field)}" class="hidden mt-1 block text-xs text-red-600"></span>
 </label>
 `;
@@ -1157,6 +1166,14 @@ ${this.modalTemplate(moduleClass)}
     }
 
     const form = container.querySelector(`[data-modal-form="${moduleClass.config.moduleKey}"]`);
+    container.querySelectorAll("[data-generate-field]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const field = button.getAttribute("data-generate-field");
+        const input = field ? form?.querySelector(`[name="${field}"]`) : null;
+        if (input && field) input.value = this.generatedFieldValue(moduleClass, field);
+      });
+    });
+
     if (form) {
       form.addEventListener("submit", async (event) => {
         event.preventDefault();

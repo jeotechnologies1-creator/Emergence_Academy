@@ -9,6 +9,17 @@
 
     class ProfilesModule {
 
+        static profiles = [];
+
+        static safe(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
         static async render(container) {
 
             container.innerHTML = `
@@ -136,6 +147,8 @@
 
             await this.loadProfiles();
 
+            this.bindEvents();
+
         }
 
         static async loadProfiles() {
@@ -150,11 +163,13 @@
                     }
                 });
 
-                this.renderTable(profiles);
+                this.profiles = Array.isArray(profiles) ? profiles : [];
 
-                this.renderStatistics(profiles);
+                this.renderTable(this.profiles);
 
-                this.populateRoleFilter(profiles);
+                this.renderStatistics(this.profiles);
+
+                this.populateRoleFilter(this.profiles);
 
             }
 
@@ -252,6 +267,110 @@
 
             });
 
+        }
+
+        static filterProfiles() {
+            const query = String(document.getElementById("profile-search")?.value || "").trim().toLowerCase();
+            const role = String(document.getElementById("role-filter")?.value || "").toLowerCase();
+            const status = String(document.getElementById("status-filter")?.value || "").toLowerCase();
+
+            const rows = this.profiles.filter((profile) => {
+                const text = [profile.first_name, profile.last_name, profile.email, profile.phone, profile.role, profile.status]
+                    .join(" ")
+                    .toLowerCase();
+                return (!query || text.includes(query))
+                    && (!role || String(profile.role || "").toLowerCase() === role)
+                    && (!status || String(profile.status || "").toLowerCase() === status);
+            });
+            this.renderTable(rows);
+        }
+
+        static notify(message, tone = "success") {
+            if (tone === "success" && window.Utils?.success) return Utils.success(message);
+            if (tone === "error" && window.Utils?.error) return Utils.error(message);
+            window.alert(message);
+        }
+
+        static closeModal() {
+            document.getElementById("profile-action-modal")?.remove();
+        }
+
+        static openModal(mode, profile = null) {
+            const isCreate = mode === "create";
+            const title = isCreate ? "Create User" : mode === "view" ? "User Profile" : "Edit User";
+            const readOnly = mode === "view";
+            const value = (key) => this.safe(profile?.[key] || "");
+            const roles = ["student", "teacher", "parent", "admin", "executive", "finance", "hr", "admission", "exam", "library"];
+
+            const modal = document.createElement("div");
+            modal.id = "profile-action-modal";
+            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4";
+            modal.innerHTML = `
+              <div class="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+                <div class="mb-4 flex items-center justify-between"><h3 class="text-xl font-bold">${title}</h3><button type="button" data-profile-close>Close</button></div>
+                <form id="profile-action-form" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label>First name<input name="first_name" value="${value("first_name")}" ${readOnly ? "readonly" : "required"} class="mt-1 w-full rounded border px-3 py-2" /></label>
+                  <label>Last name<input name="last_name" value="${value("last_name")}" ${readOnly ? "readonly" : "required"} class="mt-1 w-full rounded border px-3 py-2" /></label>
+                  <label class="md:col-span-2">Email<input name="email" type="email" value="${value("email")}" ${readOnly || !isCreate ? "readonly" : "required"} class="mt-1 w-full rounded border px-3 py-2" /></label>
+                  <label>Phone<input name="phone" value="${value("phone")}" ${readOnly ? "readonly" : ""} class="mt-1 w-full rounded border px-3 py-2" /></label>
+                  <label>Role<select name="role" ${readOnly || !isCreate ? "disabled" : ""} class="mt-1 w-full rounded border px-3 py-2">${roles.map((role) => `<option value="${role}" ${String(profile?.role || "student") === role ? "selected" : ""}>${role}</option>`).join("")}</select></label>
+                  <label>Status<select name="status" ${readOnly ? "disabled" : ""} class="mt-1 w-full rounded border px-3 py-2">${["active", "inactive", "pending", "suspended"].map((status) => `<option value="${status}" ${String(profile?.status || "active") === status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
+                  ${isCreate ? `<label>Password<input name="password" type="password" minlength="8" required class="mt-1 w-full rounded border px-3 py-2" /></label>` : ""}
+                  <div class="md:col-span-2 flex justify-end gap-2"><button type="button" data-profile-close class="rounded border px-4 py-2">Cancel</button>${readOnly ? "" : '<button class="rounded bg-blue-600 px-4 py-2 text-white">Save</button>'}</div>
+                </form>
+              </div>`;
+            document.body.appendChild(modal);
+
+            modal.querySelectorAll("[data-profile-close]").forEach((button) => button.addEventListener("click", () => this.closeModal()));
+            modal.addEventListener("click", (event) => { if (event.target === modal) this.closeModal(); });
+            modal.querySelector("form")?.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const form = new FormData(event.currentTarget);
+                const payload = Object.fromEntries(form.entries());
+                try {
+                    if (isCreate) {
+                        const result = await Auth.createOfficeAccount(payload);
+                        if (!result?.success) throw new Error(result?.message || "Unable to create user.");
+                    } else {
+                        await ApiService.update("profiles", profile.id, {
+                            first_name: payload.first_name,
+                            last_name: payload.last_name,
+                            phone: payload.phone,
+                            status: payload.status
+                        });
+                    }
+                    this.closeModal();
+                    await this.loadProfiles();
+                    this.notify(isCreate ? "User created successfully." : "Profile updated successfully.");
+                } catch (error) {
+                    this.notify(error.message || "Unable to save profile.", "error");
+                }
+            });
+        }
+
+        static bindEvents() {
+            document.getElementById("create-user-btn")?.addEventListener("click", () => this.openModal("create"));
+            ["profile-search", "role-filter", "status-filter"].forEach((id) => {
+                document.getElementById(id)?.addEventListener(id === "profile-search" ? "input" : "change", () => this.filterProfiles());
+            });
+            document.getElementById("profiles-table")?.addEventListener("click", async (event) => {
+                const button = event.target.closest("button[data-id]");
+                if (!button) return;
+                const profile = this.profiles.find((item) => String(item.id) === String(button.dataset.id));
+                if (!profile) return;
+                if (button.classList.contains("view-btn")) return this.openModal("view", profile);
+                if (button.classList.contains("edit-btn")) return this.openModal("edit", profile);
+                if (button.classList.contains("delete-btn")) {
+                    if (!window.confirm(`Deactivate ${profile.email}?`)) return;
+                    try {
+                        await ApiService.update("profiles", profile.id, { status: "inactive" });
+                        await this.loadProfiles();
+                        this.notify("User deactivated successfully.");
+                    } catch (error) {
+                        this.notify(error.message || "Unable to deactivate user.", "error");
+                    }
+                }
+            });
         }
 
         static renderStatistics(profiles) {

@@ -11,12 +11,15 @@ const TeachersModule = window.OfficeModuleEngine.create({
     { key: "status", label: "Status" },
     { key: "created_at", label: "Created" }
   ],
-  formFields: ["full_name", "email", "phone", "password", "employee_id", "department_id", "qualification", "status"],
+  formFields: ["full_name", "email", "phone", "password", "employee_id", "department_name", "qualification", "status"],
   editFormFields: ["employee_id", "department_id", "qualification", "status"],
-  requiredFields: ["full_name", "email", "employee_id", "department_id", "status"],
+  requiredFields: ["full_name", "email", "employee_id", "department_name", "status"],
   editRequiredFields: ["employee_id", "department_id", "status"],
   fieldTypes: {
     email: "email"
+  },
+  fieldGenerators: {
+    employee_id: () => `EA-EMP-${new Date().getFullYear()}-${String(Math.floor(1000 + Math.random() * 9000))}`
   },
   permissions: {
     create: ["ceo", "admin", "executive", "hr"],

@@ -1040,6 +1040,7 @@ specialization.ilike.%${keyword}%`
                             teacher_data: {
                                 employee_id: teacherData.employee_id,
                                 department_id: teacherData.department_id,
+                                department_name: teacherData.department_name,
                                 qualification: teacherData.qualification,
                                 status: teacherData.status || "active"
                             }

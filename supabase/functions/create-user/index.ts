@@ -374,11 +374,51 @@ Deno.serve(async (req) => {
     let teacher = null;
     if (normalizedRole === "teacher" && teacherData && typeof teacherData === "object") {
       const record = teacherData as Record<string, unknown>;
+      const departmentName = String(record.department_name || "").trim();
+      let departmentId = String(record.department_id || "").trim() || null;
+
+      if (departmentName) {
+        const { data: existingDepartment, error: findDepartmentError } = await supabaseAdmin
+          .from("departments")
+          .select("id")
+          .eq("name", departmentName)
+          .maybeSingle();
+
+        if (findDepartmentError) {
+          await supabaseAdmin.from("profiles").delete().eq("id", authUser.user!.id);
+          await supabaseAdmin.auth.admin.deleteUser(authUser.user!.id);
+          return new Response(JSON.stringify({ error: findDepartmentError.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        if (existingDepartment?.id) {
+          departmentId = existingDepartment.id;
+        } else {
+          const { data: createdDepartment, error: createDepartmentError } = await supabaseAdmin
+            .from("departments")
+            .insert({ name: departmentName })
+            .select("id")
+            .single();
+
+          if (createDepartmentError || !createdDepartment?.id) {
+            await supabaseAdmin.from("profiles").delete().eq("id", authUser.user!.id);
+            await supabaseAdmin.auth.admin.deleteUser(authUser.user!.id);
+            return new Response(JSON.stringify({ error: createDepartmentError?.message || "Unable to create department." }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          departmentId = createdDepartment.id;
+        }
+      }
+
       const teacherPayload = {
         profile_id: authUser.user!.id,
         teacher_no: `T-${String(record.employee_id || "").trim()}`,
         employee_id: String(record.employee_id || "").trim(),
-        department_id: String(record.department_id || "").trim() || null,
+        department_id: departmentId,
         qualification: String(record.qualification || "").trim(),
         status: String(record.status || "active").trim() || "active",
       };
