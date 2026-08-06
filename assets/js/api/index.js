@@ -41,6 +41,31 @@ class API {
 
     }
 
+    static async functionErrorMessage(error, fallback = "Edge Function request failed.") {
+
+        let message = error?.message || fallback;
+        const response = error?.context;
+
+        try {
+            if (response && typeof response.clone === "function") {
+                const raw = await response.clone().text();
+                if (raw) {
+                    try {
+                        const parsed = JSON.parse(raw);
+                        message = parsed?.error || parsed?.message || message;
+                    } catch {
+                        message = raw;
+                    }
+                }
+            }
+        } catch (parseError) {
+            console.error("Unable to read Edge Function error response:", parseError);
+        }
+
+        return message;
+
+    }
+
     /* ======================================================
        DASHBOARD
     ====================================================== */
@@ -551,10 +576,18 @@ class API {
 
             try {
 
+                const accessToken = await window.Auth?.accessToken?.();
+                if (!accessToken) {
+                    throw new Error("Your session has expired. Please sign in again and retry.");
+                }
+
                 const { data, error } = await API.db.functions.invoke(
                     "admit-student",
                     {
-                        body: studentData
+                        body: studentData,
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`
+                        }
                     }
                 );
 
@@ -576,10 +609,15 @@ class API {
 
                 console.error(error);
 
+                const message = await API.functionErrorMessage(
+                    error,
+                    "Unable to admit student."
+                );
+
                 return API.response(
                     false,
                     null,
-                    error.message || "Unable to admit student."
+                    message
                 );
 
             }
@@ -1031,6 +1069,11 @@ specialization.ilike.%${keyword}%`
 
             try {
 
+                const accessToken = await window.Auth?.accessToken?.();
+                if (!accessToken) {
+                    throw new Error("Your session has expired. Please sign in again and retry.");
+                }
+
                 const { data, error } = await API.db.functions.invoke(
                     "create-user",
                     {
@@ -1044,6 +1087,9 @@ specialization.ilike.%${keyword}%`
                                 qualification: teacherData.qualification,
                                 status: teacherData.status || "active"
                             }
+                        },
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`
                         }
                     }
                 );
@@ -1056,7 +1102,11 @@ specialization.ilike.%${keyword}%`
             } catch (error) {
 
                 console.error(error);
-                return API.response(false, null, error.message || "Unable to create teacher.");
+                const message = await API.functionErrorMessage(
+                    error,
+                    "Unable to create teacher."
+                );
+                return API.response(false, null, message);
 
             }
 
