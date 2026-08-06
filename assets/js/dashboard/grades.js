@@ -6,12 +6,13 @@ const GradesModule = window.OfficeModuleEngine.create({
   columns: [
     { key: "student_id", label: "Student" },
     { key: "subject_id", label: "Subject" },
+    { key: "teacher_id", label: "Teacher" },
     { key: "score", label: "Score" },
     { key: "grade", label: "Grade" },
-    { key: "term", label: "Term" }
+    { key: "term_id", label: "Term" }
   ],
-  formFields: ["student_id", "subject_id", "score", "grade", "term", "remark"],
-  requiredFields: ["student_id", "subject_id", "score", "grade", "term"],
+  formFields: ["student_id", "subject_id", "teacher_id", "term_id", "score", "grade", "remarks"],
+  requiredFields: ["student_id", "subject_id", "teacher_id", "score", "grade"],
   fieldTypes: {
     score: "number"
   },
@@ -19,7 +20,6 @@ const GradesModule = window.OfficeModuleEngine.create({
     score: { min: 0, max: 100 }
   },
   fieldOptions: {
-    term: ["first", "second", "third"],
     grade: ["A", "B", "C", "D", "E", "F"]
   },
   permissions: {
@@ -37,7 +37,9 @@ const GradesModule = window.OfficeModuleEngine.create({
         return `${context.profileName || "Student"}${suffix}`.trim();
       }
     },
-    subject_id: { table: "subjects" }
+    subject_id: { table: "subjects" },
+    teacher_id: { table: "teachers", preferProfileName: true },
+    term_id: { table: "terms", labelKey: "term_name" }
   }
 });
 

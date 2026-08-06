@@ -7,11 +7,11 @@ const FinanceModule = window.OfficeModuleEngine.create({
     { key: "student_id", label: "Student" },
     { key: "amount", label: "Amount" },
     { key: "payment_method", label: "Method" },
-    { key: "status", label: "Status" },
+    { key: "payment_status", label: "Status" },
     { key: "created_at", label: "Date" }
   ],
-  formFields: ["student_id", "amount", "payment_method", "reference", "status"],
-  requiredFields: ["student_id", "amount", "payment_method", "status"],
+  formFields: ["student_id", "amount", "payment_method", "payment_reference", "payment_status"],
+  requiredFields: ["student_id", "amount", "payment_method", "payment_status"],
   fieldTypes: {
     amount: "number"
   },
@@ -20,7 +20,7 @@ const FinanceModule = window.OfficeModuleEngine.create({
   },
   fieldOptions: {
     payment_method: ["cash", "bank_transfer", "card", "pos", "mobile_money"],
-    status: ["pending", "paid", "failed", "reversed"]
+    payment_status: ["pending", "paid", "failed", "refunded"]
   },
   permissions: {
     create: ["ceo", "admin", "executive", "finance"],
@@ -28,8 +28,8 @@ const FinanceModule = window.OfficeModuleEngine.create({
     delete: ["ceo", "admin", "executive"]
   },
   softDelete: true,
-  softDeleteField: "status",
-  softDeleteValue: "reversed",
+  softDeleteField: "payment_status",
+  softDeleteValue: "refunded",
   softRestoreValue: "pending",
   lookups: {
     student_id: {

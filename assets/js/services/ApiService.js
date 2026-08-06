@@ -1,19 +1,261 @@
+// /* ==========================================================
+//    EMERGENCE ACADEMY
+//    API SERVICE
+//    Version: 1.0.0
+// ========================================================== */
+
+// (function () {
+//     "use strict";
+
+//     class ApiService {
+
+//         static async getClient() {
+
+//             if (window.waitForSupabase) {
+//                 await window.waitForSupabase();
+//             }
+
+//             return window.getSupabaseClient();
+
+//         }
+
+//         static table(name) {
+
+//             if (!window.CONFIG?.TABLES?.[name]) {
+//                 throw new Error(`Unknown table "${name}"`);
+//             }
+
+//             return window.CONFIG.TABLES[name];
+
+//         }
+
+//         static async select(table, options = {}) {
+
+//             const client = await this.getClient();
+
+//             let query = client
+//                 .from(this.table(table))
+//                 .select(options.columns || "*");
+
+//             if (options.match) {
+
+//                 Object.entries(options.match).forEach(([key, value]) => {
+
+//                     query = query.eq(key, value);
+
+//                 });
+
+//             }
+
+//             if (options.order) {
+
+//                 query = query.order(
+//                     options.order.column,
+//                     {
+//                         ascending: options.order.ascending ?? true
+//                     }
+//                 );
+
+//             }
+
+//             if (options.limit) {
+
+//                 query = query.limit(options.limit);
+
+//             }
+
+//             const { data, error } = await query;
+
+//             if (error) {
+
+//                 console.error(error);
+
+//                 throw error;
+
+//             }
+
+//             return data;
+
+//         }
+
+//         static async single(table, match) {
+
+//             const client = await this.getClient();
+
+//             const { data, error } = await client
+//                 .from(this.table(table))
+//                 .select("*")
+//                 .match(match)
+//                 .single();
+
+//             if (error) {
+
+//                 console.error(error);
+
+//                 throw error;
+
+//             }
+
+//             return data;
+
+//         }
+
+//         static async insert(table, payload) {
+
+//             const client = await this.getClient();
+
+//             const { data, error } = await client
+//                 .from(this.table(table))
+//                 .insert(payload)
+//                 .select();
+
+//             if (error) {
+
+//                 console.error(error);
+
+//                 throw error;
+
+//             }
+
+//             return data;
+
+//         }
+
+//         static async update(table, match, payload) {
+
+//             const client = await this.getClient();
+
+//             const { data, error } = await client
+//                 .from(this.table(table))
+//                 .update(payload)
+//                 .match(match)
+//                 .select();
+
+//             if (error) {
+
+//                 console.error(error);
+
+//                 throw error;
+
+//             }
+
+//             return data;
+
+//         }
+
+//         static async upsert(table, payload) {
+
+//             const client = await this.getClient();
+
+//             const { data, error } = await client
+//                 .from(this.table(table))
+//                 .upsert(payload)
+//                 .select();
+
+//             if (error) {
+
+//                 console.error(error);
+
+//                 throw error;
+
+//             }
+
+//             return data;
+
+//         }
+
+//         static async delete(table, match) {
+
+//             const client = await this.getClient();
+
+//             const { error } = await client
+//                 .from(this.table(table))
+//                 .delete()
+//                 .match(match);
+
+//             if (error) {
+
+//                 console.error(error);
+
+//                 throw error;
+
+//             }
+
+//             return true;
+
+//         }
+
+//         static async rpc(functionName, params = {}) {
+
+//             const client = await this.getClient();
+
+//             const { data, error } =
+//                 await client.rpc(functionName, params);
+
+//             if (error) {
+
+//                 console.error(error);
+
+//                 throw error;
+
+//             }
+
+//             return data;
+
+//         }
+
+//         static async upload(bucket, path, file, options = {}) {
+
+//             const client = await this.getClient();
+
+//             const { data, error } =
+//                 await client.storage
+//                     .from(bucket)
+//                     .upload(path, file, options);
+
+//             if (error) {
+
+//                 console.error(error);
+
+//                 throw error;
+
+//             }
+
+//             return data;
+
+//         }
+
+//         static async getPublicUrl(bucket, path) {
+
+//             const client = await this.getClient();
+
+//             const { data } =
+//                 client.storage
+//                     .from(bucket)
+//                     .getPublicUrl(path);
+
+//             return data.publicUrl;
+
+//         }
+
+//     }
+
+//     window.ApiService = ApiService;
+
+// })();
+
 /* ==========================================================
    EMERGENCE ACADEMY
    API SERVICE
-   Version: 1.0.0
 ========================================================== */
 
 (function () {
+
     "use strict";
 
     class ApiService {
 
-        static async getClient() {
-
-            if (window.waitForSupabase) {
-                await window.waitForSupabase();
-            }
+        static client() {
 
             return window.getSupabaseClient();
 
@@ -21,46 +263,61 @@
 
         static table(name) {
 
-            if (!window.CONFIG?.TABLES?.[name]) {
-                throw new Error(`Unknown table "${name}"`);
-            }
+            const table = CONFIG.TABLES[name] || name;
 
-            return window.CONFIG.TABLES[name];
+            return this.client().from(table);
 
         }
 
-        static async select(table, options = {}) {
+        /* ===============================
+           SELECT
+        =============================== */
 
-            const client = await this.getClient();
+        static async select(name, options = {}) {
 
-            let query = client
-                .from(this.table(table))
-                .select(options.columns || "*");
+            const {
+                columns = "*",
+                filters = {},
+                order = null,
+                limit = null,
+                single = false
+            } = options;
 
-            if (options.match) {
+            let query = this.table(name).select(columns);
 
-                Object.entries(options.match).forEach(([key, value]) => {
+            Object.entries(filters).forEach(([column, value]) => {
 
-                    query = query.eq(key, value);
+                if (value !== undefined &&
+                    value !== null &&
+                    value !== "") {
 
-                });
+                    query = query.eq(column, value);
 
-            }
+                }
 
-            if (options.order) {
+            });
+
+            if (order) {
 
                 query = query.order(
-                    options.order.column,
+                    order.column,
                     {
-                        ascending: options.order.ascending ?? true
+                        ascending:
+                            order.ascending ?? true
                     }
                 );
 
             }
 
-            if (options.limit) {
+            if (limit) {
 
-                query = query.limit(options.limit);
+                query = query.limit(limit);
+
+            }
+
+            if (single) {
+
+                query = query.single();
 
             }
 
@@ -78,36 +335,16 @@
 
         }
 
-        static async single(table, match) {
+        /* ===============================
+           INSERT
+        =============================== */
 
-            const client = await this.getClient();
+        static async insert(name, payload) {
 
-            const { data, error } = await client
-                .from(this.table(table))
-                .select("*")
-                .match(match)
-                .single();
-
-            if (error) {
-
-                console.error(error);
-
-                throw error;
-
-            }
-
-            return data;
-
-        }
-
-        static async insert(table, payload) {
-
-            const client = await this.getClient();
-
-            const { data, error } = await client
-                .from(this.table(table))
-                .insert(payload)
-                .select();
+            const { data, error } =
+                await this.table(name)
+                    .insert(payload)
+                    .select();
 
             if (error) {
 
@@ -121,36 +358,17 @@
 
         }
 
-        static async update(table, match, payload) {
+        /* ===============================
+           UPDATE
+        =============================== */
 
-            const client = await this.getClient();
+        static async update(name, id, payload) {
 
-            const { data, error } = await client
-                .from(this.table(table))
-                .update(payload)
-                .match(match)
-                .select();
-
-            if (error) {
-
-                console.error(error);
-
-                throw error;
-
-            }
-
-            return data;
-
-        }
-
-        static async upsert(table, payload) {
-
-            const client = await this.getClient();
-
-            const { data, error } = await client
-                .from(this.table(table))
-                .upsert(payload)
-                .select();
+            const { data, error } =
+                await this.table(name)
+                    .update(payload)
+                    .eq("id", id)
+                    .select();
 
             if (error) {
 
@@ -164,14 +382,16 @@
 
         }
 
-        static async delete(table, match) {
+        /* ===============================
+           DELETE
+        =============================== */
 
-            const client = await this.getClient();
+        static async delete(name, id) {
 
-            const { error } = await client
-                .from(this.table(table))
-                .delete()
-                .match(match);
+            const { error } =
+                await this.table(name)
+                    .delete()
+                    .eq("id", id);
 
             if (error) {
 
@@ -185,56 +405,57 @@
 
         }
 
-        static async rpc(functionName, params = {}) {
+        /* ===============================
+           COUNT
+        =============================== */
 
-            const client = await this.getClient();
+        static async count(name, filters = {}) {
 
-            const { data, error } =
-                await client.rpc(functionName, params);
+            let query =
+                this.table(name)
+                    .select("*", {
+                        count: "exact",
+                        head: true
+                    });
+
+            Object.entries(filters).forEach(([column, value]) => {
+
+                query = query.eq(column, value);
+
+            });
+
+            const { count, error } = await query;
 
             if (error) {
-
-                console.error(error);
 
                 throw error;
 
             }
 
-            return data;
+            return count;
 
         }
 
-        static async upload(bucket, path, file, options = {}) {
+        /* ===============================
+           EXISTS
+        =============================== */
 
-            const client = await this.getClient();
+        static async exists(name, filters = {}) {
 
-            const { data, error } =
-                await client.storage
-                    .from(bucket)
-                    .upload(path, file, options);
-
-            if (error) {
-
-                console.error(error);
-
-                throw error;
-
-            }
-
-            return data;
+            return (await this.count(name, filters)) > 0;
 
         }
 
-        static async getPublicUrl(bucket, path) {
+        /* ===============================
+           SINGLE
+        =============================== */
 
-            const client = await this.getClient();
+        static async single(name, filters = {}) {
 
-            const { data } =
-                client.storage
-                    .from(bucket)
-                    .getPublicUrl(path);
-
-            return data.publicUrl;
+            return this.select(name, {
+                filters,
+                single: true
+            });
 
         }
 

@@ -1,218 +1,140 @@
-import "@supabase/functions-js/edge-runtime.d.ts";
-import { withSupabase } from "@supabase/server";
-
-export default {
-  fetch: withSupabase(
-    { auth: ["secret"] },
-    async (req, ctx) => {
-
-      try {
-
-        const body = await req.json();
-
-        const {
-          email,
-          password,
-          first_name,
-          last_name,
-          phone,
-          class_id,
-          admission_date
-        } = body;
-
-        if (!email || !password) {
-          return Response.json(
-            { error: "Email and password are required." },
-            { status: 400 }
-          );
-        }
-
-        const { data: authUser, error: authError } =
-          await ctx.supabaseAdmin.auth.admin.createUser({
-
-            email,
-
-            password,
-
-            email_confirm: true
-
-          });
-
-        if (authError) {
-
-          return Response.json(
-            { error: authError.message },
-            { status: 400 }
-          );
-
-        }
-
-        const user = authUser.user;
-
-        if (!user) {
-
-          return Response.json(
-            { error: "Failed to create user." },
-            { status: 500 }
-          );
-
-        }
-        const user = authUser.user;
-
-        if (!user) {
-
-          return Response.json(
-            { error: "Failed to create user." },
-            { status: 500 }
-          );
-
-        }
-        /* ------------------------------------------
-           CREATE PROFILE
-        ------------------------------------------- */
-
-        const { error: profileError } = await ctx.supabaseAdmin
-
-          .from("profiles")
-
-          .insert({
-
-            id: user.id,
-
-            email,
-
-            role: "student",
-
-            first_name,
-
-            last_name,
-
-            phone
-
-          });
-
-        if (profileError) {
-
-          // Remove the auth user if profile creation fails
-          await ctx.supabaseAdmin.auth.admin.deleteUser(user.id);
-
-          return Response.json(
-
-            {
-              error: profileError.message
-            },
-
-            {
-              status: 400
-            }
-
-          );
-
-        }
-        /* ------------------------------------------
-   CREATE STUDENT RECORD
-------------------------------------------- */
-
-        const currentYear = new Date().getFullYear();
-
-        const { data: studentId, error: studentError } =
-          await ctx.supabaseAdmin.rpc("admit_student", {
-
-            p_profile_id: user.id,
-
-            p_class_id: class_id || null,
-
-            p_admission_date: admission_date || null,
-
-            p_admission_year: currentYear,
-
-            p_status: "active"
-
-          });
-
-        if (studentError) {
-
-          // Roll back profile
-          await ctx.supabaseAdmin
-            .from("profiles")
-            .delete()
-            .eq("id", user.id);
-
-          // Roll back auth user
-          await ctx.supabaseAdmin.auth.admin.deleteUser(user.id);
-
-          return Response.json(
-            {
-              error: studentError.message
-            },
-            {
-              status: 400
-            }
-          );
-
-        }
-        /* ------------------------------------------
-   LOAD COMPLETE STUDENT
-------------------------------------------- */
-
-        const { data: student, error: fetchError } =
-          await ctx.supabaseAdmin
-
-            .from("students")
-
-            .select(`
-              *,
-              profiles (
-                first_name,
-                last_name,
-                email,
-                phone
-              ),
-              classes (
-                id,
-                class_name
-              )
-            `)
-
-            .eq("id", studentId)
-
-            .single();
-
-        if (fetchError) {
-
-          return Response.json(
-            {
-              success: true,
-              student_id: studentId
-            }
-          );
-
-        }
-
-        return Response.json({
-
-          success: true,
-
-          student
-
-        });
-
-      } catch (err) {
-
-        return Response.json(
-
-          {
-            error: err instanceof Error ? err.message : "Unknown error"
-          },
-
-          {
-            status: 500
-          }
-
-        );
-
-      }
-
-    }
-  )
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+const ADMISSION_ROLES = new Set(["ceo", "admin", "executive", "admission"]);
+const CLASS_LEVELS = new Set([
+  "Primary 3", "Primary 4", "Primary 5", "Primary 6",
+  "JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3",
+]);
+
+function json(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function deleteCreatedUser(admin: any, userId: string) {
+  await admin.from("profiles").delete().eq("id", userId);
+  await admin.auth.admin.deleteUser(userId);
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
+
+  try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const authHeader = req.headers.get("Authorization") || "";
+
+    if (!url || !serviceRoleKey) {
+      return json({ error: "Supabase function environment is not configured." }, 500);
+    }
+    if (!authHeader) return json({ error: "Authentication is required." }, 401);
+
+    const callerClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY") || serviceRoleKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: callerData, error: callerError } = await callerClient.auth.getUser();
+    if (callerError || !callerData.user) return json({ error: "Invalid authentication session." }, 401);
+
+    const admin = createClient(url, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: callerProfile, error: profileLookupError } = await admin
+      .from("profiles")
+      .select("role")
+      .eq("id", callerData.user.id)
+      .single();
+
+    if (profileLookupError || !ADMISSION_ROLES.has(String(callerProfile?.role || "").toLowerCase())) {
+      return json({ error: "You do not have permission to admit students." }, 403);
+    }
+
+    const body = await req.json();
+    const email = String(body?.email || "").trim().toLowerCase();
+    const password = String(body?.password || "");
+    const firstName = String(body?.first_name || "").trim();
+    const lastName = String(body?.last_name || "").trim();
+    const phone = String(body?.phone || "").trim();
+    const classLevel = String(body?.class_level || "").trim();
+    let classId = String(body?.class_id || "").trim();
+    const admissionDate = String(body?.admission_date || "").trim() || null;
+
+    if (!email || !password || !firstName || !lastName || (!classId && !classLevel)) {
+      return json({ error: "First name, last name, email, password, and class are required." }, 400);
+    }
+    if (password.length < 8) return json({ error: "Password must be at least 8 characters." }, 400);
+
+    if (!classId && classLevel) {
+      if (!CLASS_LEVELS.has(classLevel)) return json({ error: "Select a valid class level." }, 400);
+      const { data: existingClass, error: findClassError } = await admin
+        .from("classes")
+        .select("id")
+        .eq("class_name", classLevel)
+        .maybeSingle();
+      if (findClassError) return json({ error: findClassError.message }, 400);
+
+      if (existingClass?.id) {
+        classId = String(existingClass.id);
+      } else {
+        const { data: newClass, error: classError } = await admin
+          .from("classes")
+          .insert({ class_name: classLevel })
+          .select("id")
+          .single();
+        if (classError || !newClass?.id) {
+          return json({ error: classError?.message || "Unable to create the selected class." }, 400);
+        }
+        classId = String(newClass.id);
+      }
+    }
+
+    const { data: authData, error: authError } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { first_name: firstName, last_name: lastName, role: "student" },
+    });
+    const user = authData?.user;
+    if (authError || !user) return json({ error: authError?.message || "Unable to create the student account." }, 400);
+
+    const { error: createProfileError } = await admin.from("profiles").insert({
+      id: user.id, email, role: "student", first_name: firstName, last_name: lastName, phone, status: "active",
+    });
+    if (createProfileError) {
+      await admin.auth.admin.deleteUser(user.id);
+      return json({ error: createProfileError.message }, 400);
+    }
+
+    const { data: studentId, error: studentError } = await admin.rpc("admit_student", {
+      p_profile_id: user.id,
+      p_class_id: classId,
+      p_admission_date: admissionDate,
+      p_admission_year: new Date().getFullYear(),
+      p_status: "active",
+    });
+    if (studentError || !studentId) {
+      await deleteCreatedUser(admin, user.id);
+      return json({ error: studentError?.message || "Unable to create the student record." }, 400);
+    }
+
+    const { data: student, error: fetchError } = await admin
+      .from("students")
+      .select("*, profiles:profile_id(first_name,last_name,email,phone), classes:class_id(id,class_name)")
+      .eq("id", studentId)
+      .single();
+
+    return json({ success: true, student: fetchError ? { id: studentId } : student });
+  } catch (error) {
+    console.error("admit-student failed", error);
+    return json({ error: error instanceof Error ? error.message : "Unable to admit student." }, 500);
+  }
+});

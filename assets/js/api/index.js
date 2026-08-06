@@ -1024,6 +1024,44 @@ specialization.ilike.%${keyword}%`
         },
 
         /* ==============================================
+           CREATE TEACHER ACCOUNT AND RECORD
+        ============================================== */
+
+        async createAccount(teacherData) {
+
+            try {
+
+                const { data, error } = await API.db.functions.invoke(
+                    "create-user",
+                    {
+                        body: {
+                            ...teacherData,
+                            role: "teacher",
+                            teacher_data: {
+                                employee_id: teacherData.employee_id,
+                                department_id: teacherData.department_id,
+                                qualification: teacherData.qualification,
+                                status: teacherData.status || "active"
+                            }
+                        }
+                    }
+                );
+
+                if (error) throw error;
+                if (data?.error) throw new Error(data.error);
+
+                return API.response(true, data?.teacher || data, data?.message || "Teacher created successfully.");
+
+            } catch (error) {
+
+                console.error(error);
+                return API.response(false, null, error.message || "Unable to create teacher.");
+
+            }
+
+        },
+
+        /* ==============================================
            UPDATE TEACHER
         ============================================== */
 

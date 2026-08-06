@@ -158,10 +158,18 @@ class StudentsModule {
     }
 
     static classOptions(selectedValue = "") {
-        return this.state.classes.map((item) => `
+        const standardLevels = ["Primary 3", "Primary 4", "Primary 5", "Primary 6", "JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"];
+        const storedOptions = this.state.classes.map((item) => `
 <option value="${this.safe(item.id)}" ${String(item.id) === String(selectedValue) ? "selected" : ""}>
   ${this.safe(item.class_name || item.class_code || item.id)}
 </option>`).join("");
+        const knownNames = new Set(this.state.classes.map((item) => String(item.class_name || "").trim().toLowerCase()));
+        const standardOptions = standardLevels
+            .filter((level) => !knownNames.has(level.toLowerCase()))
+            .map((level) => `<option value="level:${this.safe(level)}" ${String(selectedValue) === `level:${level}` ? "selected" : ""}>${this.safe(level)}</option>`)
+            .join("");
+
+        return `${storedOptions}${standardOptions}`;
     }
 
     static modalTemplate() {
@@ -368,7 +376,13 @@ class StudentsModule {
             password: String(form.get("password") || "").trim() || this.generatePassword()
         };
 
-        if (!payload.first_name || !payload.last_name || !payload.email || !payload.class_id || !payload.password) {
+        const selectedClass = payload.class_id;
+        if (selectedClass.startsWith("level:")) {
+            payload.class_level = selectedClass.slice("level:".length);
+            payload.class_id = "";
+        }
+
+        if (!payload.first_name || !payload.last_name || !payload.email || (!payload.class_id && !payload.class_level) || !payload.password) {
             this.showFormError("First name, last name, email, class, and password are required.");
             return;
         }

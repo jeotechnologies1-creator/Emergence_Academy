@@ -20,6 +20,8 @@ class Dashboard {
 
         this.roleConfig = await RoleRouter.redirect();
 
+        await DashboardService.filterSidebar();
+
         this.activateLogout();
 
         this.registerModules();
@@ -37,6 +39,7 @@ class Dashboard {
         const modules = {
 
             dashboard: window.DashboardHome,
+            profiles: window.ProfilesModule,
             students: window.StudentsModule,
             teachers: window.TeachersModule,
             parents: window.ParentsModule,

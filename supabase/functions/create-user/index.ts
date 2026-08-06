@@ -161,6 +161,7 @@ Deno.serve(async (req) => {
     const last_name = body?.last_name;
     const role = body?.role;
     const phone = body?.phone;
+    const teacherData = body?.teacher_data;
 
     if (!rawEmail) {
       return new Response(
@@ -363,8 +364,40 @@ Deno.serve(async (req) => {
         )
       );
 
-      // Do not delete auth user here
-      // because account was already created
+      await supabaseAdmin.auth.admin.deleteUser(authUser.user!.id);
+      return new Response(
+        JSON.stringify({ error: profileError.message || "Unable to create the user profile." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    let teacher = null;
+    if (normalizedRole === "teacher" && teacherData && typeof teacherData === "object") {
+      const record = teacherData as Record<string, unknown>;
+      const teacherPayload = {
+        profile_id: authUser.user!.id,
+        teacher_no: `T-${String(record.employee_id || "").trim()}`,
+        employee_id: String(record.employee_id || "").trim(),
+        department_id: String(record.department_id || "").trim() || null,
+        qualification: String(record.qualification || "").trim(),
+        status: String(record.status || "active").trim() || "active",
+      };
+
+      const { data: teacherRecord, error: teacherError } = await supabaseAdmin
+        .from("teachers")
+        .insert(teacherPayload)
+        .select()
+        .single();
+
+      if (teacherError) {
+        await supabaseAdmin.from("profiles").delete().eq("id", authUser.user!.id);
+        await supabaseAdmin.auth.admin.deleteUser(authUser.user!.id);
+        return new Response(
+          JSON.stringify({ error: teacherError.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      teacher = teacherRecord;
     }
 
 
@@ -377,6 +410,7 @@ Deno.serve(async (req) => {
         profile_saved: !profileError,
         temporary_password: effectivePassword,
         password_generated: generatedPassword,
+        teacher,
         user:
           authUser.user,
       }),

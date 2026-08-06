@@ -4,14 +4,20 @@ const TeachersModule = window.OfficeModuleEngine.create({
   tableName: "teachers",
   orderBy: "created_at",
   columns: [
+    { key: "profile_id", label: "Name" },
     { key: "employee_id", label: "Employee ID" },
-    { key: "department", label: "Department" },
+    { key: "department_id", label: "Department" },
     { key: "qualification", label: "Qualification" },
     { key: "status", label: "Status" },
     { key: "created_at", label: "Created" }
   ],
-  formFields: ["employee_id", "department", "qualification", "status"],
-  requiredFields: ["employee_id", "department", "status"],
+  formFields: ["full_name", "email", "phone", "password", "employee_id", "department_id", "qualification", "status"],
+  editFormFields: ["employee_id", "department_id", "qualification", "status"],
+  requiredFields: ["full_name", "email", "employee_id", "department_id", "status"],
+  editRequiredFields: ["employee_id", "department_id", "status"],
+  fieldTypes: {
+    email: "email"
+  },
   permissions: {
     create: ["ceo", "admin", "executive", "hr"],
     edit: ["ceo", "admin", "executive", "hr"],
@@ -23,7 +29,11 @@ const TeachersModule = window.OfficeModuleEngine.create({
   softRestoreValue: "active",
   fieldOptions: {
     status: ["active", "inactive", "suspended", "pending"]
-  }
+  },
+  lookups: {
+    department_id: { table: "departments", labelKey: "name" }
+  },
+  createRecord: (payload) => API.teachers.createAccount(payload)
 });
 
 window.TeachersModule = TeachersModule;

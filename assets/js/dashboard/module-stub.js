@@ -374,8 +374,10 @@ class OfficeModuleEngine {
     }
   }
 
-  static validatePayload(moduleClass, payload) {
-    const required = moduleClass.config.requiredFields || [];
+  static validatePayload(moduleClass, payload, mode = "create") {
+    const required = (mode === "edit" ? moduleClass.config.editRequiredFields : moduleClass.config.requiredFields)
+      || moduleClass.config.requiredFields
+      || [];
     const fieldTypes = moduleClass.config.fieldTypes || {};
     const fieldOptions = moduleClass.config.fieldOptions || {};
     const fieldRules = moduleClass.config.fieldRules || {};
@@ -1056,7 +1058,8 @@ ${this.modalTemplate(moduleClass)}
       return "";
     }
 
-    const fields = moduleClass.config.formFields || (moduleClass.config.columns || []).map((col) => col.key);
+    const fields = (state.modal.mode === "edit" ? moduleClass.config.editFormFields : moduleClass.config.formFields)
+      || (moduleClass.config.columns || []).map((col) => col.key);
     const row = state.modal.mode === "edit"
       ? state.rows.find((item) => String(item.id) === String(state.modal.rowId)) || null
       : null;
@@ -1173,7 +1176,7 @@ ${this.modalTemplate(moduleClass)}
           return;
         }
 
-        const validationError = this.validatePayload(moduleClass, payload);
+        const validationError = this.validatePayload(moduleClass, payload, state.modal.mode);
         if (validationError) {
           this.showModalError(form, validationError.message);
           this.showFieldError(form, validationError.field, validationError.message);
@@ -1186,6 +1189,8 @@ ${this.modalTemplate(moduleClass)}
 
         if (state.modal.mode === "edit" && state.modal.rowId) {
           result = await API.records.update(moduleClass.config.tableName, state.modal.rowId, parsedPayload);
+        } else if (typeof moduleClass.config.createRecord === "function") {
+          result = await moduleClass.config.createRecord(parsedPayload);
         } else {
           result = await API.records.create(moduleClass.config.tableName, parsedPayload);
         }

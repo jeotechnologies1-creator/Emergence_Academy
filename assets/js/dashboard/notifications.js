@@ -6,24 +6,22 @@ const NotificationModule = window.OfficeModuleEngine.create({
   columns: [
     { key: "title", label: "Title" },
     { key: "message", label: "Message" },
+    { key: "user_id", label: "Recipient" },
     { key: "target_role", label: "Target Role" },
-    { key: "status", label: "Status" },
     { key: "created_at", label: "Created" }
   ],
-  formFields: ["title", "message", "target_role", "status"],
-  requiredFields: ["title", "message", "target_role", "status"],
+  formFields: ["title", "message", "user_id", "target_role"],
+  requiredFields: ["title", "message", "user_id", "target_role"],
   permissions: {
     create: ["ceo", "admin", "executive", "hr", "admission", "exam", "library", "finance"],
     edit: ["ceo", "admin", "executive", "hr", "admission", "exam", "library", "finance"],
     delete: ["ceo", "admin", "executive"]
   },
-  softDelete: true,
-  softDeleteField: "status",
-  softDeleteValue: "archived",
-  softRestoreValue: "draft",
   fieldOptions: {
-    target_role: ["all", "ceo", "admin", "executive", "teacher", "student", "parent", "finance", "hr", "admission", "exam", "library"],
-    status: ["draft", "scheduled", "sent", "archived"]
+    target_role: ["all", "ceo", "admin", "executive", "teacher", "student", "parent", "finance", "hr", "admission", "exam", "library"]
+  },
+  lookups: {
+    user_id: { table: "profiles", labelKey: "email" }
   }
 });
 

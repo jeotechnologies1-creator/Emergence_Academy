@@ -10,8 +10,8 @@ const AssignmentModule = window.OfficeModuleEngine.create({
     { key: "due_date", label: "Due Date" },
     { key: "status", label: "Status" }
   ],
-  formFields: ["title", "description", "subject_id", "class_id", "due_date", "status"],
-  requiredFields: ["title", "subject_id", "class_id", "due_date", "status"],
+  formFields: ["title", "description", "subject_id", "teacher_id", "class_id", "due_date", "status"],
+  requiredFields: ["title", "subject_id", "teacher_id", "class_id", "due_date", "status"],
   fieldTypes: {
     due_date: "date"
   },
@@ -32,6 +32,7 @@ const AssignmentModule = window.OfficeModuleEngine.create({
   },
   lookups: {
     subject_id: { table: "subjects" },
+    teacher_id: { table: "teachers", preferProfileName: true },
     class_id: { table: "classes" }
   }
 });
