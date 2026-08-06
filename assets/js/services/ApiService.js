@@ -255,6 +255,23 @@
 
     class ApiService {
 
+        // Compatibility entry point used by AuthService and older modules.
+        // Waiting here prevents a race when a device loads the dashboard before
+        // the asynchronous Supabase runtime has finished initializing.
+        static async getClient() {
+
+            if (typeof window.waitForSupabase === "function") {
+                await window.waitForSupabase();
+            }
+
+            if (typeof window.getSupabaseClient !== "function") {
+                throw new Error("Supabase runtime is unavailable.");
+            }
+
+            return window.getSupabaseClient();
+
+        }
+
         static client() {
 
             return window.getSupabaseClient();
