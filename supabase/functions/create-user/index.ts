@@ -341,7 +341,6 @@ Deno.serve(async (req) => {
       status: "active",
       first_name: nameParts.first_name,
       last_name: nameParts.last_name,
-      full_name: nameParts.full_name,
       phone: phone || "",
     };
 
