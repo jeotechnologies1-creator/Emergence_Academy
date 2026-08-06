@@ -8,6 +8,14 @@ class Dashboard {
 
         if (this.initialized) return;
 
+        if (typeof window.waitForSupabase === "function") {
+            await window.waitForSupabase();
+        }
+
+        if (!window.supabaseClient) {
+            throw new Error("Supabase connection is not ready.");
+        }
+
         await Profile.load();
 
         this.roleConfig = await RoleRouter.redirect();
@@ -20,47 +28,7 @@ class Dashboard {
 
         await this.navigateInitialRoute();
 
-        try {
-
-            const loadLogo = () => {
-
-                const logo = document.getElementById("school-logo");
-
-                console.log("Logo element:", logo);
-                console.log("Logo path:", window.APP_CONFIG?.logo);
-
-                if (!logo) {
-                    console.warn("school-logo not found. Retrying...");
-                    setTimeout(loadLogo, 100);
-                    return;
-                }
-
-                const logoPath =
-                    window.APP_CONFIG?.logo ||
-                    window.CONFIG?.logo ||
-                    "assets/images/logo.png";
-
-                logo.src = logoPath;
-
-                logo.onload = () => {
-                    console.log("✅ Logo loaded successfully");
-                };
-
-                logo.onerror = () => {
-                    console.error("❌ Failed to load logo:", logoPath);
-                };
-
-            };
-
-            loadLogo();
-
-            this.initialized = true;
-
-        } catch (error) {
-
-            console.error("Dashboard initialization failed:", error);
-
-        }
+        this.initialized = true;
 
     } // ← THIS BRACE WAS MISSING
 
@@ -90,7 +58,9 @@ class Dashboard {
 
             } else {
 
-                console.warn(`Module "${name}" is missing or has no render() method.`);
+                if (window.CONFIG?.DEBUG) {
+                    console.warn(`Module "${name}" is missing or has no render() method.`);
+                }
 
             }
 

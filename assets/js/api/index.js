@@ -1131,7 +1131,7 @@ specialization.ilike.%${keyword}%`
 
             }
 
-        }
+          },
 
         /* ==============================================
            STUDENT COUNT

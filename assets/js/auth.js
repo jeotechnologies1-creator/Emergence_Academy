@@ -87,7 +87,7 @@ class Auth {
 
     static ensureSupabaseClient() {
         const runtime = this.runtime;
-        if (runtime.supabaseClient && runtime.supabaseReady !== false) {
+        if (runtime.supabaseClient) {
             return runtime.supabaseClient;
         }
 

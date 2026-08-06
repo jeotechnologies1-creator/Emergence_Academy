@@ -1,5 +1,9 @@
 {
   "name": "emergence-academy",
   "version": "1.0.0",
-  "private": true
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check:syntax": "zsh -lc 'for f in assets/js/**/*.js assets/js/*.js tests/*.js; do node --check \"$f\" >/dev/null || exit 1; done'"
+  }
 }
