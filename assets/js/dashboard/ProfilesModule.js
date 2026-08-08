@@ -177,7 +177,10 @@
 
                 console.error(error);
 
-                UI.toast("Failed to load users.");
+                window.Utils?.toast?.(
+                    "Failed to load users.",
+                    "error"
+                );
 
             }
 

@@ -1,152 +1,7 @@
-// /* ==========================================================
-//    EMERGENCE ACADEMY
-//    PERMISSION SERVICE
-// ========================================================== */
-
-// (function () {
-
-//     "use strict";
-
-//     class PermissionService {
-
-//         static cache = [];
-
-//         static loaded = false;
-
-//         static async load(force = false) {
-
-//             if (this.loaded && !force) {
-//                 return this.cache;
-//             }
-
-//             const profile = await ProfileService.get();
-
-//             if (!profile) {
-//                 throw new Error("Profile not found.");
-//             }
-
-//             /* Find matching role */
-
-//             const role = await ApiService.single("roles", {
-//                 name: profile.role
-//             });
-
-//             if (!role) {
-
-//                 this.cache = [];
-
-//                 this.loaded = true;
-
-//                 return [];
-
-//             }
-
-//             /* Load role_permissions */
-
-//             const links = await ApiService.select("role_permissions", {
-//                 filters: {
-//                     role_id: role.id
-//                 }
-//             });
-
-//             if (!links.length) {
-
-//                 this.cache = [];
-
-//                 this.loaded = true;
-
-//                 return [];
-
-//             }
-
-//             const permissionIds =
-//                 links.map(x => x.permission_id);
-
-//             const permissions = [];
-
-//             for (const id of permissionIds) {
-
-//                 const permission =
-//                     await ApiService.single("permissions", {
-//                         id
-//                     });
-
-//                 if (permission) {
-
-//                     permissions.push(permission.name);
-
-//                 }
-
-//             }
-
-//             this.cache = permissions;
-
-//             this.loaded = true;
-
-//             return permissions;
-
-//         }
-
-//         static async can(permission) {
-
-//             await this.load();
-
-//             return this.cache.includes(permission);
-
-//         }
-
-//         static async cannot(permission) {
-
-//             return !(await this.can(permission));
-
-//         }
-
-//         static async canAny(permissionList = []) {
-
-//             await this.load();
-
-//             return permissionList.some(x =>
-//                 this.cache.includes(x)
-//             );
-
-//         }
-
-//         static async canAll(permissionList = []) {
-
-//             await this.load();
-
-//             return permissionList.every(x =>
-//                 this.cache.includes(x)
-//             );
-
-//         }
-
-//         static async list() {
-
-//             await this.load();
-
-//             return [...this.cache];
-
-//         }
-
-//         static clear() {
-
-//             this.cache = [];
-
-//             this.loaded = false;
-
-//         }
-
-//     }
-
-//     window.PermissionService = PermissionService;
-
-// })();
-
 /* ==========================================================
    EMERGENCE ACADEMY
    PERMISSION SERVICE
-   Production Version
+   Version: 2.0
 ========================================================== */
 
 (function () {
@@ -159,25 +14,184 @@
 
         static loaded = false;
 
+        static DEFAULTS = {
+
+            ceo: [
+                "users.view",
+                "users.create",
+                "users.edit",
+                "users.delete",
+                "students.view",
+                "students.create",
+                "students.edit",
+                "students.delete",
+                "teachers.view",
+                "teachers.create",
+                "teachers.edit",
+                "teachers.delete",
+                "parents.view",
+                "parents.create",
+                "parents.edit",
+                "parents.delete",
+                "attendance.view",
+                "attendance.create",
+                "attendance.edit",
+                "assignments.view",
+                "assignments.create",
+                "assignments.edit",
+                "grades.view",
+                "grades.create",
+                "grades.edit",
+                "finance.view",
+                "finance.create",
+                "finance.edit",
+                "reports.view",
+                "notifications.view",
+                "notifications.create",
+                "ai.view"
+            ],
+
+            admin: [
+                "users.view",
+                "users.create",
+                "users.edit",
+                "users.delete",
+                "students.view",
+                "students.create",
+                "students.edit",
+                "students.delete",
+                "teachers.view",
+                "teachers.create",
+                "teachers.edit",
+                "teachers.delete",
+                "parents.view",
+                "parents.create",
+                "parents.edit",
+                "parents.delete",
+                "attendance.view",
+                "attendance.create",
+                "attendance.edit",
+                "assignments.view",
+                "assignments.create",
+                "assignments.edit",
+                "grades.view",
+                "grades.create",
+                "grades.edit",
+                "finance.view",
+                "finance.create",
+                "finance.edit",
+                "reports.view",
+                "notifications.view",
+                "notifications.create",
+                "ai.view"
+            ],
+
+            executive: [
+                "users.view",
+                "students.view",
+                "students.edit",
+                "teachers.view",
+                "teachers.create",
+                "teachers.edit",
+                "parents.view",
+                "attendance.view",
+                "assignments.view",
+                "grades.view",
+                "finance.view",
+                "reports.view",
+                "notifications.view",
+                "ai.view"
+            ],
+
+            teacher: [
+                "students.view",
+                "attendance.view",
+                "attendance.create",
+                "attendance.edit",
+                "assignments.view",
+                "assignments.create",
+                "assignments.edit",
+                "grades.view",
+                "grades.create",
+                "grades.edit",
+                "notifications.view",
+                "ai.view"
+            ],
+
+            student: [
+                "assignments.view",
+                "grades.view",
+                "attendance.view",
+                "notifications.view",
+                "ai.view"
+            ],
+
+            parent: [
+                "students.view",
+                "attendance.view",
+                "grades.view",
+                "finance.view",
+                "reports.view",
+                "notifications.view",
+                "ai.view"
+            ],
+
+            finance: [
+                "finance.view",
+                "finance.create",
+                "finance.edit",
+                "reports.view",
+                "notifications.view"
+            ],
+
+            hr: [
+                "teachers.view",
+                "teachers.create",
+                "teachers.edit",
+                "reports.view",
+                "notifications.view"
+            ],
+
+            admission: [
+                "students.view",
+                "students.create",
+                "students.edit",
+                "parents.view",
+                "parents.create",
+                "reports.view",
+                "notifications.view"
+            ],
+
+            exam: [
+                "assignments.view",
+                "grades.view",
+                "grades.create",
+                "grades.edit",
+                "reports.view",
+                "notifications.view"
+            ],
+
+            library: [
+                "students.view",
+                "teachers.view",
+                "notifications.view"
+            ]
+
+        };
+
         static async load(forceRefresh = false) {
 
-            if (this.loaded && !forceRefresh) {
+            if (
+                this.loaded &&
+                !forceRefresh
+            ) {
                 return this.permissions;
             }
 
-            const profile = await ProfileService.get();
+            const profile =
+                await ProfileService.get();
 
             if (!profile) {
-                throw new Error("User profile not found.");
-            }
-
-            /* Get Role */
-
-            const role = await ApiService.single("roles", {
-                name: profile.role
-            });
-
-            if (!role) {
 
                 this.permissions = [];
                 this.loaded = true;
@@ -186,36 +200,99 @@
 
             }
 
-            /* Get role_permissions */
+            const role =
+                String(profile.role || "")
+                    .trim()
+                    .toLowerCase();
 
-            const rolePermissions =
-                await ApiService.select("role_permissions", {
-                    filters: {
-                        role_id: role.id
+            /*
+             * Attempt database permissions.
+             */
+
+            try {
+
+                const roleRecord =
+                    await ApiService.single(
+                        "roles",
+                        {
+                            name: role
+                        }
+                    );
+
+                if (roleRecord?.id) {
+
+                    const links =
+                        await ApiService.select(
+                            "role_permissions",
+                            {
+                                filters: {
+                                    role_id:
+                                        roleRecord.id
+                                }
+                            }
+                        );
+
+                    const permissionIds =
+                        links.map(
+                            (item) =>
+                                item.permission_id
+                        );
+
+                    if (permissionIds.length) {
+
+                        const allPermissions =
+                            await ApiService.select(
+                                "permissions"
+                            );
+
+                        const databasePermissions =
+                            allPermissions
+                                .filter(
+                                    (item) =>
+                                        permissionIds.includes(
+                                            item.id
+                                        )
+                                )
+                                .map(
+                                    (item) =>
+                                        item.name
+                                )
+                                .filter(Boolean);
+
+                        if (
+                            databasePermissions.length
+                        ) {
+
+                            this.permissions =
+                                databasePermissions;
+
+                            this.loaded = true;
+
+                            return this.permissions;
+
+                        }
+
                     }
-                });
 
-            if (!rolePermissions.length) {
+                }
 
-                this.permissions = [];
-                this.loaded = true;
+            } catch (error) {
 
-                return [];
+                console.warn(
+                    "Database permission tables unavailable; using role defaults.",
+                    error
+                );
 
             }
 
-            const ids =
-                rolePermissions.map(x => x.permission_id);
-
-            /* Get ALL permissions once */
-
-            const allPermissions =
-                await ApiService.select("permissions");
+            /*
+             * Application fallback.
+             */
 
             this.permissions =
-                allPermissions
-                    .filter(x => ids.includes(x.id))
-                    .map(x => x.name);
+                [
+                    ...(this.DEFAULTS[role] || [])
+                ];
 
             this.loaded = true;
 
@@ -227,7 +304,15 @@
 
             await this.load();
 
-            return this.permissions.includes(permission);
+            return this.permissions.includes(
+                permission
+            );
+
+        }
+
+        static async cannot(permission) {
+
+            return !(await this.can(permission));
 
         }
 
@@ -235,8 +320,11 @@
 
             await this.load();
 
-            return permissionList.some(permission =>
-                this.permissions.includes(permission)
+            return permissionList.some(
+                (permission) =>
+                    this.permissions.includes(
+                        permission
+                    )
             );
 
         }
@@ -245,8 +333,11 @@
 
             await this.load();
 
-            return permissionList.every(permission =>
-                this.permissions.includes(permission)
+            return permissionList.every(
+                (permission) =>
+                    this.permissions.includes(
+                        permission
+                    )
             );
 
         }
@@ -255,19 +346,23 @@
 
             await this.load();
 
-            return [...this.permissions];
+            return [
+                ...this.permissions
+            ];
 
         }
 
         static clear() {
 
             this.permissions = [];
+
             this.loaded = false;
 
         }
 
     }
 
-    window.PermissionService = PermissionService;
+    window.PermissionService =
+        PermissionService;
 
 })();

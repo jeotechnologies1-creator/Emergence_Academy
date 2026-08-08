@@ -1,6 +1,7 @@
 /* ==========================================================
    EMERGENCE ACADEMY
    DASHBOARD SERVICE
+   Version: 2.0
 ========================================================== */
 
 (function () {
@@ -9,166 +10,82 @@
 
     class DashboardService {
 
-        static config = {
-
-            ceo: {
-                home: "dashboard",
-                modules: [
-                    "dashboard",
-                    "profiles",
-                    "students",
-                    "teachers",
-                    "parents",
-                    "attendance",
-                    "assignments",
-                    "grades",
-                    "finance",
-                    "reports",
-                    "notifications",
-                    "ai"
-                ]
-            },
-
-            admin: {
-                home: "dashboard",
-                modules: [
-                    "dashboard",
-                    "profiles",
-                    "students",
-                    "teachers",
-                    "parents",
-                    "attendance",
-                    "assignments",
-                    "grades",
-                    "finance",
-                    "reports",
-                    "notifications"
-                ]
-            },
-
-            executive: {
-                home: "dashboard",
-                modules: [
-                    "dashboard",
-                    "reports",
-                    "finance",
-                    "students",
-                    "teachers"
-                ]
-            },
-
-            teacher: {
-                home: "dashboard",
-                modules: [
-                    "dashboard",
-                    "students",
-                    "attendance",
-                    "assignments",
-                    "grades",
-                    "notifications"
-                ]
-            },
-
-            student: {
-                home: "dashboard",
-                modules: [
-                    "dashboard",
-                    "assignments",
-                    "grades",
-                    "notifications"
-                ]
-            },
-
-            parent: {
-                home: "dashboard",
-                modules: [
-                    "dashboard",
-                    "grades",
-                    "attendance",
-                    "notifications"
-                ]
-            },
-
-            finance: {
-                home: "finance",
-                modules: [
-                    "dashboard",
-                    "finance",
-                    "reports",
-                    "notifications"
-                ]
-            },
-
-            library: {
-                home: "dashboard",
-                modules: [
-                    "dashboard",
-                    "notifications"
-                ]
-            },
-
-            hr: {
-                home: "dashboard",
-                modules: [
-                    "dashboard",
-                    "teachers",
-                    "reports"
-                ]
-            },
-
-            admission: {
-                home: "students",
-                modules: [
-                    "dashboard",
-                    "students",
-                    "reports"
-                ]
-            },
-
-            exam: {
-                home: "grades",
-                modules: [
-                    "dashboard",
-                    "grades",
-                    "reports"
-                ]
-            }
-
-        };
-
         static async getRole() {
 
-            return await RoleService.getName();
+            if (window.RoleRouter) {
+
+                return RoleRouter.getCurrentRole();
+
+            }
+
+            if (window.RoleService) {
+
+                return await RoleService.getName();
+
+            }
+
+            if (window.Auth) {
+
+                return await Auth.role();
+
+            }
+
+            return null;
 
         }
 
         static async getConfiguration() {
 
-            const role = await this.getRole();
+            if (
+                window.RoleRouter &&
+                typeof RoleRouter.getCurrentConfig === "function"
+            ) {
 
-            return this.config[role] || this.config.student;
+                return RoleRouter.getCurrentConfig();
+
+            }
+
+            return {
+
+                title: "Dashboard",
+
+                subtitle: "",
+
+                defaultRoute: "dashboard",
+
+                modules: ["dashboard"]
+
+            };
 
         }
 
         static async getModules() {
 
-            const config = await this.getConfiguration();
+            const config =
+                await this.getConfiguration();
 
-            return config.modules;
+            return Array.isArray(config.modules)
+                ? config.modules
+                : ["dashboard"];
 
         }
 
         static async getHomeRoute() {
 
-            const config = await this.getConfiguration();
+            const config =
+                await this.getConfiguration();
 
-            return config.home;
+            return (
+                config.defaultRoute ||
+                "dashboard"
+            );
 
         }
 
         static async canOpen(route) {
 
-            const modules = await this.getModules();
+            const modules =
+                await this.getModules();
 
             return modules.includes(route);
 
@@ -181,15 +98,51 @@
 
             document
                 .querySelectorAll("[data-route]")
-                .forEach(item => {
+                .forEach((item) => {
 
                     const route =
-                        item.dataset.route;
+                        item.getAttribute(
+                            "data-route"
+                        );
 
-                    item.style.display =
-                        allowed.includes(route)
-                            ? ""
-                            : "none";
+                    const visible =
+                        allowed.includes(route);
+
+                    if (visible) {
+
+                        item.classList.remove(
+                            "hidden"
+                        );
+
+                        item.removeAttribute(
+                            "aria-hidden"
+                        );
+
+                        item.removeAttribute(
+                            "disabled"
+                        );
+
+                    } else {
+
+                        item.classList.add(
+                            "hidden"
+                        );
+
+                        item.setAttribute(
+                            "aria-hidden",
+                            "true"
+                        );
+
+                        item.setAttribute(
+                            "disabled",
+                            "disabled"
+                        );
+
+                        item.classList.remove(
+                            "active"
+                        );
+
+                    }
 
                 });
 
@@ -197,18 +150,31 @@
 
         static async protect(route) {
 
-            const ok =
+            const allowed =
                 await this.canOpen(route);
 
-            if (!ok) {
+            if (allowed) {
+                return true;
+            }
 
-                UI.toast("Access denied.");
+            if (window.Utils?.toast) {
 
-                throw new Error(
-                    "Route not allowed."
+                Utils.toast(
+                    "You do not have permission to access this module.",
+                    "error"
+                );
+
+            } else {
+
+                window.alert(
+                    "You do not have permission to access this module."
                 );
 
             }
+
+            throw new Error(
+                `Route "${route}" is not allowed for this role.`
+            );
 
         }
 

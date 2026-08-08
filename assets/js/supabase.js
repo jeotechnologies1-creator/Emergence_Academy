@@ -46,10 +46,6 @@
         console.error("[SUPABASE]", ...args);
     }
 
-    function warn(...args) {
-        console.warn("[SUPABASE]", ...args);
-    }
-
     function dispatchRuntimeEvent(name, detail) {
         if (typeof runtime.dispatchEvent !== "function") {
             return;
@@ -163,11 +159,7 @@
 
             runtime.supabaseInitMessage = err.message;
 
-            if (String(err?.message || "").includes("SDK missing")) {
-                warn(runtime.supabaseInitMessage);
-            } else {
-                error(err);
-            }
+            error(err);
 
         } finally {
 

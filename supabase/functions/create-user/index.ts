@@ -133,7 +133,6 @@ Deno.serve(async (req) => {
     }
 
 
-    // Admin Supabase Client
     const supabaseAdmin = createClient(
       SUPABASE_URL,
       SERVICE_ROLE_KEY,
@@ -145,8 +144,257 @@ Deno.serve(async (req) => {
       }
     );
 
+    /*
+     * ==========================================================
+     * VERIFY CALLER
+     * ==========================================================
+     *
+     * verify_jwt is disabled in config.toml, therefore this
+     * function MUST verify the Authorization header itself.
+     */
+
+    const authorization =
+      req.headers.get("Authorization") || "";
+
+    if (!authorization.startsWith("Bearer ")) {
+
+      return new Response(
+        JSON.stringify({
+          error: "Authentication is required."
+        }),
+        {
+          status: 401,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+    }
+
+    const callerToken =
+      authorization.replace(
+        /^Bearer\s+/i,
+        ""
+      ).trim();
+
+    if (!callerToken) {
+
+      return new Response(
+        JSON.stringify({
+          error: "Invalid authentication token."
+        }),
+        {
+          status: 401,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+    }
+
+    /*
+     * Client using the caller's access token.
+     */
+    const callerClient = createClient(
+      SUPABASE_URL,
+      Deno.env.get("SUPABASE_ANON_KEY") || "",
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${callerToken}`
+          }
+        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
+    const {
+      data: callerAuthData,
+      error: callerAuthError
+    } = await callerClient.auth.getUser();
+
+    if (
+      callerAuthError ||
+      !callerAuthData?.user
+    ) {
+
+      return new Response(
+        JSON.stringify({
+          error: "Invalid or expired authentication session."
+        }),
+        {
+          status: 401,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+    }
+
+    const callerUser =
+      callerAuthData.user;
+
+    /*
+     * Read caller profile using the service-role
+     * client so RLS cannot block authorization.
+     */
+    const {
+      data: callerProfile,
+      error: callerProfileError
+    } = await supabaseAdmin
+      .from("profiles")
+      .select("id, role, status")
+      .eq("id", callerUser.id)
+      .single();
+
+    if (
+      callerProfileError ||
+      !callerProfile
+    ) {
+
+      return new Response(
+        JSON.stringify({
+          error: "Caller profile could not be verified."
+        }),
+        {
+          status: 403,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+    }
+
+    const callerRole =
+      String(callerProfile.role || "")
+        .trim()
+        .toLowerCase();
+
+    /*
+     * ==========================================================
+     * READ REQUEST
+     * ==========================================================
+     */
 
     const body = await req.json();
+
+    const rawEmail =
+      String(
+        body?.email ??
+        body?.user?.email ??
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const rawPassword =
+      String(
+        body?.password ??
+        body?.user?.password ??
+        ""
+      ).trim();
+
+    const full_name =
+      body?.full_name;
+
+    const first_name =
+      body?.first_name;
+
+    const last_name =
+      body?.last_name;
+
+    const role =
+      body?.role;
+
+    const phone =
+      body?.phone;
+
+    const teacherData =
+      body?.teacher_data;
+
+    const normalizedRole =
+      normalizeRole(role);
+
+    /*
+     * ==========================================================
+     * CREATE PERMISSION MATRIX
+     * ==========================================================
+     */
+
+    const canCreateAnyRole =
+      ["ceo", "admin"].includes(
+        callerRole
+      );
+
+    const allowedRoleMatrix = {
+
+      executive: [
+        "teacher",
+        "student",
+        "parent"
+      ],
+
+      hr: [
+        "teacher"
+      ],
+
+      admission: [
+        "student",
+        "parent"
+      ],
+
+      finance: [],
+
+      exam: [],
+
+      library: [],
+
+      teacher: [],
+
+      student: [],
+
+      parent: []
+
+    };
+
+    const callerAllowedTargets =
+      allowedRoleMatrix[
+      callerRole as keyof typeof allowedRoleMatrix
+      ] || [];
+
+    if (
+      !canCreateAnyRole &&
+      !callerAllowedTargets.includes(
+        normalizedRole
+      )
+    ) {
+
+      return new Response(
+        JSON.stringify({
+          error:
+            `Role '${callerRole}' is not authorized to create '${normalizedRole}' accounts.`
+        }),
+        {
+          status: 403,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+    }
 
     console.log(
       "Request Body:",
