@@ -1,10 +1,26 @@
+```typescript
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.0";
 
 /* ==========================================================
    EMERGENCE ACADEMY
    CREATE USER EDGE FUNCTION
-   Profile creation is handled by handle_new_user()
-========================================================== */
+   ==========================================================
+   Profile creation is handled exclusively by:
+
+   auth.users
+       ↓
+   on_auth_user_created
+       ↓
+   handle_new_user()
+       ↓
+   public.profiles
+
+   IMPORTANT:
+   - full_name is NOT written to public.profiles.
+   - first_name and last_name are used instead.
+   ========================================================== */
+
+const FUNCTION_VERSION = "2026-08-09-FIX-02";
 
 const ALLOWED_ROLES = new Set([
   "ceo",
@@ -28,10 +44,14 @@ const corsHeaders = {
     "POST, OPTIONS",
 };
 
-function response(
+/* ==========================================================
+   RESPONSE HELPER
+========================================================== */
+
+function jsonResponse(
   data: Record<string, unknown>,
-  status = 200
-) {
+  status = 200,
+): Response {
   return new Response(
     JSON.stringify(data),
     {
@@ -40,206 +60,190 @@ function response(
         ...corsHeaders,
         "Content-Type": "application/json",
       },
-    }
+    },
   );
 }
 
-function normalizeRole(value: unknown) {
+/* ==========================================================
+   ROLE NORMALIZATION
+========================================================== */
 
-  const role =
-    String(value || "student")
-      .trim()
-      .toLowerCase();
+function normalizeRole(value: unknown): string {
+  const role = String(value ?? "student")
+    .trim()
+    .toLowerCase();
 
   return ALLOWED_ROLES.has(role)
     ? role
     : "student";
 }
 
-function splitName(
-  firstName: unknown,
-  lastName: unknown,
-  fullName: unknown
-) {
+/* ==========================================================
+   NAME NORMALIZATION
+========================================================== */
 
-  const first =
-    String(firstName || "").trim();
-
-  const last =
-    String(lastName || "").trim();
-
-  const full =
-    String(fullName || "").trim();
-
-  if (first || last) {
-
-    return {
-      first_name: first,
-      last_name: last,
-    };
-
-  }
-
-  if (!full) {
-
-    return {
-      first_name: "",
-      last_name: "",
-    };
-
-  }
-
-  const parts =
-    full.split(/\s+/);
-
-  return {
-    first_name:
-      parts.shift() || "",
-
-    last_name:
-      parts.join(" ").trim(),
-  };
-
+function normalizeName(value: unknown): string {
+  return String(value ?? "").trim();
 }
 
 /* ==========================================================
-   MAIN
+   MAIN EDGE FUNCTION
 ========================================================== */
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request): Promise<Response> => {
+  /* ========================================================
+     CORS
+  ======================================================== */
 
   if (req.method === "OPTIONS") {
+    return new Response("ok", {
+      status: 200,
+      headers: corsHeaders,
+    });
+  }
 
-    return new Response(
-      "ok",
+  if (req.method !== "POST") {
+    return jsonResponse(
       {
-        headers: corsHeaders,
-      }
+        error: "Method not allowed.",
+        function_version: FUNCTION_VERSION,
+      },
+      405,
     );
-
   }
 
   try {
+    console.log(
+      `[${FUNCTION_VERSION}] create-user request received`,
+    );
 
     /* ======================================================
        ENVIRONMENT
     ====================================================== */
 
-    const SUPABASE_URL =
+    const supabaseUrl =
       Deno.env.get("SUPABASE_URL");
 
-    const SERVICE_ROLE_KEY =
-      Deno.env.get(
-        "SUPABASE_SERVICE_ROLE_KEY"
-      );
+    const serviceRoleKey =
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    const SUPABASE_ANON_KEY =
-      Deno.env.get(
-        "SUPABASE_ANON_KEY"
-      );
+    const anonKey =
+      Deno.env.get("SUPABASE_ANON_KEY");
 
     if (
-      !SUPABASE_URL ||
-      !SERVICE_ROLE_KEY ||
-      !SUPABASE_ANON_KEY
+      !supabaseUrl ||
+      !serviceRoleKey ||
+      !anonKey
     ) {
+      console.error(
+        `[${FUNCTION_VERSION}] Missing Supabase environment variables`,
+      );
 
-      return response(
+      return jsonResponse(
         {
           error:
             "Supabase environment variables are missing.",
+          function_version: FUNCTION_VERSION,
         },
-        500
+        500,
       );
-
     }
 
     /* ======================================================
        ADMIN CLIENT
     ====================================================== */
 
-    const supabaseAdmin =
-      createClient(
-        SUPABASE_URL,
-        SERVICE_ROLE_KEY,
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      serviceRoleKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    );
+
+    /* ======================================================
+       VERIFY AUTHORIZATION HEADER
+    ====================================================== */
+
+    const authorization =
+      req.headers.get("Authorization") ?? "";
+
+    if (!authorization.startsWith("Bearer ")) {
+      return jsonResponse(
         {
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false,
-          },
-        }
+          error:
+            "Authentication is required.",
+          function_version: FUNCTION_VERSION,
+        },
+        401,
       );
+    }
+
+    const accessToken = authorization
+      .replace(/^Bearer\s+/i, "")
+      .trim();
+
+    if (!accessToken) {
+      return jsonResponse(
+        {
+          error:
+            "Authentication token is missing.",
+          function_version: FUNCTION_VERSION,
+        },
+        401,
+      );
+    }
+
+    /* ======================================================
+       CALLER CLIENT
+    ====================================================== */
+
+    const callerClient = createClient(
+      supabaseUrl,
+      anonKey,
+      {
+        global: {
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+          },
+        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    );
 
     /* ======================================================
        VERIFY CALLER
     ====================================================== */
 
-    const authorization =
-      req.headers.get(
-        "Authorization"
-      ) || "";
-
-    if (
-      !authorization.startsWith(
-        "Bearer "
-      )
-    ) {
-
-      return response(
-        {
-          error:
-            "Authentication is required.",
-        },
-        401
-      );
-
-    }
-
-    const accessToken =
-      authorization
-        .replace(
-          /^Bearer\s+/i,
-          ""
-        )
-        .trim();
-
-    const callerClient =
-      createClient(
-        SUPABASE_URL,
-        SUPABASE_ANON_KEY,
-        {
-          global: {
-            headers: {
-              Authorization:
-                `Bearer ${accessToken}`,
-            },
-          },
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false,
-          },
-        }
-      );
-
     const {
       data: callerAuth,
       error: callerAuthError,
-    } =
-      await callerClient.auth.getUser();
+    } = await callerClient.auth.getUser();
 
     if (
       callerAuthError ||
       !callerAuth?.user
     ) {
+      console.error(
+        `[${FUNCTION_VERSION}] Caller authentication failed:`,
+        callerAuthError,
+      );
 
-      return response(
+      return jsonResponse(
         {
           error:
             "Invalid or expired authentication session.",
+          function_version: FUNCTION_VERSION,
         },
-        401
+        401,
       );
-
     }
 
     const callerId =
@@ -252,216 +256,257 @@ Deno.serve(async (req) => {
     const {
       data: callerProfile,
       error: callerProfileError,
-    } =
-      await supabaseAdmin
-        .from("profiles")
-        .select(
-          "id, role, status"
-        )
-        .eq(
-          "id",
-          callerId
-        )
-        .single();
+    } = await supabaseAdmin
+      .from("profiles")
+      .select("id, role, status")
+      .eq("id", callerId)
+      .maybeSingle();
 
-    if (
-      callerProfileError ||
-      !callerProfile
-    ) {
-
+    if (callerProfileError) {
       console.error(
-        "Caller profile error:",
-        callerProfileError
+        `[${FUNCTION_VERSION}] Caller profile query failed:`,
+        callerProfileError,
       );
 
-      return response(
+      return jsonResponse(
         {
           error:
-            "Caller profile could not be verified.",
+            callerProfileError.message,
+          function_version: FUNCTION_VERSION,
         },
-        403
+        500,
       );
+    }
 
+    if (!callerProfile) {
+      return jsonResponse(
+        {
+          error:
+            "Caller profile could not be found.",
+          function_version: FUNCTION_VERSION,
+        },
+        403,
+      );
     }
 
     const callerRole =
-      String(
-        callerProfile.role || ""
-      )
+      String(callerProfile.role ?? "")
         .trim()
         .toLowerCase();
 
-    if (
-      !["ceo", "admin"].includes(
-        callerRole
-      )
-    ) {
+    /* ======================================================
+       ONLY ADMIN / CEO CAN CREATE USERS
+    ====================================================== */
 
-      return response(
+    if (
+      callerRole !== "admin" &&
+      callerRole !== "ceo"
+    ) {
+      return jsonResponse(
         {
           error:
-            "Only CEO or Admin can create users.",
+            "Only Admin or CEO can create users.",
+          function_version: FUNCTION_VERSION,
         },
-        403
+        403,
       );
-
     }
 
     /* ======================================================
        REQUEST BODY
     ====================================================== */
 
-    const body =
-      await req.json();
+    let body: Record<string, unknown>;
+
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse(
+        {
+          error:
+            "Request body must contain valid JSON.",
+          function_version: FUNCTION_VERSION,
+        },
+        400,
+      );
+    }
+
+    /* ======================================================
+       BASIC USER DATA
+    ====================================================== */
 
     const email =
-      String(
-        body?.email || ""
-      )
+      String(body.email ?? "")
         .trim()
         .toLowerCase();
 
     const password =
-      String(
-        body?.password || ""
-      ).trim();
+      String(body.password ?? "").trim();
 
-    const role =
-      normalizeRole(
-        body?.role
-      );
+    const firstName =
+      normalizeName(body.first_name);
+
+    const lastName =
+      normalizeName(body.last_name);
 
     const phone =
-      String(
-        body?.phone || ""
-      ).trim();
+      normalizeName(body.phone);
 
-    const {
-      first_name,
-      last_name,
-    } =
-      splitName(
-        body?.first_name,
-        body?.last_name,
-        body?.full_name
-      );
+    const role =
+      normalizeRole(body.role);
+
+    /* ======================================================
+       TEACHER DATA
+    ====================================================== */
 
     const teacherData =
-      body?.teacher_data;
+      body.teacher_data;
 
     /* ======================================================
        VALIDATION
     ====================================================== */
 
     if (!email) {
-
-      return response(
+      return jsonResponse(
         {
-          error:
-            "Email is required.",
+          error: "Email is required.",
+          function_version: FUNCTION_VERSION,
         },
-        400
+        400,
       );
-
     }
 
     if (!password) {
-
-      return response(
+      return jsonResponse(
         {
-          error:
-            "Password is required.",
+          error: "Password is required.",
+          function_version: FUNCTION_VERSION,
         },
-        400
+        400,
       );
-
     }
 
-    if (
-      password.length < 8
-    ) {
-
-      return response(
+    if (password.length < 8) {
+      return jsonResponse(
         {
           error:
             "Password must be at least 8 characters.",
+          function_version: FUNCTION_VERSION,
         },
-        400
+        400,
       );
+    }
 
+    if (!firstName) {
+      return jsonResponse(
+        {
+          error:
+            "First name is required.",
+          function_version: FUNCTION_VERSION,
+        },
+        400,
+      );
+    }
+
+    if (!lastName) {
+      return jsonResponse(
+        {
+          error:
+            "Last name is required.",
+          function_version: FUNCTION_VERSION,
+        },
+        400,
+      );
+    }
+
+    if (
+      role === "teacher" &&
+      (
+        !teacherData ||
+        typeof teacherData !== "object"
+      )
+    ) {
+      return jsonResponse(
+        {
+          error:
+            "Teacher information is required.",
+          function_version: FUNCTION_VERSION,
+        },
+        400,
+      );
     }
 
     /* ======================================================
        CREATE AUTH USER
-       The database trigger automatically creates profiles.
+       
+       IMPORTANT:
+       DO NOT SEND full_name.
+       
+       The trigger reads:
+       - first_name
+       - last_name
+       - role
+       - phone
     ====================================================== */
+
+    console.log(
+      `[${FUNCTION_VERSION}] Creating Auth user`,
+      {
+        email,
+        role,
+        first_name: firstName,
+        last_name: lastName,
+      },
+    );
 
     const {
       data: authResult,
       error: authError,
     } =
-      await supabaseAdmin.auth.admin.createUser(
-        {
-          email,
-          password,
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
 
-          email_confirm:
-            true,
-
-          user_metadata: {
-
-            /*
-             * full_name is Auth metadata only.
-             *
-             * It is NOT a profiles column.
-             */
-            full_name:
-              [
-                first_name,
-                last_name,
-              ]
-                .filter(Boolean)
-                .join(" "),
-
-            first_name,
-
-            last_name,
-
-            role,
-
-            phone,
-
-          },
-        }
-      );
+        user_metadata: {
+          first_name: firstName,
+          last_name: lastName,
+          role,
+          phone,
+        },
+      });
 
     if (
       authError ||
       !authResult?.user
     ) {
-
       console.error(
-        "Auth user creation error:",
-        authError
+        `[${FUNCTION_VERSION}] Auth user creation failed:`,
+        authError,
       );
 
-      return response(
+      return jsonResponse(
         {
           error:
-            authError?.message ||
+            authError?.message ??
             "Failed to create Auth user.",
+          function_version: FUNCTION_VERSION,
         },
-        400
+        400,
       );
-
     }
 
     const userId =
       authResult.user.id;
 
+    console.log(
+      `[${FUNCTION_VERSION}] Auth user created: ${userId}`,
+    );
+
     /* ======================================================
-       PROFILE
-       handle_new_user() already created it.
+       VERIFY TRIGGER-CREATED PROFILE
+       
+       We do NOT INSERT into profiles here.
     ====================================================== */
 
     const {
@@ -470,114 +515,62 @@ Deno.serve(async (req) => {
     } =
       await supabaseAdmin
         .from("profiles")
-        .select("*")
-        .eq(
-          "id",
-          userId
+        .select(
+          "id, email, role, first_name, last_name, phone, status",
         )
+        .eq("id", userId)
         .maybeSingle();
 
     if (profileError) {
-
       console.error(
-        "Profile verification error:",
-        profileError
+        `[${FUNCTION_VERSION}] Profile verification failed:`,
+        profileError,
       );
 
-      return response(
+      /*
+       * Clean up the Auth account because
+       * the required profile could not be verified.
+       */
+      await supabaseAdmin.auth.admin.deleteUser(
+        userId,
+      );
+
+      return jsonResponse(
         {
           error:
             profileError.message,
+          function_version: FUNCTION_VERSION,
         },
-        500
+        500,
       );
-
     }
 
-    /*
-     * In the unlikely event the trigger did not
-     * create the profile, create it here using
-     * ONLY valid profiles columns.
-     *
-     * full_name is deliberately NOT included.
-     */
+    if (!profile) {
+      console.error(
+        `[${FUNCTION_VERSION}] handle_new_user() did not create a profile`,
+      );
 
-    let finalProfile =
-      profile;
+      await supabaseAdmin.auth.admin.deleteUser(
+        userId,
+      );
 
-    if (!finalProfile) {
-
-      const {
-        data: fallbackProfile,
-        error: fallbackError,
-      } =
-        await supabaseAdmin
-          .from("profiles")
-          .insert({
-
-            id:
-              userId,
-
-            email,
-
-            first_name,
-
-            last_name,
-
-            role,
-
-            status:
-              "active",
-
-            phone,
-
-          })
-          .select()
-          .single();
-
-      if (fallbackError) {
-
-        console.error(
-          "Fallback profile creation error:",
-          fallbackError
-        );
-
-        /*
-         * Remove Auth user because
-         * profile provisioning failed.
-         */
-        await supabaseAdmin
-          .auth.admin.deleteUser(
-            userId
-          );
-
-        return response(
-          {
-            error:
-              fallbackError.message,
-          },
-          400
-        );
-
-      }
-
-      finalProfile =
-        fallbackProfile;
-
+      return jsonResponse(
+        {
+          error:
+            "User was created but the profile trigger did not create a profile.",
+          function_version: FUNCTION_VERSION,
+        },
+        500,
+      );
     }
 
     /* ======================================================
-       TEACHER
+       CREATE TEACHER RECORD
     ====================================================== */
 
     let teacher = null;
 
-    if (
-      role === "teacher" &&
-      teacherData &&
-      typeof teacherData === "object"
-    ) {
-
+    if (role === "teacher") {
       const teacherInput =
         teacherData as Record<
           string,
@@ -585,56 +578,58 @@ Deno.serve(async (req) => {
         >;
 
       const employeeId =
-        String(
-          teacherInput.employee_id ||
-          ""
-        ).trim();
+        normalizeName(
+          teacherInput.employee_id,
+        );
 
       const departmentName =
-        String(
-          teacherInput.department_name ||
-          ""
-        ).trim();
+        normalizeName(
+          teacherInput.department_name,
+        );
 
       let departmentId =
-        String(
-          teacherInput.department_id ||
-          ""
-        ).trim() || null;
+        normalizeName(
+          teacherInput.department_id,
+        ) || null;
 
       const qualification =
-        String(
-          teacherInput.qualification ||
-          ""
-        ).trim();
+        normalizeName(
+          teacherInput.qualification,
+        );
 
       const teacherStatus =
-        String(
-          teacherInput.status ||
-          "active"
-        ).trim();
+        normalizeName(
+          teacherInput.status,
+        ) || "active";
+
+      /* ====================================================
+         EMPLOYEE ID
+      ==================================================== */
 
       if (!employeeId) {
+        await supabaseAdmin.auth.admin.deleteUser(
+          userId,
+        );
 
-        return response(
+        return jsonResponse(
           {
             error:
               "Employee ID is required for teachers.",
+            function_version:
+              FUNCTION_VERSION,
           },
-          400
+          400,
         );
-
       }
 
-      /* ----------------------------------------------------
-         Find department
-      ---------------------------------------------------- */
+      /* ====================================================
+         FIND DEPARTMENT
+      ==================================================== */
 
       if (
-        departmentName &&
-        !departmentId
+        !departmentId &&
+        departmentName
       ) {
-
         const {
           data: department,
           error: departmentError,
@@ -644,23 +639,18 @@ Deno.serve(async (req) => {
             .select("id")
             .eq(
               "name",
-              departmentName
+              departmentName,
             )
             .maybeSingle();
 
         if (departmentError) {
-
           throw departmentError;
-
         }
 
         if (department) {
-
           departmentId =
             department.id;
-
         } else {
-
           const {
             data: newDepartment,
             error:
@@ -675,24 +665,18 @@ Deno.serve(async (req) => {
               .select("id")
               .single();
 
-          if (
-            newDepartmentError
-          ) {
-
+          if (newDepartmentError) {
             throw newDepartmentError;
-
           }
 
           departmentId =
             newDepartment.id;
-
         }
-
       }
 
-      /* ----------------------------------------------------
-         Create teacher
-      ---------------------------------------------------- */
+      /* ====================================================
+         CREATE TEACHER
+      ==================================================== */
 
       const {
         data: teacherRecord,
@@ -701,76 +685,63 @@ Deno.serve(async (req) => {
         await supabaseAdmin
           .from("teachers")
           .insert({
-
-            profile_id:
-              userId,
-
+            profile_id: userId,
             teacher_no:
               `T-${employeeId}`,
-
             employee_id:
               employeeId,
-
             department_id:
               departmentId,
-
             qualification,
-
             status:
               teacherStatus,
-
           })
           .select()
           .single();
 
       if (teacherError) {
-
         console.error(
-          "Teacher creation error:",
-          teacherError
+          `[${FUNCTION_VERSION}] Teacher creation failed:`,
+          teacherError,
         );
 
         /*
-         * Remove Auth user. The profile
-         * will cascade if configured,
-         * otherwise remove it explicitly.
+         * Delete Auth user.
+         *
+         * The profile belongs to the Auth user and
+         * should disappear through the FK cascade
+         * if the schema is configured accordingly.
          */
-        await supabaseAdmin
-          .from("profiles")
-          .delete()
-          .eq(
-            "id",
-            userId
-          );
+        await supabaseAdmin.auth.admin.deleteUser(
+          userId,
+        );
 
-        await supabaseAdmin
-          .auth.admin.deleteUser(
-            userId
-          );
-
-        return response(
+        return jsonResponse(
           {
             error:
               teacherError.message,
+            function_version:
+              FUNCTION_VERSION,
           },
-          400
+          400,
         );
-
       }
 
       teacher =
         teacherRecord;
-
     }
 
     /* ======================================================
        SUCCESS
     ====================================================== */
 
-    return response(
+    console.log(
+      `[${FUNCTION_VERSION}] User creation completed`,
+    );
+
+    return jsonResponse(
       {
-        success:
-          true,
+        success: true,
 
         message:
           "User created successfully.",
@@ -780,32 +751,33 @@ Deno.serve(async (req) => {
 
         role,
 
-        profile:
-          finalProfile,
+        profile,
 
         teacher,
 
+        function_version:
+          FUNCTION_VERSION,
       },
-      200
+      200,
     );
-
   } catch (error) {
-
     console.error(
-      "CREATE USER ERROR:",
-      error
+      `[${FUNCTION_VERSION}] CREATE USER ERROR:`,
+      error,
     );
 
-    return response(
+    return jsonResponse(
       {
         error:
           error instanceof Error
             ? error.message
             : "Unexpected server error.",
+
+        function_version:
+          FUNCTION_VERSION,
       },
-      500
+      500,
     );
-
   }
-
 });
+```
