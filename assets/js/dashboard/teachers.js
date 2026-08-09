@@ -1,202 +1,447 @@
 /* ==========================================================
    EMERGENCE ACADEMY
    TEACHERS MODULE
-========================================================== */
+   ========================================================== */
 
-const TeachersModule = window.OfficeModuleEngine.create({
+/* global OfficeModuleEngine, API */
 
-    moduleKey: "teachers",
+/**
+ * Generate a unique-looking Employee ID.
+ *
+ * Format:
+ * EA-EMP-2026-1234
+ *
+ * @returns {string}
+ */
+function generateTeacherEmployeeId() {
+    const year = new Date().getFullYear();
 
-    title: "Teachers",
+    const randomNumber = Math.floor(
+        1000 + Math.random() * 9000
+    );
 
-    tableName: "teachers",
+    return `EA-EMP-${year}-${randomNumber}`;
+}
 
-    orderBy: "created_at",
 
-    columns: [
-        {
-            key: "profile_id",
-            label: "Name"
-        },
-        {
-            key: "employee_id",
-            label: "Employee ID"
-        },
-        {
-            key: "department_id",
-            label: "Department"
-        },
-        {
-            key: "qualification",
-            label: "Qualification"
-        },
-        {
-            key: "status",
-            label: "Status"
-        },
-        {
-            key: "created_at",
-            label: "Created"
-        }
-    ],
+/**
+ * Generate a secure-looking temporary password.
+ *
+ * @returns {string}
+ */
+function generateTeacherPassword() {
+    const chars =
+        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$!";
 
-    formFields: [
-        "full_name",
-        "email",
-        "phone",
-        "password",
-        "employee_id",
-        "department_name",
-        "qualification",
-        "status"
-    ],
+    let password = "";
 
-    editFormFields: [
-        "employee_id",
-        "department_id",
-        "qualification",
-        "status"
-    ],
+    for (let index = 0; index < 12; index++) {
+        const randomIndex = Math.floor(
+            Math.random() * chars.length
+        );
 
-    requiredFields: [
-        "full_name",
-        "email",
-        "employee_id",
-        "department_name",
-        "status"
-    ],
-
-    editRequiredFields: [
-        "employee_id",
-        "department_id",
-        "status"
-    ],
-
-    fieldTypes: {
-        email: "email",
-        password: "password"
-    },
-
-    fieldGenerators: {
-
-        employee_id: () => {
-            return `EA-EMP-${new Date().getFullYear()}-${String(
-                Math.floor(1000 + Math.random() * 9000)
-            )}`;
-        },
-
-        password: () => {
-
-            const chars =
-                "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$!";
-
-            let password = "";
-
-            for (let index = 0; index < 12; index++) {
-
-                password += chars.charAt(
-                    Math.floor(Math.random() * chars.length)
-                );
-
-            }
-
-            return password;
-        }
-
-    },
-
-    permissions: {
-
-        create: [
-            "ceo",
-            "admin",
-            "executive",
-            "hr"
-        ],
-
-        edit: [
-            "ceo",
-            "admin",
-            "executive",
-            "hr"
-        ],
-
-        delete: [
-            "ceo",
-            "admin",
-            "executive"
-        ]
-
-    },
-
-    softDelete: true,
-
-    softDeleteField: "status",
-
-    softDeleteValue: "inactive",
-
-    softRestoreValue: "active",
-
-    fieldOptions: {
-
-        status: [
-            "active",
-            "inactive",
-            "suspended",
-            "pending"
-        ]
-
-    },
-
-    lookups: {
-
-        department_id: {
-            table: "departments",
-            labelKey: "name"
-        }
-
-    },
-
-    /*
-     * Teacher creation must go through the
-     * create-user Edge Function.
-     */
-    createRecord: async (payload) => {
-
-        try {
-
-            if (!window.API?.teachers?.createAccount) {
-
-                throw new Error(
-                    "Teacher API is not available."
-                );
-
-            }
-
-            const result =
-                await API.teachers.createAccount(payload);
-
-            return result;
-
-        } catch (error) {
-
-            console.error(
-                "Teacher creation failed:",
-                error
-            );
-
-            return {
-                success: false,
-                data: null,
-                message:
-                    error?.message ||
-                    "Unable to create teacher."
-            };
-
-        }
-
+        password += chars.charAt(randomIndex);
     }
 
-});
+    return password;
+}
 
-window.TeachersModule = TeachersModule;
+
+/* ==========================================================
+   VERIFY MODULE ENGINE
+   ========================================================== */
+
+if (
+    !window.OfficeModuleEngine ||
+    typeof window.OfficeModuleEngine.create !== "function"
+) {
+    console.error(
+        "TeachersModule: OfficeModuleEngine is not loaded."
+    );
+} else {
+    /* ======================================================
+       CREATE TEACHERS MODULE
+       ====================================================== */
+
+    const TeachersModule =
+        window.OfficeModuleEngine.create({
+
+            /* ==================================================
+               BASIC MODULE INFORMATION
+               ================================================== */
+
+            moduleKey: "teachers",
+
+            title: "Teachers",
+
+            tableName: "teachers",
+
+            orderBy: "created_at",
+
+
+            /* ==================================================
+               TABLE COLUMNS
+               ================================================== */
+
+            columns: [
+                {
+                    key: "profile_id",
+                    label: "Name"
+                },
+
+                {
+                    key: "employee_id",
+                    label: "Employee ID"
+                },
+
+                {
+                    key: "department_id",
+                    label: "Department"
+                },
+
+                {
+                    key: "qualification",
+                    label: "Qualification"
+                },
+
+                {
+                    key: "status",
+                    label: "Status"
+                },
+
+                {
+                    key: "created_at",
+                    label: "Created"
+                }
+            ],
+
+
+            /* ==================================================
+               CREATE FORM FIELDS
+               ================================================== */
+
+            formFields: [
+                "full_name",
+                "email",
+                "phone",
+                "password",
+                "employee_id",
+                "department_name",
+                "qualification",
+                "status"
+            ],
+
+
+            /* ==================================================
+               EDIT FORM FIELDS
+               ================================================== */
+
+            editFormFields: [
+                "employee_id",
+                "department_id",
+                "qualification",
+                "status"
+            ],
+
+
+            /* ==================================================
+               REQUIRED CREATE FIELDS
+               ================================================== */
+
+            requiredFields: [
+                "full_name",
+                "email",
+                "employee_id",
+                "department_name",
+                "status"
+            ],
+
+
+            /* ==================================================
+               REQUIRED EDIT FIELDS
+               ================================================== */
+
+            editRequiredFields: [
+                "employee_id",
+                "department_id",
+                "status"
+            ],
+
+
+            /* ==================================================
+               FIELD TYPES
+               ================================================== */
+
+            fieldTypes: {
+                email: "email",
+                password: "password"
+            },
+
+
+            /* ==================================================
+               FIELD GENERATORS
+               ================================================== */
+
+            fieldGenerators: {
+                employee_id:
+                    generateTeacherEmployeeId,
+
+                password:
+                    generateTeacherPassword
+            },
+
+
+            /* ==================================================
+               PERMISSIONS
+               ================================================== */
+
+            permissions: {
+                create: [
+                    "ceo",
+                    "admin",
+                    "executive",
+                    "hr"
+                ],
+
+                edit: [
+                    "ceo",
+                    "admin",
+                    "executive",
+                    "hr"
+                ],
+
+                delete: [
+                    "ceo",
+                    "admin",
+                    "executive"
+                ]
+            },
+
+
+            /* ==================================================
+               SOFT DELETE
+               ================================================== */
+
+            softDelete: true,
+
+            softDeleteField: "status",
+
+            softDeleteValue: "inactive",
+
+            softRestoreValue: "active",
+
+
+            /* ==================================================
+               STATUS OPTIONS
+               ================================================== */
+
+            fieldOptions: {
+                status: [
+                    "active",
+                    "inactive",
+                    "suspended",
+                    "pending"
+                ]
+            },
+
+
+            /* ==================================================
+               DEPARTMENT LOOKUP
+               ================================================== */
+
+            lookups: {
+                department_id: {
+                    table: "departments",
+                    labelKey: "name"
+                }
+            },
+
+
+            /* ==================================================
+               CREATE TEACHER ACCOUNT
+
+               Teacher creation MUST go through:
+
+               API.teachers.createAccount()
+
+               which calls the Supabase
+               create-user Edge Function.
+               ================================================== */
+
+            createRecord:
+                async function createTeacherRecord(
+                    payload
+                ) {
+                    try {
+                        /* ======================================
+                           VALIDATE PAYLOAD
+                           ====================================== */
+
+                        if (
+                            !payload ||
+                            typeof payload !== "object"
+                        ) {
+                            throw new Error(
+                                "Teacher data is missing."
+                            );
+                        }
+
+
+                        /* ======================================
+                           COPY PAYLOAD
+
+                           Avoid modifying the original
+                           object supplied by OfficeModuleEngine.
+                           ====================================== */
+
+                        const teacherPayload = {
+                            ...payload
+                        };
+
+
+                        /* ======================================
+                           GENERATE EMPLOYEE ID IF EMPTY
+                           ====================================== */
+
+                        if (
+                            !teacherPayload.employee_id ||
+                            String(
+                                teacherPayload.employee_id
+                            ).trim() === ""
+                        ) {
+                            teacherPayload.employee_id =
+                                generateTeacherEmployeeId();
+                        }
+
+
+                        /* ======================================
+                           NORMALIZE EMPLOYEE ID
+                           ====================================== */
+
+                        teacherPayload.employee_id =
+                            String(
+                                teacherPayload.employee_id
+                            ).trim();
+
+
+                        /* ======================================
+                           FINAL EMPLOYEE ID VALIDATION
+                           ====================================== */
+
+                        if (
+                            !teacherPayload.employee_id
+                        ) {
+                            throw new Error(
+                                "Employee ID could not be generated."
+                            );
+                        }
+
+
+                        /* ======================================
+                           VERIFY API
+                           ====================================== */
+
+                        if (
+                            !window.API ||
+                            !window.API.teachers ||
+                            typeof
+                                window.API.teachers.createAccount !==
+                                "function"
+                        ) {
+                            throw new Error(
+                                "Teacher API is not available. Make sure the API module is loaded before TeachersModule."
+                            );
+                        }
+
+
+                        /* ======================================
+                           CREATE TEACHER ACCOUNT
+                           ====================================== */
+
+                        console.log(
+                            "Creating teacher with Employee ID:",
+                            teacherPayload.employee_id
+                        );
+
+
+                        const result =
+                            await window.API
+                                .teachers
+                                .createAccount(
+                                    teacherPayload
+                                );
+
+
+                        /* ======================================
+                           VERIFY API RESULT
+                           ====================================== */
+
+                        if (!result) {
+                            throw new Error(
+                                "Teacher API returned an empty response."
+                            );
+                        }
+
+
+                        if (
+                            result.success === false
+                        ) {
+                            throw new Error(
+                                result.message ||
+                                result.error ||
+                                "Unable to create teacher."
+                            );
+                        }
+
+
+                        /* ======================================
+                           SUCCESS
+                           ====================================== */
+
+                        console.log(
+                            "Teacher created successfully:",
+                            result
+                        );
+
+
+                        return result;
+
+                    } catch (error) {
+                        console.error(
+                            "Teacher creation failed:",
+                            error
+                        );
+
+
+                        return {
+                            success: false,
+
+                            data: null,
+
+                            message:
+                                error &&
+                                error.message
+                                    ? error.message
+                                    : "Unable to create teacher."
+                        };
+                    }
+                }
+        });
+
+
+    /* ======================================================
+       GLOBAL MODULE REFERENCE
+       ====================================================== */
+
+    window.TeachersModule =
+        TeachersModule;
+
+
+    /* ======================================================
+       CONFIRM MODULE LOADED
+       ====================================================== */
+
+    console.log(
+        "TeachersModule loaded successfully."
+    );
+}
