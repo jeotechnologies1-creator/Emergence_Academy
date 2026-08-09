@@ -1,6 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.0";
 
-console.log("========== CREATE USER FUNCTION ==========");
+/* ==========================================================
+   EMERGENCE ACADEMY
+   CREATE USER EDGE FUNCTION
+   Profile creation is handled by handle_new_user()
+========================================================== */
 
 const ALLOWED_ROLES = new Set([
   "ceo",
@@ -16,728 +20,792 @@ const ALLOWED_ROLES = new Set([
   "library",
 ]);
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods":
+    "POST, OPTIONS",
+};
+
+function response(
+  data: Record<string, unknown>,
+  status = 200
+) {
+  return new Response(
+    JSON.stringify(data),
+    {
+      status,
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+}
+
 function normalizeRole(value: unknown) {
-  const role = String(value || "student").trim().toLowerCase();
-  return ALLOWED_ROLES.has(role) ? role : "student";
+
+  const role =
+    String(value || "student")
+      .trim()
+      .toLowerCase();
+
+  return ALLOWED_ROLES.has(role)
+    ? role
+    : "student";
 }
 
-function generatePassword(length = 12) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$!";
-  let value = "";
-  for (let i = 0; i < length; i += 1) {
-    value += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return value;
-}
+function splitName(
+  firstName: unknown,
+  lastName: unknown,
+  fullName: unknown
+) {
 
-function splitName(firstName: string, lastName: string, fullName: string) {
-  const normalizedFirst = String(firstName || "").trim();
-  const normalizedLast = String(lastName || "").trim();
-  const normalizedFull = String(fullName || "").trim();
+  const first =
+    String(firstName || "").trim();
 
-  if (normalizedFirst || normalizedLast) {
+  const last =
+    String(lastName || "").trim();
+
+  const full =
+    String(fullName || "").trim();
+
+  if (first || last) {
+
     return {
-      first_name: normalizedFirst,
-      last_name: normalizedLast,
-      full_name: `${normalizedFirst} ${normalizedLast}`.trim(),
+      first_name: first,
+      last_name: last,
     };
+
   }
 
-  if (!normalizedFull) {
+  if (!full) {
+
     return {
       first_name: "",
       last_name: "",
-      full_name: "",
     };
+
   }
 
-  const [first, ...rest] = normalizedFull.split(" ");
-  return {
-    first_name: first || "",
-    last_name: rest.join(" ").trim(),
-    full_name: normalizedFull,
-  };
-}
-
-async function upsertProfileWithFallback(supabaseAdmin: any, payload: Record<string, unknown>) {
-  let draft: Record<string, unknown> = { ...payload };
-
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    const { error } = await supabaseAdmin
-      .from("profiles")
-      .upsert(draft, { onConflict: "id" });
-
-    if (!error) {
-      return { success: true, droppedColumns: [] as string[] };
-    }
-
-    const message = String(error.message || "");
-    const missingColumn = message.match(/column\s+"([^"]+)"/i)?.[1];
-
-    if (missingColumn && Object.prototype.hasOwnProperty.call(draft, missingColumn)) {
-      delete draft[missingColumn];
-      continue;
-    }
-
-    return {
-      success: false,
-      error,
-      droppedColumns: Object.keys(payload).filter((key) => !(key in draft)),
-    };
-  }
+  const parts =
+    full.split(/\s+/);
 
   return {
-    success: false,
-    error: { message: "Profile insert failed after retries" },
-    droppedColumns: Object.keys(payload).filter((key) => !(key in draft)),
+    first_name:
+      parts.shift() || "",
+
+    last_name:
+      parts.join(" ").trim(),
   };
+
 }
+
+/* ==========================================================
+   MAIN
+========================================================== */
 
 Deno.serve(async (req) => {
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
 
-  // Handle browser preflight request
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: corsHeaders,
-    });
+
+    return new Response(
+      "ok",
+      {
+        headers: corsHeaders,
+      }
+    );
+
   }
 
   try {
-    console.log("Function started");
 
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-    const SERVICE_ROLE_KEY = Deno.env.get(
-      "SUPABASE_SERVICE_ROLE_KEY"
-    );
+    /* ======================================================
+       ENVIRONMENT
+    ====================================================== */
 
-    console.log(
-      "SUPABASE_URL:",
-      Boolean(SUPABASE_URL)
-    );
+    const SUPABASE_URL =
+      Deno.env.get("SUPABASE_URL");
 
-    console.log(
-      "SERVICE_ROLE_KEY:",
-      Boolean(SERVICE_ROLE_KEY)
-    );
-
-    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-      throw new Error(
-        "Missing Supabase environment variables"
+    const SERVICE_ROLE_KEY =
+      Deno.env.get(
+        "SUPABASE_SERVICE_ROLE_KEY"
       );
+
+    const SUPABASE_ANON_KEY =
+      Deno.env.get(
+        "SUPABASE_ANON_KEY"
+      );
+
+    if (
+      !SUPABASE_URL ||
+      !SERVICE_ROLE_KEY ||
+      !SUPABASE_ANON_KEY
+    ) {
+
+      return response(
+        {
+          error:
+            "Supabase environment variables are missing.",
+        },
+        500
+      );
+
     }
 
+    /* ======================================================
+       ADMIN CLIENT
+    ====================================================== */
 
-    const supabaseAdmin = createClient(
-      SUPABASE_URL,
-      SERVICE_ROLE_KEY,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
+    const supabaseAdmin =
+      createClient(
+        SUPABASE_URL,
+        SERVICE_ROLE_KEY,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      );
 
-    /*
-     * ==========================================================
-     * VERIFY CALLER
-     * ==========================================================
-     *
-     * verify_jwt is disabled in config.toml, therefore this
-     * function MUST verify the Authorization header itself.
-     */
+    /* ======================================================
+       VERIFY CALLER
+    ====================================================== */
 
     const authorization =
-      req.headers.get("Authorization") || "";
+      req.headers.get(
+        "Authorization"
+      ) || "";
 
-    if (!authorization.startsWith("Bearer ")) {
+    if (
+      !authorization.startsWith(
+        "Bearer "
+      )
+    ) {
 
-      return new Response(
-        JSON.stringify({
-          error: "Authentication is required."
-        }),
+      return response(
         {
-          status: 401,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json"
-          }
-        }
-      );
-
-    }
-
-    const callerToken =
-      authorization.replace(
-        /^Bearer\s+/i,
-        ""
-      ).trim();
-
-    if (!callerToken) {
-
-      return new Response(
-        JSON.stringify({
-          error: "Invalid authentication token."
-        }),
-        {
-          status: 401,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json"
-          }
-        }
-      );
-
-    }
-
-    /*
-     * Client using the caller's access token.
-     */
-    const callerClient = createClient(
-      SUPABASE_URL,
-      Deno.env.get("SUPABASE_ANON_KEY") || "",
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${callerToken}`
-          }
+          error:
+            "Authentication is required.",
         },
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
+        401
+      );
+
+    }
+
+    const accessToken =
+      authorization
+        .replace(
+          /^Bearer\s+/i,
+          ""
+        )
+        .trim();
+
+    const callerClient =
+      createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization:
+                `Bearer ${accessToken}`,
+            },
+          },
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
         }
-      }
-    );
+      );
 
     const {
-      data: callerAuthData,
-      error: callerAuthError
-    } = await callerClient.auth.getUser();
+      data: callerAuth,
+      error: callerAuthError,
+    } =
+      await callerClient.auth.getUser();
 
     if (
       callerAuthError ||
-      !callerAuthData?.user
+      !callerAuth?.user
     ) {
 
-      return new Response(
-        JSON.stringify({
-          error: "Invalid or expired authentication session."
-        }),
+      return response(
         {
-          status: 401,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json"
-          }
-        }
+          error:
+            "Invalid or expired authentication session.",
+        },
+        401
       );
 
     }
 
-    const callerUser =
-      callerAuthData.user;
+    const callerId =
+      callerAuth.user.id;
 
-    /*
-     * Read caller profile using the service-role
-     * client so RLS cannot block authorization.
-     */
+    /* ======================================================
+       VERIFY CALLER PROFILE
+    ====================================================== */
+
     const {
       data: callerProfile,
-      error: callerProfileError
-    } = await supabaseAdmin
-      .from("profiles")
-      .select("id, role, status")
-      .eq("id", callerUser.id)
-      .single();
+      error: callerProfileError,
+    } =
+      await supabaseAdmin
+        .from("profiles")
+        .select(
+          "id, role, status"
+        )
+        .eq(
+          "id",
+          callerId
+        )
+        .single();
 
     if (
       callerProfileError ||
       !callerProfile
     ) {
 
-      return new Response(
-        JSON.stringify({
-          error: "Caller profile could not be verified."
-        }),
+      console.error(
+        "Caller profile error:",
+        callerProfileError
+      );
+
+      return response(
         {
-          status: 403,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json"
-          }
-        }
+          error:
+            "Caller profile could not be verified.",
+        },
+        403
       );
 
     }
 
     const callerRole =
-      String(callerProfile.role || "")
-        .trim()
-        .toLowerCase();
-
-    /*
-     * ==========================================================
-     * READ REQUEST
-     * ==========================================================
-     */
-
-    const body = await req.json();
-
-    const rawEmail =
       String(
-        body?.email ??
-        body?.user?.email ??
-        ""
+        callerProfile.role || ""
       )
         .trim()
         .toLowerCase();
 
-    const rawPassword =
+    if (
+      !["ceo", "admin"].includes(
+        callerRole
+      )
+    ) {
+
+      return response(
+        {
+          error:
+            "Only CEO or Admin can create users.",
+        },
+        403
+      );
+
+    }
+
+    /* ======================================================
+       REQUEST BODY
+    ====================================================== */
+
+    const body =
+      await req.json();
+
+    const email =
       String(
-        body?.password ??
-        body?.user?.password ??
-        ""
+        body?.email || ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const password =
+      String(
+        body?.password || ""
       ).trim();
 
-    const full_name =
-      body?.full_name;
-
-    const first_name =
-      body?.first_name;
-
-    const last_name =
-      body?.last_name;
-
     const role =
-      body?.role;
+      normalizeRole(
+        body?.role
+      );
 
     const phone =
-      body?.phone;
+      String(
+        body?.phone || ""
+      ).trim();
+
+    const {
+      first_name,
+      last_name,
+    } =
+      splitName(
+        body?.first_name,
+        body?.last_name,
+        body?.full_name
+      );
 
     const teacherData =
       body?.teacher_data;
 
-    const normalizedRole =
-      normalizeRole(role);
+    /* ======================================================
+       VALIDATION
+    ====================================================== */
 
-    /*
-     * ==========================================================
-     * CREATE PERMISSION MATRIX
-     * ==========================================================
-     */
+    if (!email) {
 
-    const canCreateAnyRole =
-      ["ceo", "admin"].includes(
-        callerRole
+      return response(
+        {
+          error:
+            "Email is required.",
+        },
+        400
       );
 
-    const allowedRoleMatrix = {
+    }
 
-      executive: [
-        "teacher",
-        "student",
-        "parent"
-      ],
+    if (!password) {
 
-      hr: [
-        "teacher"
-      ],
+      return response(
+        {
+          error:
+            "Password is required.",
+        },
+        400
+      );
 
-      admission: [
-        "student",
-        "parent"
-      ],
-
-      finance: [],
-
-      exam: [],
-
-      library: [],
-
-      teacher: [],
-
-      student: [],
-
-      parent: []
-
-    };
-
-    const callerAllowedTargets =
-      allowedRoleMatrix[
-      callerRole as keyof typeof allowedRoleMatrix
-      ] || [];
+    }
 
     if (
-      !canCreateAnyRole &&
-      !callerAllowedTargets.includes(
-        normalizedRole
-      )
+      password.length < 8
     ) {
 
-      return new Response(
-        JSON.stringify({
+      return response(
+        {
           error:
-            `Role '${callerRole}' is not authorized to create '${normalizedRole}' accounts.`
-        }),
-        {
-          status: 403,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json"
-          }
-        }
+            "Password must be at least 8 characters.",
+        },
+        400
       );
 
     }
 
-    console.log(
-      "Request Body:",
-      JSON.stringify(body)
-    );
-
-
-    const rawEmail = String(body?.email ?? body?.user?.email ?? "").trim().toLowerCase();
-    const rawPassword = String(body?.password ?? body?.user?.password ?? "").trim();
-    const full_name = body?.full_name;
-    const first_name = body?.first_name;
-    const last_name = body?.last_name;
-    const role = body?.role;
-    const phone = body?.phone;
-    const teacherData = body?.teacher_data;
-
-    if (!rawEmail) {
-      return new Response(
-        JSON.stringify({
-          error: "Email is required",
-        }),
-        {
-          status: 400,
-          headers: {
-            ...corsHeaders,
-            "Content-Type":
-              "application/json",
-          },
-        }
-      );
-    }
-
-    const generatedPassword = !rawPassword;
-    const effectivePassword = rawPassword || generatePassword();
-
-    if (String(effectivePassword).length < 8) {
-      return new Response(
-        JSON.stringify({
-          error: "Password must be at least 8 characters.",
-        }),
-        {
-          status: 400,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-    }
-
-    const normalizedRole = normalizeRole(role);
-    const nameParts = splitName(
-      String(first_name || ""),
-      String(last_name || ""),
-      String(full_name || "")
-    );
-
-
-    console.log(
-      "Checking existing user..."
-    );
-
-
-    // Check if user already exists
-    const {
-      data: existingUsers,
-      error: listError,
-    } =
-      await supabaseAdmin.auth.admin.listUsers();
-
-
-    if (listError) {
-      console.error(
-        "LIST USERS ERROR:",
-        JSON.stringify(
-          listError,
-          null,
-          2
-        )
-      );
-
-      throw listError;
-    }
-
-
-    const existingUser =
-      existingUsers.users.find(
-        (user) =>
-          user.email?.toLowerCase() ===
-          rawEmail.toLowerCase()
-      );
-
-
-    if (existingUser) {
-      return new Response(
-        JSON.stringify({
-          error:
-            "User already exists",
-          user_id:
-            existingUser.id,
-        }),
-        {
-          status: 409,
-          headers: {
-            ...corsHeaders,
-            "Content-Type":
-              "application/json",
-          },
-        }
-      );
-    }
-
-
-    console.log(
-      "Creating Auth user..."
-    );
-
+    /* ======================================================
+       CREATE AUTH USER
+       The database trigger automatically creates profiles.
+    ====================================================== */
 
     const {
-      data: authUser,
-      error: createError,
+      data: authResult,
+      error: authError,
     } =
       await supabaseAdmin.auth.admin.createUser(
         {
-          email: rawEmail,
-          password: effectivePassword,
+          email,
+          password,
 
-          // Automatically verify account
-          email_confirm: true,
+          email_confirm:
+            true,
 
           user_metadata: {
-            full_name: nameParts.full_name,
-            first_name: nameParts.first_name,
-            last_name: nameParts.last_name,
-            role: normalizedRole,
-            phone:
-              phone || "",
+
+            /*
+             * full_name is Auth metadata only.
+             *
+             * It is NOT a profiles column.
+             */
+            full_name:
+              [
+                first_name,
+                last_name,
+              ]
+                .filter(Boolean)
+                .join(" "),
+
+            first_name,
+
+            last_name,
+
+            role,
+
+            phone,
+
           },
         }
       );
 
-
-    if (createError) {
+    if (
+      authError ||
+      !authResult?.user
+    ) {
 
       console.error(
-        "CREATE USER ERROR:",
-        JSON.stringify(
-          createError,
-          null,
-          2
-        )
+        "Auth user creation error:",
+        authError
       );
 
-
-      return new Response(
-        JSON.stringify({
-          error:
-            createError.message,
-          details:
-            createError,
-        }),
+      return response(
         {
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type":
-              "application/json",
-          },
-        }
+          error:
+            authError?.message ||
+            "Failed to create Auth user.",
+        },
+        400
       );
+
     }
 
+    const userId =
+      authResult.user.id;
 
-    console.log(
-      "AUTH USER CREATED:",
-      authUser.user?.id
-    );
+    /* ======================================================
+       PROFILE
+       handle_new_user() already created it.
+    ====================================================== */
 
-
-    /*
-      Optional:
-      Save extra profile information
-      in public.users or profiles table
-
-      Change table name if yours differs
-    */
-
-    const profilePayload = {
-      id: authUser.user!.id,
-      email: rawEmail,
-      role: normalizedRole,
-      status: "active",
-      first_name: nameParts.first_name,
-      last_name: nameParts.last_name,
-      phone: phone || "",
-    };
-
-    const profileResult = await upsertProfileWithFallback(
-      supabaseAdmin,
-      profilePayload
-    );
-
-    const profileError = (profileResult as any).error;
-
+    const {
+      data: profile,
+      error: profileError,
+    } =
+      await supabaseAdmin
+        .from("profiles")
+        .select("*")
+        .eq(
+          "id",
+          userId
+        )
+        .maybeSingle();
 
     if (profileError) {
 
       console.error(
-        "PROFILE INSERT ERROR:",
-        JSON.stringify(
-          profileError,
-          null,
-          2
-        )
+        "Profile verification error:",
+        profileError
       );
 
-      await supabaseAdmin.auth.admin.deleteUser(authUser.user!.id);
-      return new Response(
-        JSON.stringify({ error: profileError.message || "Unable to create the user profile." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return response(
+        {
+          error:
+            profileError.message,
+        },
+        500
       );
+
     }
+
+    /*
+     * In the unlikely event the trigger did not
+     * create the profile, create it here using
+     * ONLY valid profiles columns.
+     *
+     * full_name is deliberately NOT included.
+     */
+
+    let finalProfile =
+      profile;
+
+    if (!finalProfile) {
+
+      const {
+        data: fallbackProfile,
+        error: fallbackError,
+      } =
+        await supabaseAdmin
+          .from("profiles")
+          .insert({
+
+            id:
+              userId,
+
+            email,
+
+            first_name,
+
+            last_name,
+
+            role,
+
+            status:
+              "active",
+
+            phone,
+
+          })
+          .select()
+          .single();
+
+      if (fallbackError) {
+
+        console.error(
+          "Fallback profile creation error:",
+          fallbackError
+        );
+
+        /*
+         * Remove Auth user because
+         * profile provisioning failed.
+         */
+        await supabaseAdmin
+          .auth.admin.deleteUser(
+            userId
+          );
+
+        return response(
+          {
+            error:
+              fallbackError.message,
+          },
+          400
+        );
+
+      }
+
+      finalProfile =
+        fallbackProfile;
+
+    }
+
+    /* ======================================================
+       TEACHER
+    ====================================================== */
 
     let teacher = null;
-    if (normalizedRole === "teacher" && teacherData && typeof teacherData === "object") {
-      const record = teacherData as Record<string, unknown>;
-      const departmentName = String(record.department_name || "").trim();
-      let departmentId = String(record.department_id || "").trim() || null;
 
-      if (departmentName) {
-        const { data: existingDepartment, error: findDepartmentError } = await supabaseAdmin
-          .from("departments")
-          .select("id")
-          .eq("name", departmentName)
-          .maybeSingle();
+    if (
+      role === "teacher" &&
+      teacherData &&
+      typeof teacherData === "object"
+    ) {
 
-        if (findDepartmentError) {
-          await supabaseAdmin.from("profiles").delete().eq("id", authUser.user!.id);
-          await supabaseAdmin.auth.admin.deleteUser(authUser.user!.id);
-          return new Response(JSON.stringify({ error: findDepartmentError.message }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+      const teacherInput =
+        teacherData as Record<
+          string,
+          unknown
+        >;
 
-        if (existingDepartment?.id) {
-          departmentId = existingDepartment.id;
-        } else {
-          const { data: createdDepartment, error: createDepartmentError } = await supabaseAdmin
-            .from("departments")
-            .insert({ name: departmentName })
-            .select("id")
-            .single();
+      const employeeId =
+        String(
+          teacherInput.employee_id ||
+          ""
+        ).trim();
 
-          if (createDepartmentError || !createdDepartment?.id) {
-            await supabaseAdmin.from("profiles").delete().eq("id", authUser.user!.id);
-            await supabaseAdmin.auth.admin.deleteUser(authUser.user!.id);
-            return new Response(JSON.stringify({ error: createDepartmentError?.message || "Unable to create department." }), {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-          departmentId = createdDepartment.id;
-        }
+      const departmentName =
+        String(
+          teacherInput.department_name ||
+          ""
+        ).trim();
+
+      let departmentId =
+        String(
+          teacherInput.department_id ||
+          ""
+        ).trim() || null;
+
+      const qualification =
+        String(
+          teacherInput.qualification ||
+          ""
+        ).trim();
+
+      const teacherStatus =
+        String(
+          teacherInput.status ||
+          "active"
+        ).trim();
+
+      if (!employeeId) {
+
+        return response(
+          {
+            error:
+              "Employee ID is required for teachers.",
+          },
+          400
+        );
+
       }
 
-      const teacherPayload = {
-        profile_id: authUser.user!.id,
-        teacher_no: `T-${String(record.employee_id || "").trim()}`,
-        employee_id: String(record.employee_id || "").trim(),
-        department_id: departmentId,
-        qualification: String(record.qualification || "").trim(),
-        status: String(record.status || "active").trim() || "active",
-      };
+      /* ----------------------------------------------------
+         Find department
+      ---------------------------------------------------- */
 
-      const { data: teacherRecord, error: teacherError } = await supabaseAdmin
-        .from("teachers")
-        .insert(teacherPayload)
-        .select()
-        .single();
+      if (
+        departmentName &&
+        !departmentId
+      ) {
+
+        const {
+          data: department,
+          error: departmentError,
+        } =
+          await supabaseAdmin
+            .from("departments")
+            .select("id")
+            .eq(
+              "name",
+              departmentName
+            )
+            .maybeSingle();
+
+        if (departmentError) {
+
+          throw departmentError;
+
+        }
+
+        if (department) {
+
+          departmentId =
+            department.id;
+
+        } else {
+
+          const {
+            data: newDepartment,
+            error:
+              newDepartmentError,
+          } =
+            await supabaseAdmin
+              .from("departments")
+              .insert({
+                name:
+                  departmentName,
+              })
+              .select("id")
+              .single();
+
+          if (
+            newDepartmentError
+          ) {
+
+            throw newDepartmentError;
+
+          }
+
+          departmentId =
+            newDepartment.id;
+
+        }
+
+      }
+
+      /* ----------------------------------------------------
+         Create teacher
+      ---------------------------------------------------- */
+
+      const {
+        data: teacherRecord,
+        error: teacherError,
+      } =
+        await supabaseAdmin
+          .from("teachers")
+          .insert({
+
+            profile_id:
+              userId,
+
+            teacher_no:
+              `T-${employeeId}`,
+
+            employee_id:
+              employeeId,
+
+            department_id:
+              departmentId,
+
+            qualification,
+
+            status:
+              teacherStatus,
+
+          })
+          .select()
+          .single();
 
       if (teacherError) {
-        await supabaseAdmin.from("profiles").delete().eq("id", authUser.user!.id);
-        await supabaseAdmin.auth.admin.deleteUser(authUser.user!.id);
-        return new Response(
-          JSON.stringify({ error: teacherError.message }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+
+        console.error(
+          "Teacher creation error:",
+          teacherError
         );
+
+        /*
+         * Remove Auth user. The profile
+         * will cascade if configured,
+         * otherwise remove it explicitly.
+         */
+        await supabaseAdmin
+          .from("profiles")
+          .delete()
+          .eq(
+            "id",
+            userId
+          );
+
+        await supabaseAdmin
+          .auth.admin.deleteUser(
+            userId
+          );
+
+        return response(
+          {
+            error:
+              teacherError.message,
+          },
+          400
+        );
+
       }
-      teacher = teacherRecord;
+
+      teacher =
+        teacherRecord;
+
     }
 
+    /* ======================================================
+       SUCCESS
+    ====================================================== */
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message:
-          "User created successfully",
-        role: normalizedRole,
-        profile_saved: !profileError,
-        temporary_password: effectivePassword,
-        password_generated: generatedPassword,
-        teacher,
-        user:
-          authUser.user,
-      }),
+    return response(
       {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type":
-            "application/json",
-        },
-      }
-    );
+        success:
+          true,
 
+        message:
+          "User created successfully.",
+
+        user_id:
+          userId,
+
+        role,
+
+        profile:
+          finalProfile,
+
+        teacher,
+
+      },
+      200
+    );
 
   } catch (error) {
 
     console.error(
-      "FUNCTION ERROR:",
-      JSON.stringify(
-        error,
-        null,
-        2
-      )
+      "CREATE USER ERROR:",
+      error
     );
 
-
-    return new Response(
-      JSON.stringify({
-        error:
-          error.message ||
-          "Unexpected server error",
-      }),
+    return response(
       {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          "Content-Type":
-            "application/json",
-        },
-      }
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unexpected server error.",
+      },
+      500
     );
+
   }
+
 });
