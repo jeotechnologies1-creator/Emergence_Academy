@@ -191,6 +191,11 @@ if (
                     generateTeacherPassword
             },
 
+            fieldGeneratorLabels: {
+                employee_id: "Generate ID",
+                password: "Generate Password"
+            },
+
 
             /* ==================================================
                PERMISSIONS

@@ -1113,12 +1113,13 @@ ${this.modalTemplate(moduleClass)}
 
         const inputType = this.getInputType(moduleClass, field);
         const canGenerate = !row && typeof moduleClass.config.fieldGenerators?.[field] === "function";
+        const generateLabel = moduleClass.config.fieldGeneratorLabels?.[field] || "Generate";
         return `
 <label class="block">
   <span class="text-sm text-slate-700">${this.safe(label)}${required ? " *" : ""}</span>
   <div class="mt-1 flex gap-2">
     <input type="${inputType}" name="${this.safe(field)}" value="${safeValue}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5" />
-    ${canGenerate ? `<button type="button" data-generate-field="${this.safe(field)}" class="shrink-0 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">Generate</button>` : ""}
+    ${canGenerate ? `<button type="button" data-generate-field="${this.safe(field)}" class="shrink-0 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">${this.safe(generateLabel)}</button>` : ""}
   </div>
   <span data-field-error="${this.safe(field)}" class="hidden mt-1 block text-xs text-red-600"></span>
 </label>
