@@ -9,18 +9,19 @@
  * Generate a unique-looking Employee ID.
  *
  * Format:
- * EA-EMP-2026-1234
+ * EA-EMP-2026-123456789
  *
  * @returns {string}
  */
 function generateTeacherEmployeeId() {
     const year = new Date().getFullYear();
 
+    const timestamp = String(Date.now()).slice(-6);
     const randomNumber = Math.floor(
-        1000 + Math.random() * 9000
+        100 + Math.random() * 900
     );
 
-    return `EA-EMP-${year}-${randomNumber}`;
+    return `EA-EMP-${year}-${timestamp}${randomNumber}`;
 }
 
 

@@ -408,7 +408,6 @@ class Auth {
 
             const firstName = String(userData.first_name || "").trim();
             const lastName = String(userData.last_name || "").trim();
-            const fullName = `${firstName} ${lastName}`.trim();
             const email = String(userData.email || "").trim().toLowerCase();
             const password = String(userData.password || "").trim();
             const targetRole = this.normalizeRole(userData.role || this.config.DEFAULT_ROLE || "student");
@@ -425,7 +424,6 @@ class Auth {
                     role: targetRole,
                     first_name: firstName,
                     last_name: lastName,
-                    full_name: fullName,
                     phone,
                     created_by: profile.id
                 }

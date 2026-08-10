@@ -1086,6 +1086,13 @@ specialization.ilike.%${keyword}%`
                     throw new Error("Teacher first and last name are required.");
                 }
 
+                // `full_name` is a form-only convenience field. The profiles
+                // table stores first_name and last_name, not full_name.
+                const {
+                    full_name: ignoredFullName,
+                    ...accountData
+                } = teacherData;
+
                 const accessToken = await window.Auth?.accessToken?.();
                 if (!accessToken) {
                     throw new Error("Your session has expired. Please sign in again and retry.");
@@ -1095,7 +1102,7 @@ specialization.ilike.%${keyword}%`
                     "create-user",
                     {
                         body: {
-                            ...teacherData,
+                            ...accountData,
                             first_name: firstName,
                             last_name: lastName,
                             role: "teacher",
