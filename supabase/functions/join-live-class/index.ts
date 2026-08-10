@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
     const admin = adminClient();
     const [{ data: profile }, { data: liveClass, error }] = await Promise.all([
       admin.from("profiles").select("role").eq("id", user.id).maybeSingle(),
-      admin.from("live_classes").select("id,subject_id,teacher_id,starts_at,ends_at,status,meeting_url").eq("id", id).maybeSingle(),
+      admin.from("live_classes").select("id,class_id,subject_id,teacher_id,starts_at,ends_at,status,meeting_url").eq("id", id).maybeSingle(),
     ]);
     if (error || !liveClass) return json({ error: "Live class was not found." }, 404);
     const role = normalizedRole(profile?.role);

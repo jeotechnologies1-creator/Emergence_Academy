@@ -201,7 +201,7 @@
                         <td class="p-3">
 
                             <img
-                                src="${profile.avatar_url || 'assets/images/default-avatar.png'}"
+                                src="${this.safe(profile.avatar_url || 'assets/images/logo.png')}"
                                 class="w-10 h-10 rounded-full object-cover"
                             >
 
@@ -209,33 +209,33 @@
 
                         <td class="p-3">
 
-                            ${profile.first_name || ""}
+                            ${this.safe(profile.first_name || "")}
 
-                            ${profile.last_name || ""}
-
-                        </td>
-
-                        <td class="p-3">
-
-                            ${profile.email}
+                            ${this.safe(profile.last_name || "")}
 
                         </td>
 
                         <td class="p-3">
 
-                            ${profile.role}
+                            ${this.safe(profile.email || "-")}
 
                         </td>
 
                         <td class="p-3">
 
-                            ${profile.phone || "-"}
+                            ${this.safe(profile.role || "-")}
 
                         </td>
 
                         <td class="p-3">
 
-                            ${profile.status}
+                            ${this.safe(profile.phone || "-")}
+
+                        </td>
+
+                        <td class="p-3">
+
+                            ${this.safe(profile.status || "-")}
 
                         </td>
 
@@ -243,21 +243,21 @@
 
                             <button
                                 class="view-btn text-blue-600"
-                                data-id="${profile.id}"
+                                data-id="${this.safe(profile.id)}"
                             >
                                 View
                             </button>
 
                             <button
                                 class="edit-btn text-green-600"
-                                data-id="${profile.id}"
+                                data-id="${this.safe(profile.id)}"
                             >
                                 Edit
                             </button>
 
                             <button
                                 class="delete-btn text-red-600"
-                                data-id="${profile.id}"
+                                data-id="${this.safe(profile.id)}"
                             >
                                 Delete
                             </button>
@@ -303,7 +303,9 @@
             const title = isCreate ? "Create User" : mode === "view" ? "User Profile" : "Edit User";
             const readOnly = mode === "view";
             const value = (key) => this.safe(profile?.[key] || "");
-            const roles = ["student", "teacher", "parent", "admin", "executive", "finance", "hr", "admission", "exam", "library"];
+            // Student and teacher accounts need their dedicated admission and
+            // employment workflows, which also create linked records.
+            const roles = ["admin", "executive", "finance", "hr", "admission", "exam", "library"];
 
             const modal = document.createElement("div");
             modal.id = "profile-action-modal";

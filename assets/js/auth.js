@@ -103,6 +103,9 @@ class Auth {
 
     static async init() {
         if (this.initialized) return;
+        if (typeof this.runtime.waitForSupabase === "function") {
+            await this.runtime.waitForSupabase();
+        }
         const { data, error } = await this.client.auth.getSession();
         if (error) {
             console.error(error);

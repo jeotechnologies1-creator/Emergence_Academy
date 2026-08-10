@@ -1,0 +1,10 @@
+# Local dependencies and editor artifacts
+node_modules/
+.DS_Store
+
+# OAuth and Supabase credentials must remain local.
+.env
+.env.*
+!.env.example
+supabase/functions/.env
+

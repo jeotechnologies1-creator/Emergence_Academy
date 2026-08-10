@@ -93,7 +93,7 @@ const DEFAULT_CONFIG = {
       SCHOOL_NAME: "Emergence Academy",
       MOTTO: "AI Learning Management System",
       LOGO: "assets/images/logo.png",
-      FAVICON: "assets/images/favicon.png",
+      FAVICON: "assets/images/logo.png",
       CONTACT_EMAIL: "support@emergence.edu",
       CONTACT_PHONE: "+234-000-000-0000",
       ADDRESS: "123 Academy Drive, Lagos, Nigeria"

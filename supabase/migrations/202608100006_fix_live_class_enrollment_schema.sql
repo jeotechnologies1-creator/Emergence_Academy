@@ -15,6 +15,11 @@ as $$
   select exists (
     select 1 from public.student_enrollments
     where student_id = p_student_id and class_id = p_class_id
+  ) or exists (
+    -- Newly admitted students are assigned directly to students.class_id.
+    -- Keep them eligible until a formal session enrollment is created.
+    select 1 from public.students
+    where id = p_student_id and class_id = p_class_id
   )
 $$;
 

@@ -21,22 +21,13 @@
                 return this.currentProfile;
             }
 
-            const user =
-                await AuthService.getUser();
+            // Auth owns the session and profile cache. This service remains a
+            // compatibility facade for permission and dashboard consumers.
+            const profile = await Auth.profile(forceRefresh);
 
-            if (!user) {
-                throw new Error(
-                    "No authenticated user."
-                );
+            if (!profile) {
+                throw new Error("Authenticated user profile not found.");
             }
-
-            const profile =
-                await ApiService.single(
-                    "profiles",
-                    {
-                        id: user.id
-                    }
-                );
 
             this.currentProfile = profile;
 
@@ -52,30 +43,10 @@
 
         static async update(data) {
 
-            const user =
-                await AuthService.getUser();
+            const profile = await Auth.profile();
+            if (!profile?.id) throw new Error("No authenticated user.");
 
-            if (!user) {
-                throw new Error(
-                    "No authenticated user."
-                );
-            }
-
-            /*
-             * IMPORTANT:
-             *
-             * ApiService.update()
-             * expects:
-             *
-             * update(table, id, payload)
-             */
-
-            const result =
-                await ApiService.update(
-                    "profiles",
-                    user.id,
-                    data
-                );
+            const result = await ApiService.update("profiles", profile.id, data);
 
             this.currentProfile =
                 Array.isArray(result)
@@ -133,7 +104,6 @@
                 await this.get();
 
             return (
-                profile?.full_name ||
                 [
                     profile?.first_name,
                     profile?.last_name
