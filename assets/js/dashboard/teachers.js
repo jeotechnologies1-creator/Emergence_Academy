@@ -294,9 +294,44 @@ if (
                            object supplied by OfficeModuleEngine.
                            ====================================== */
 
-                        const teacherPayload = {
+                        payload = {
                             ...payload
                         };
+
+                        /* ======================================
+                           NORMALIZE NAME FOR THE ACCOUNT API
+
+                           The teacher form uses one Full Name
+                           field, whereas the account Edge Function
+                           stores a first and last name separately.
+                           ====================================== */
+
+                        const fullName = String(
+                            payload.full_name || ""
+                        ).trim();
+
+                        const nameParts = fullName
+                            .split(/\s+/)
+                            .filter(Boolean);
+
+                        if (!payload.first_name) {
+                            payload.first_name =
+                                nameParts.shift() || "";
+                        }
+
+                        if (!payload.last_name) {
+                            payload.last_name =
+                                nameParts.join(" ");
+                        }
+
+                        if (
+                            !String(payload.first_name).trim() ||
+                            !String(payload.last_name).trim()
+                        ) {
+                            throw new Error(
+                                "Enter the teacher's first and last name."
+                            );
+                        }
 
 
                         /* ======================================
@@ -304,12 +339,12 @@ if (
                            ====================================== */
 
                         if (
-                            !teacherPayload.employee_id ||
+                            !payload.employee_id ||
                             String(
-                                teacherPayload.employee_id
+                                payload.employee_id
                             ).trim() === ""
                         ) {
-                            teacherPayload.employee_id =
+                            payload.employee_id =
                                 generateTeacherEmployeeId();
                         }
 
@@ -318,9 +353,9 @@ if (
                            NORMALIZE EMPLOYEE ID
                            ====================================== */
 
-                        teacherPayload.employee_id =
+                        payload.employee_id =
                             String(
-                                teacherPayload.employee_id
+                                payload.employee_id
                             ).trim();
 
 
@@ -329,7 +364,7 @@ if (
                            ====================================== */
 
                         if (
-                            !teacherPayload.employee_id
+                            !payload.employee_id
                         ) {
                             throw new Error(
                                 "Employee ID could not be generated."
@@ -360,16 +395,12 @@ if (
 
                         console.log(
                             "Creating teacher with Employee ID:",
-                            teacherPayload.employee_id
+                            payload.employee_id
                         );
 
 
                         const result =
-                            await window.API
-                                .teachers
-                                .createAccount(
-                                    teacherPayload
-                                );
+                            await window.API.teachers.createAccount(payload);
 
 
                         /* ======================================

@@ -1069,6 +1069,23 @@ specialization.ilike.%${keyword}%`
 
             try {
 
+                if (!teacherData || typeof teacherData !== "object") {
+                    throw new Error("Teacher data is required.");
+                }
+
+                const fullName = String(teacherData.full_name || "").trim();
+                const nameParts = fullName.split(/\s+/).filter(Boolean);
+                const firstName = String(
+                    teacherData.first_name || nameParts.shift() || ""
+                ).trim();
+                const lastName = String(
+                    teacherData.last_name || nameParts.join(" ") || ""
+                ).trim();
+
+                if (!firstName || !lastName) {
+                    throw new Error("Teacher first and last name are required.");
+                }
+
                 const accessToken = await window.Auth?.accessToken?.();
                 if (!accessToken) {
                     throw new Error("Your session has expired. Please sign in again and retry.");
@@ -1079,6 +1096,8 @@ specialization.ilike.%${keyword}%`
                     {
                         body: {
                             ...teacherData,
+                            first_name: firstName,
+                            last_name: lastName,
                             role: "teacher",
                             teacher_data: {
                                 employee_id: teacherData.employee_id,
