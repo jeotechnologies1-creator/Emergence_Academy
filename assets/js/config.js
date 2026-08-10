@@ -127,6 +127,27 @@ const CONFIG = deepMerge(DEFAULT_CONFIG, runtimeOverride);
 Object.freeze(CONFIG);
 
 window.CONFIG = CONFIG;
+// Roles are persisted in the database, but values created by older versions of
+// the application used several human-readable aliases. Keep normalization in
+// one place so authentication, services and navigation cannot disagree.
+window.normalizeEmergenceRole = function normalizeEmergenceRole(value, fallback = "") {
+   const role = String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\-_]+/g, " ")
+      .replace(/\s+/g, " ");
+   const aliases = {
+      administrator: "admin", "super admin": "admin",
+      admissions: "admission", "admission office": "admission",
+      exams: "exam", "exam office": "exam",
+      librarian: "library", "library office": "library",
+      accounting: "finance", accounts: "finance", "finance office": "finance",
+      "human resources": "hr", "human resource": "hr"
+   };
+   const supported = Object.keys(CONFIG.DASHBOARDS || {});
+   const normalized = aliases[role] || role;
+   return supported.includes(normalized) ? normalized : fallback;
+};
 window.APP_CONFIG = {
    schoolName: CONFIG.APP_DETAILS.SCHOOL_NAME,
    motto: CONFIG.APP_DETAILS.MOTTO,

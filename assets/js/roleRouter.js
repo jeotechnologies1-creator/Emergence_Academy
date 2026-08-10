@@ -99,6 +99,9 @@ const RoleRouter = {
     currentRole: "student",
 
     normalizeRole(rawRole) {
+        if (typeof window.normalizeEmergenceRole === "function") {
+            return window.normalizeEmergenceRole(rawRole, "student");
+        }
         const base = String(rawRole || "")
             .trim()
             .toLowerCase()

@@ -10,6 +10,22 @@
 
     class DashboardService {
 
+        static ROUTE_PERMISSIONS = Object.freeze({
+            dashboard: null,
+            profiles: "users.view",
+            students: "students.view",
+            teachers: "teachers.view",
+            parents: "parents.view",
+            attendance: "attendance.view",
+            assignments: "assignments.view",
+            "live-classes": "assignments.view",
+            grades: "grades.view",
+            finance: "finance.view",
+            reports: "reports.view",
+            notifications: "notifications.view",
+            ai: "ai.view"
+        });
+
         static async getRole() {
 
             if (window.RoleRouter) {
@@ -64,9 +80,17 @@
             const config =
                 await this.getConfiguration();
 
-            return Array.isArray(config.modules)
+            const configured = Array.isArray(config.modules)
                 ? config.modules
                 : ["dashboard"];
+
+            if (!window.PermissionService) return configured;
+
+            const permissions = await PermissionService.list();
+            return configured.filter((route) => {
+                const required = this.ROUTE_PERMISSIONS[route];
+                return !required || permissions.includes(required);
+            });
 
         }
 

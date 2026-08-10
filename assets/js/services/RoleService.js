@@ -14,6 +14,10 @@
 
         static normalize(role) {
 
+            if (typeof window.normalizeEmergenceRole === "function") {
+                return window.normalizeEmergenceRole(role, "");
+            }
+
             return String(role || "")
                 .trim()
                 .toLowerCase()

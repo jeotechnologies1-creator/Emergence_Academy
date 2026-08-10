@@ -25,6 +25,14 @@ class Router {
 
     static async navigate(name) {
 
+        if (window.DashboardService &&
+            typeof window.DashboardService.canOpen === "function" &&
+            !(await window.DashboardService.canOpen(name))) {
+            const fallback = await window.DashboardService.getHomeRoute();
+            if (name !== fallback) return this.navigate(fallback);
+            throw new Error("You do not have permission to access this module.");
+        }
+
         if (
             name !== "dashboard" &&
             window.RoleRouter &&

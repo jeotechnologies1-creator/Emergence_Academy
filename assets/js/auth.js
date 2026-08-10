@@ -41,6 +41,9 @@ class Auth {
     };
 
     static normalizeRole(rawRole) {
+        if (typeof this.runtime.normalizeEmergenceRole === "function") {
+            return this.runtime.normalizeEmergenceRole(rawRole, "");
+        }
         const role = String(rawRole || "")
             .trim()
             .toLowerCase()
@@ -248,10 +251,10 @@ class Auth {
             const errorCode = String(error.code || "").toLowerCase();
             const policyRecursion = errorCode === "42p17" || message.includes("infinite recursion") || message.includes("policy");
             if (policyRecursion) {
-                const policyFallback = this.buildProfileFallback(user, preferredRole);
-                this.currentProfile = policyFallback;
-                this.storageSession.setItem("profile", JSON.stringify(policyFallback));
-                return policyFallback;
+                // Never derive authorization from browser storage or user
+                // metadata. A profile-policy failure must be repaired in RLS.
+                console.error("Profile access was denied by database policy.");
+                return null;
             }
             const missingProfile = message.includes("no rows") || message.includes("not found") || message.includes("could not find") || String(error.details || "").toLowerCase().includes("not found");
             if (missingProfile) {

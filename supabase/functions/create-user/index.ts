@@ -85,6 +85,16 @@ function normalizeName(value: unknown): string {
   return String(value ?? "").trim();
 }
 
+async function deleteCreatedUser(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+) {
+  // Do not assume the profile foreign key has ON DELETE CASCADE. This makes
+  // failures after the auth trigger atomic from the caller's perspective.
+  await admin.from("profiles").delete().eq("id", userId);
+  await admin.auth.admin.deleteUser(userId);
+}
+
 /* ==========================================================
    MAIN EDGE FUNCTION
 ========================================================== */
@@ -530,9 +540,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
        * Clean up the Auth account because
        * the required profile could not be verified.
        */
-      await supabaseAdmin.auth.admin.deleteUser(
-        userId,
-      );
+      await deleteCreatedUser(supabaseAdmin, userId);
 
       return jsonResponse(
         {
@@ -549,9 +557,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         `[${FUNCTION_VERSION}] handle_new_user() did not create a profile`,
       );
 
-      await supabaseAdmin.auth.admin.deleteUser(
-        userId,
-      );
+      await deleteCreatedUser(supabaseAdmin, userId);
 
       return jsonResponse(
         {
@@ -606,9 +612,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ==================================================== */
 
       if (!employeeId) {
-        await supabaseAdmin.auth.admin.deleteUser(
-          userId,
-        );
+        await deleteCreatedUser(supabaseAdmin, userId);
 
         return jsonResponse(
           {
@@ -643,7 +647,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
             .maybeSingle();
 
         if (departmentError) {
-          throw departmentError;
+          await deleteCreatedUser(supabaseAdmin, userId);
+          return jsonResponse(
+            { error: departmentError.message, function_version: FUNCTION_VERSION },
+            400,
+          );
         }
 
         if (department) {
@@ -665,7 +673,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
               .single();
 
           if (newDepartmentError) {
-            throw newDepartmentError;
+            await deleteCreatedUser(supabaseAdmin, userId);
+            return jsonResponse(
+              { error: newDepartmentError.message, function_version: FUNCTION_VERSION },
+              400,
+            );
           }
 
           departmentId =
@@ -711,9 +723,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
          * should disappear through the FK cascade
          * if the schema is configured accordingly.
          */
-        await supabaseAdmin.auth.admin.deleteUser(
-          userId,
-        );
+        await deleteCreatedUser(supabaseAdmin, userId);
 
         return jsonResponse(
           {
