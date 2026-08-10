@@ -323,15 +323,33 @@ class API {
 
             try {
 
-                const { data, error } = await API.db
+                const timestampedPayload = {
+                    ...payload,
+                    updated_at: new Date().toISOString()
+                };
+
+                let { data, error } = await API.db
                     .from(tableName)
-                    .update({
-                        ...payload,
-                        updated_at: new Date().toISOString()
-                    })
+                    .update(timestampedPayload)
                     .eq("id", id)
                     .select()
                     .single();
+
+                // Some schema tables (for example grades, payments, and
+                // notifications) do not expose an updated_at column.
+                // Retry with the caller's fields only in that case.
+                if (
+                    error &&
+                    String(error.message || "").toLowerCase()
+                        .includes("updated_at")
+                ) {
+                    ({ data, error } = await API.db
+                        .from(tableName)
+                        .update(payload)
+                        .eq("id", id)
+                        .select()
+                        .single());
+                }
 
                 if (error) throw error;
 

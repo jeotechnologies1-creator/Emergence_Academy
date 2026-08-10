@@ -350,7 +350,7 @@ class DashboardHome {
         return items.map((item) => {
             const action = this.safeText(String(item.action || "activity").replace(/_/g, " "));
             const module = this.safeText(String(item.module || "general").replace(/_/g, " "));
-            const details = this.safeText(String(item.details || "").slice(0, 180));
+            const details = this.safeText(String(item.description || "").slice(0, 180));
             const created = item.created_at ? new Date(item.created_at).toLocaleString() : "";
 
             return `

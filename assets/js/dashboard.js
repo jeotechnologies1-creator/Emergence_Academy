@@ -197,6 +197,9 @@
                 assignments:
                     window.AssignmentModule,
 
+                "live-classes":
+                    window.LiveClassesModule,
+
                 grades:
                     window.GradesModule,
 

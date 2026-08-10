@@ -470,7 +470,7 @@ class Auth {
         }
     }
 
-    static async log(action, details = "") {
+    static async log(action, description = "") {
         try {
             const user = await this.user();
             if (!user) return;
@@ -479,7 +479,7 @@ class Auth {
                 .insert({
                     user_id: user.id,
                     action,
-                    details,
+                    description,
                     created_at: new Date().toISOString()
                 });
         } catch (err) {

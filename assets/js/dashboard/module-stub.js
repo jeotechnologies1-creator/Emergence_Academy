@@ -366,7 +366,7 @@ class OfficeModuleEngine {
       await API.records.create("activity_logs", {
         user_id: userId || null,
         action: `MODULE_${String(action).toUpperCase()}`,
-        details,
+        description: details,
         created_at: new Date().toISOString()
       });
     } catch (error) {

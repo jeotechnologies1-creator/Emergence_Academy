@@ -32,31 +32,31 @@ const RoleRouter = {
             title: "CEO Office",
             subtitle: "Strategic leadership, institution-wide insights, and controls.",
             defaultRoute: "dashboard",
-            modules: ["dashboard", "profiles", "students", "teachers", "parents", "attendance", "assignments", "grades", "finance", "reports", "notifications", "ai"]
+            modules: ["dashboard", "profiles", "students", "teachers", "parents", "attendance", "assignments", "live-classes", "grades", "finance", "reports", "notifications", "ai"]
         },
         admin: {
             title: "Admin Office",
             subtitle: "School operations, records, and full module administration.",
             defaultRoute: "dashboard",
-            modules: ["dashboard", "profiles", "students", "teachers", "parents", "attendance", "assignments", "grades", "finance", "reports", "notifications", "ai"]
+            modules: ["dashboard", "profiles", "students", "teachers", "parents", "attendance", "assignments", "live-classes", "grades", "finance", "reports", "notifications", "ai"]
         },
         executive: {
             title: "Executive Office",
             subtitle: "Operational oversight with cross-functional coordination.",
             defaultRoute: "dashboard",
-            modules: ["dashboard", "students", "teachers", "parents", "attendance", "assignments", "grades", "finance", "reports", "notifications", "ai"]
+            modules: ["dashboard", "students", "teachers", "parents", "attendance", "assignments", "live-classes", "grades", "finance", "reports", "notifications", "ai"]
         },
         teacher: {
             title: "Teacher Office",
             subtitle: "Classroom delivery, assessments, and learner performance.",
             defaultRoute: "dashboard",
-            modules: ["dashboard", "students", "attendance", "assignments", "grades", "reports", "notifications", "ai"]
+            modules: ["dashboard", "students", "attendance", "assignments", "live-classes", "grades", "reports", "notifications", "ai"]
         },
         student: {
             title: "Student Office",
             subtitle: "Track coursework, submissions, grades, and announcements.",
             defaultRoute: "dashboard",
-            modules: ["dashboard", "assignments", "grades", "attendance", "notifications", "ai"]
+            modules: ["dashboard", "assignments", "live-classes", "grades", "attendance", "notifications", "ai"]
         },
         parent: {
             title: "Parent Office",
@@ -86,7 +86,7 @@ const RoleRouter = {
             title: "Exam Office",
             subtitle: "Coordinate assessments, grading, and performance analytics.",
             defaultRoute: "grades",
-            modules: ["dashboard", "assignments", "grades", "reports", "notifications"]
+            modules: ["dashboard", "assignments", "live-classes", "grades", "reports", "notifications"]
         },
         library: {
             title: "Library Office",

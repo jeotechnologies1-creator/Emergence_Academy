@@ -39,6 +39,7 @@ const DEFAULT_CONFIG = {
       subjects: "subjects",
       attendance: "attendance",
       assignments: "assignments",
+      live_classes: "live_classes",
       grades: "grades",
       report_cards: "report_cards",
       fee_categories: "fee_categories",
