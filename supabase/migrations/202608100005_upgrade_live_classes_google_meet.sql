@@ -18,53 +18,23 @@ where ends_at is null;
 
 alter table public.live_classes alter column ends_at set not null;
 
--- Some installations name the enrollment key `course_id` while others use
--- `subject_id`. Resolve that difference inside a SECURITY DEFINER helper so
--- the policy/query never refers to a column that is absent in this database.
-create or replace function public.student_is_enrolled_in_subject(
+-- The existing enrollment schema links a student to a class. A live class is
+-- also linked to that class, so this enforces the available server-side
+-- enrollment relationship without exposing meeting URLs to students.
+create or replace function public.student_can_access_live_class(
   p_student_id uuid,
-  p_subject_id uuid
+  p_class_id uuid
 )
 returns boolean
-language plpgsql
+language sql
 stable
 security definer
 set search_path = public
 as $$
-declare
-  v_enrolled boolean := false;
-  v_has_subject_id boolean;
-  v_has_course_id boolean;
-  v_subject_has_course_id boolean;
-begin
   select exists (
-    select 1 from information_schema.columns
-    where table_schema = 'public' and table_name = 'student_enrollments' and column_name = 'subject_id'
-  ) into v_has_subject_id;
-  select exists (
-    select 1 from information_schema.columns
-    where table_schema = 'public' and table_name = 'student_enrollments' and column_name = 'course_id'
-  ) into v_has_course_id;
-  select exists (
-    select 1 from information_schema.columns
-    where table_schema = 'public' and table_name = 'subjects' and column_name = 'course_id'
-  ) into v_subject_has_course_id;
-
-  if v_has_subject_id then
-    execute 'select exists (select 1 from public.student_enrollments where student_id = $1 and subject_id = $2)'
-      into v_enrolled using p_student_id, p_subject_id;
-  elsif v_has_course_id and v_subject_has_course_id then
-    execute 'select exists (
-      select 1 from public.student_enrollments se
-      join public.subjects s on s.course_id = se.course_id
-      where se.student_id = $1 and s.id = $2
-    )' into v_enrolled using p_student_id, p_subject_id;
-  else
-    raise exception 'student_enrollments must have subject_id, or course_id with subjects.course_id, for live-class enrollment checks.'
-      using errcode = '42703';
-  end if;
-  return v_enrolled;
-end;
+    select 1 from public.student_enrollments
+    where student_id = p_student_id and class_id = p_class_id
+  )
 $$;
 
 create or replace function public.get_live_classes()
@@ -97,7 +67,7 @@ as $$
       or (public.current_user_role() = 'student' and exists (
             select 1 from public.students st
             where st.profile_id = auth.uid()
-              and public.student_is_enrolled_in_subject(st.id, lc.subject_id)
+              and public.student_can_access_live_class(st.id, lc.class_id)
           ))
    order by lc.starts_at asc;
 $$;
@@ -129,8 +99,8 @@ $$;
 
 revoke all on function public.get_live_classes() from public, anon;
 grant execute on function public.get_live_classes() to authenticated;
-revoke all on function public.student_is_enrolled_in_subject(uuid, uuid) from public, anon;
-grant execute on function public.student_is_enrolled_in_subject(uuid, uuid) to authenticated;
+revoke all on function public.student_can_access_live_class(uuid, uuid) from public, anon;
+grant execute on function public.student_can_access_live_class(uuid, uuid) to authenticated;
 revoke all on function public.set_live_class_status(uuid, text) from public, anon;
 grant execute on function public.set_live_class_status(uuid, text) to authenticated;
 

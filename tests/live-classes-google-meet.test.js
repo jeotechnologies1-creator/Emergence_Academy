@@ -13,7 +13,7 @@ const path = require('path');
   assert.ok(schedule.includes('oauth2.googleapis.com/token'), 'scheduling must exchange a server-side refresh token');
   assert.ok(schedule.includes('conferenceDataVersion=1'), 'scheduling must request a Google Meet conference');
   assert.ok(schedule.includes('teacher_subjects'), 'server must verify teacher assignment');
-  assert.ok(join.includes('student_is_enrolled_in_subject'), 'server must verify student enrollment before returning a link');
+  assert.ok(join.includes('student_can_access_live_class'), 'server must verify student enrollment before returning a link');
   assert.ok(moduleCode.includes('join-live-class'), 'browser must use the protected join endpoint');
   assert.ok(!moduleCode.includes('meet.jit.si'), 'Jitsi room generation must not remain');
   assert.ok(migration.includes('get_live_classes'), 'database must expose an enrollment-scoped class listing');

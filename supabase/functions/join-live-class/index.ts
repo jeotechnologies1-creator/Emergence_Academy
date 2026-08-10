@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
     if (role === "student") {
       const { data: student } = await admin.from("students").select("id").eq("profile_id", user.id).maybeSingle();
       const { data: enrolled, error: enrollmentError } = student
-        ? await admin.rpc("student_is_enrolled_in_subject", { p_student_id: student.id, p_subject_id: liveClass.subject_id })
+        ? await admin.rpc("student_can_access_live_class", { p_student_id: student.id, p_class_id: liveClass.class_id })
         : { data: false, error: null };
       if (enrollmentError) throw enrollmentError;
       if (!enrolled) return json({ error: "You are not enrolled in this course and cannot join this class." }, 403);
