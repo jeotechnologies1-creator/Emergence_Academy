@@ -204,9 +204,7 @@ if (
             permissions: {
                 create: [
                     "ceo",
-                    "admin",
-                    "executive",
-                    "hr"
+                    "admin"
                 ],
 
                 edit: [

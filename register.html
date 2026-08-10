@@ -88,7 +88,7 @@
             const currentUser = await Auth.currentUser();
             const profile = await Auth.profile();
 
-            if (!currentUser || !profile || String(profile.role || '').toLowerCase() !== 'admin') {
+            if (!currentUser || !profile || !['admin', 'ceo'].includes(String(profile.role || '').toLowerCase())) {
                 errorEl.textContent = 'Only an admin can create office credentials.';
                 errorEl.classList.remove('hidden');
                 window.setTimeout(() => {
@@ -100,12 +100,13 @@
             form.addEventListener('submit', async (event) => {
                 event.preventDefault();
 
+                const nameParts = document.getElementById('registerName').value.trim().split(/\s+/).filter(Boolean);
                 const payload = {
                     email: document.getElementById('registerEmail').value.trim(),
                     password: document.getElementById('registerPassword').value,
                     role: document.getElementById('registerRole').value,
-                    first_name: document.getElementById('registerName').value.trim(),
-                    last_name: '',
+                    first_name: nameParts.shift() || '',
+                    last_name: nameParts.join(' '),
                     phone: ''
                 };
 

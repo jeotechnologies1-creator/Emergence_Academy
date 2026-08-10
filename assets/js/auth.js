@@ -105,7 +105,7 @@ class Auth {
             console.error(error);
         }
         this.runtime.currentSession = data?.session || null;
-        this.client.auth.onAuthStateChange(async (event, session) => {
+        const handleAuthState = async (event, session) => {
             console.log("AUTH EVENT:", event);
             this.runtime.currentSession = session;
             if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
@@ -115,7 +115,14 @@ class Auth {
                 this.clearCache();
                 this.storageSession.clear();
             }
-        });
+        };
+        if (typeof this.runtime.addEventListener === "function") {
+            this.runtime.addEventListener("supabase:auth", (event) => {
+                handleAuthState(event.detail?.event, event.detail?.session);
+            });
+        } else {
+            this.client.auth.onAuthStateChange(handleAuthState);
+        }
         this.initialized = true;
         console.log("Authentication Engine Ready");
     }
@@ -248,21 +255,8 @@ class Auth {
             }
             const missingProfile = message.includes("no rows") || message.includes("not found") || message.includes("could not find") || String(error.details || "").toLowerCase().includes("not found");
             if (missingProfile) {
-                const fallbackProfile = this.buildProfileFallback(user, preferredRole);
-                const { data: createdProfile, error: insertError } = await this.client
-                    .from("profiles")
-                    .insert(fallbackProfile)
-                    .select()
-                    .single();
-                if (insertError) {
-                    console.error("Profile fallback creation failed:", insertError);
-                    this.currentProfile = fallbackProfile;
-                    this.storageSession.setItem("profile", JSON.stringify(fallbackProfile));
-                    return fallbackProfile;
-                }
-                this.currentProfile = createdProfile;
-                this.storageSession.setItem("profile", JSON.stringify(createdProfile));
-                return createdProfile;
+                console.error("Profile is missing. It must be created by the database auth trigger or a trusted Edge Function.");
+                return null;
             }
             console.error(error);
             return null;
@@ -413,8 +407,8 @@ class Auth {
             const targetRole = this.normalizeRole(userData.role || this.config.DEFAULT_ROLE || "student");
             const phone = String(userData.phone || "").trim();
 
-            if (!email || !password) {
-                return this.error("Email and password are required.");
+            if (!firstName || !lastName || !email || !password) {
+                return this.error("First name, last name, email, and password are required.");
             }
 
             const response = await this.client.functions.invoke("create-user", {

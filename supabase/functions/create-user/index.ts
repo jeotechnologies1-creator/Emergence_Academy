@@ -1,4 +1,3 @@
-```typescript
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.0";
 
 /* ==========================================================
@@ -20,7 +19,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.0";
    - first_name and last_name are used instead.
    ========================================================== */
 
-const FUNCTION_VERSION = "2026-08-09-FIX-02";
+const FUNCTION_VERSION = "2026-08-10-FIX-03";
 
 const ALLOWED_ROLES = new Set([
   "ceo",
@@ -780,4 +779,3 @@ Deno.serve(async (req: Request): Promise<Response> => {
     );
   }
 });
-```

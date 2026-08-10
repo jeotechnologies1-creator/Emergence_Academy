@@ -1,74 +1,42 @@
 /* ==========================================================
-   EMERGENCE ACADEMY
-   PROFILE MANAGEMENT
+   PROFILE COMPATIBILITY API
+   Auth is the single source of truth for the current profile.
 ========================================================== */
 
 const Profile = {
     currentProfile: null,
+
     async getCurrentUser() {
-        try {
-            const { data, error } = await window.supabaseClient.auth.getUser();
-            if (error) {
-                console.error("Error getting authenticated user:", error);
-                return null;
-            }
-            return data.user || null;
-        } catch (err) {
-            console.error("getCurrentUser() failed:", err);
-            return null;
-        }
+        return window.Auth?.currentUser?.() || null;
     },
-    async load() {
-        try {
-            const user = await this.getCurrentUser();
-            if (!user) {
-                this.currentProfile = null;
-                window.currentProfile = null;
-                return null;
-            }
-            const { data, error } = await window.supabaseClient
-                .from("profiles")
-                .select("*")
-                .eq("id", user.id)
-                .single();
-            if (error) {
-                console.error("Profile loading error:", error);
-                this.currentProfile = null;
-                window.currentProfile = null;
-                return null;
-            }
-            this.currentProfile = data;
-            window.currentProfile = data;
-            return data;
-        } catch (err) {
-            console.error("Profile.load() failed:", err);
-            this.currentProfile = null;
-            window.currentProfile = null;
-            return null;
-        }
+
+    async load(refresh = false) {
+        const profile = await window.Auth?.profile?.(refresh) || null;
+        this.currentProfile = profile;
+        window.currentProfile = profile;
+        return profile;
     },
+
     async getProfile() {
-        if (!this.currentProfile) {
-            await this.load();
-        }
-        return this.currentProfile;
+        return this.currentProfile || this.load();
     },
+
     async getRole() {
-        const profile = await this.getProfile();
-        return profile?.role ?? null;
+        return (await this.getProfile())?.role || null;
     },
+
     async getFullName() {
         const profile = await this.getProfile();
-        return profile?.first_name || profile?.name || "";
+        return `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim()
+            || profile?.email || "";
     },
+
     async getDepartment() {
-        const profile = await this.getProfile();
-        return profile?.department ?? null;
+        return (await this.getProfile())?.department_id || null;
     },
+
     async refresh() {
-        this.currentProfile = null;
-        window.currentProfile = null;
-        return await this.load();
+        return this.load(true);
     }
 };
 
