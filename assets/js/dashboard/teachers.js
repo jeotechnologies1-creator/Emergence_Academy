@@ -5,6 +5,15 @@
 
 /* global OfficeModuleEngine, API */
 
+function generatedEmployeeId() {
+    const year = new Date().getFullYear();
+    const token = typeof globalThis.crypto?.randomUUID === "function"
+        ? globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()
+        : `${Date.now()}${Math.floor(Math.random() * 100000)}`.slice(-10);
+
+    return `EA-EMP-${year}-${token}`;
+}
+
 /**
  * Generate a secure-looking temporary password.
  *
@@ -311,6 +320,11 @@ if (
                                 "Enter the teacher's first and last name."
                             );
                         }
+
+                        // The server is the source of truth for issued IDs.
+                        // This value keeps teacher creation compatible until an
+                        // already-deployed older function has been replaced.
+                        payload.employee_id = generatedEmployeeId();
 
 
                         /* ======================================

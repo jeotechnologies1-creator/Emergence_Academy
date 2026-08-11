@@ -71,7 +71,7 @@ server-side OpenAI key. Do not add this key to browser JavaScript or Vercel
 environment variables that are exposed to the client.
 
 ```bash
-supabase functions deploy ai-chat
+supabase functions deploy ai-chat --no-verify-jwt
 supabase secrets set OPENAI_API_KEY=your_openai_api_key
 ```
 

@@ -86,6 +86,14 @@ class AIModule {
     error.classList.toggle("hidden", !message);
   }
 
+  static requestErrorMessage(error) {
+    const message = String(error?.message || "");
+    if (/failed to send a request to the edge function/i.test(message)) {
+      return "AI Assistant is not available yet. An administrator must deploy the ai-chat service and configure its OpenAI key.";
+    }
+    return message || "Unable to reach the AI Assistant.";
+  }
+
   static async render(container) {
     const profile = await Auth.profile(true);
     if (!profile?.id) throw new Error("Your profile is required to use the AI Assistant.");
@@ -121,7 +129,7 @@ class AIModule {
         this.saveHistory(profile, [...messages, { role: "assistant", content: reply }]);
       } catch (error) {
         this.saveHistory(profile, this.history(profile).slice(0, -1));
-        this.showError(error.message || "Unable to reach the AI Assistant.");
+        this.showError(this.requestErrorMessage(error));
       } finally {
         send.disabled = false;
         this.renderMessages(profile);

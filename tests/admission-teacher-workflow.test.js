@@ -26,10 +26,12 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(teachers.includes('createAccount(payload)'), 'teacher creation should use the account workflow');
   assert.ok(api.includes('async createAccount(teacherData)'), 'API should implement teacher account creation');
   assert.ok(!teachers.includes('"employee_id",\n                "department_name"'), 'teacher creation form should not require a browser-entered employee ID');
+  assert.ok(teachers.includes('payload.employee_id = generatedEmployeeId()'), 'the admin client should include an automatic ID while older functions are being redeployed');
   assert.ok(createUser.includes('generateEmployeeId'), 'the trusted create-user function should generate teacher employee IDs');
   assert.ok(!createUser.includes('Employee ID is required for teachers.'), 'teacher creation should not reject a missing browser employee ID');
   assert.ok(admissionFunction.includes('normalizedRole(callerProfile?.role)'), 'admission authorization should normalize admin role aliases');
   assert.ok(admissionFunction.includes('selected class is no longer available'), 'admission should fail clearly for a stale class selection');
+  assert.ok(admissionFunction.includes('triggerProfile?.id'), 'admission should update a trigger-created profile instead of inserting it again');
 
   console.log('admission and teacher workflow regression test passed');
 })();
