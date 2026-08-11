@@ -30,6 +30,16 @@ function responseText(payload: Record<string, unknown>) {
     .map((part: any) => part.text).join("\n").trim();
 }
 
+function openAIErrorMessage(status: number, payload: any) {
+  const upstreamMessage = String(payload?.error?.message || "").trim();
+  if (status === 401) return "The AI Assistant OpenAI key is invalid. Contact your administrator.";
+  if (status === 403) return "The configured OpenAI project cannot use this model. Set OPENAI_MODEL to a model available to the project.";
+  if (status === 404) return "The configured OpenAI model is unavailable. Set OPENAI_MODEL to a model available to the project.";
+  if (status === 429) return "The AI Assistant has reached its OpenAI rate or billing limit. Please try again later.";
+  if (status === 400 && upstreamMessage) return `The AI Assistant configuration was rejected: ${upstreamMessage}`;
+  return "The AI Assistant is temporarily unavailable. Please try again.";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
@@ -67,7 +77,7 @@ Deno.serve(async (req) => {
     const payload = await openAIResponse.json();
     if (!openAIResponse.ok) {
       console.error("OpenAI Responses API failed", payload);
-      return json({ error: "The AI Assistant is temporarily unavailable. Please try again." }, 502);
+      return json({ error: openAIErrorMessage(openAIResponse.status, payload) }, 502);
     }
 
     const reply = responseText(payload);

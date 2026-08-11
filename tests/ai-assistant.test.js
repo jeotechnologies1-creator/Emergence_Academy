@@ -18,6 +18,8 @@ assert.match(functionSource, /\['teacher', 'student'\]\.includes\(role\)/, "the 
 assert.match(functionSource, /https:\/\/api\.openai\.com\/v1\/responses/, "the Edge Function should call the OpenAI Responses API");
 assert.match(functionSource, /Deno\.env\.get\("OPENAI_API_KEY"\)/, "the Edge Function should read the server-side OpenAI key");
 assert.match(functionSource, /store: false/, "the OpenAI request should not persist response state");
+assert.match(functionSource, /openAIErrorMessage/, "the Edge Function should return actionable OpenAI configuration errors");
+assert.match(functionSource, /status === 429/, "the Edge Function should identify OpenAI quota or rate-limit errors");
 
 const config = read("supabase", "config.toml");
 assert.match(config, /\[functions\.ai-chat\]/, "Supabase should register the AI chat function locally");
