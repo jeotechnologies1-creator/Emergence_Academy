@@ -155,13 +155,15 @@
 
             try {
 
-                const profiles = await ApiService.select("profiles", {
-                    columns: "*",
-                    order: {
-                        column: "created_at",
-                        ascending: false
-                    }
-                });
+                const { data, error } = await API.db.functions.invoke("list-profiles", { body: {} });
+                if (error) {
+                    const message = typeof API.functionErrorMessage === "function"
+                        ? await API.functionErrorMessage(error, "Failed to load users.")
+                        : error.message;
+                    throw new Error(message || "Failed to load users.");
+                }
+                if (data?.error) throw new Error(data.error);
+                const profiles = data?.profiles || [];
 
                 this.profiles = Array.isArray(profiles) ? profiles : [];
 
