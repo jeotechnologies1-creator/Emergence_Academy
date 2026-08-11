@@ -204,8 +204,16 @@
                     "[Dashboard Boot] Checking dependencies..."
                 );
 
+                // Client initialization restores a persisted session
+                // asynchronously. On a post-login redirect that work can
+                // still be in flight when DOMContentLoaded fires.
+                if (typeof window.waitForSupabase === "function") {
+                    await window.waitForSupabase();
+                }
+
                 if (!window.supabaseClient) {
                     throw new Error(
+                        window.supabaseInitMessage ||
                         "Supabase failed to initialize."
                     );
                 }
