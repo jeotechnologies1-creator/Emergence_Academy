@@ -44,13 +44,16 @@ Deno.serve(async (req) => {
     if (!url || !serviceRoleKey) {
       return json({ error: "Supabase function environment is not configured." }, 500);
     }
-    if (!authHeader) return json({ error: "Authentication is required." }, 401);
+    const accessToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!accessToken) return json({ error: "Authentication is required." }, 401);
 
     const callerClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY") || serviceRoleKey, {
-      global: { headers: { Authorization: authHeader } },
       auth: { autoRefreshToken: false, persistSession: false },
     });
-    const { data: callerData, error: callerError } = await callerClient.auth.getUser();
+    // Pass the bearer token explicitly. This prevents an Edge Runtime header
+    // normalization issue from turning a valid dashboard session into an
+    // unauthenticated request.
+    const { data: callerData, error: callerError } = await callerClient.auth.getUser(accessToken);
     if (callerError || !callerData.user) return json({ error: "Invalid authentication session." }, 401);
 
     const admin = createClient(url, serviceRoleKey, {

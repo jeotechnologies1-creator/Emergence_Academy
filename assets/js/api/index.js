@@ -594,7 +594,25 @@ class API {
 
             try {
 
-                const accessToken = await window.Auth?.accessToken?.();
+                // Get the token from the exact Supabase client used to invoke
+                // the function. Refresh a near-expiry session before sending
+                // the request so admission never relies on a stale token.
+                const { data: sessionData, error: sessionError } = await API.db.auth.getSession();
+                if (sessionError || !sessionData?.session) {
+                    throw new Error("Your session has expired. Please sign in again and retry.");
+                }
+
+                let session = sessionData.session;
+                const expiresSoon = Number(session.expires_at || 0) * 1000 <= Date.now() + 60_000;
+                if (expiresSoon) {
+                    const { data: refreshData, error: refreshError } = await API.db.auth.refreshSession();
+                    if (refreshError || !refreshData?.session) {
+                        throw new Error("Your session has expired. Please sign in again and retry.");
+                    }
+                    session = refreshData.session;
+                }
+
+                const accessToken = session.access_token;
                 if (!accessToken) {
                     throw new Error("Your session has expired. Please sign in again and retry.");
                 }

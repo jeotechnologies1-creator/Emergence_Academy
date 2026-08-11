@@ -30,6 +30,8 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(createUser.includes('generateEmployeeId'), 'the trusted create-user function should generate teacher employee IDs');
   assert.ok(!createUser.includes('Employee ID is required for teachers.'), 'teacher creation should not reject a missing browser employee ID');
   assert.ok(admissionFunction.includes('normalizedRole(callerProfile?.role)'), 'admission authorization should normalize admin role aliases');
+  assert.ok(admissionFunction.includes('getUser(accessToken)'), 'admission should verify the request bearer token explicitly');
+  assert.ok(api.includes('API.db.auth.refreshSession()'), 'admission should refresh a near-expiry dashboard session');
   assert.ok(admissionFunction.includes('selected class is no longer available'), 'admission should fail clearly for a stale class selection');
   assert.ok(admissionFunction.includes('triggerProfile?.id'), 'admission should update a trigger-created profile instead of inserting it again');
 
