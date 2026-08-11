@@ -51,6 +51,7 @@ function authFor(profile) {
   assert.strictEqual(missingProfile.signOutCalls(), 0, "a missing profile lookup must not force an immediate logout");
 
   assert.match(source, /functions\.invoke\("ensure-profile"/, "profile lookup failures should use the trusted recovery function");
+  assert.match(source, /auth\.getUser\(session\.access_token\)/, "login checks should validate the persisted session token");
   assert.match(recoverySource, /role:\s*"student"/, "recovered missing profiles must start with the least-privileged role");
   assert.doesNotMatch(recoverySource, /roleFor\(metadata\.role\)/, "profile recovery must not trust a caller-controlled role");
 

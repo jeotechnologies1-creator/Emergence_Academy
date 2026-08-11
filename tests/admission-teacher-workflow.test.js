@@ -33,6 +33,7 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(admissionFunction.includes('getUser(accessToken)'), 'admission should verify the request bearer token explicitly');
   assert.ok(api.includes('API.db.auth.refreshSession()'), 'admission should refresh a near-expiry dashboard session');
   assert.ok(api.includes('fetch(functionUrl'), 'admission should send the bearer token directly to the privileged function');
+  assert.ok(api.includes('API.db.auth.getUser(accessToken)'), 'admission should reject stale browser sessions before calling the function');
   assert.ok(admissionFunction.includes('selected class is no longer available'), 'admission should fail clearly for a stale class selection');
   assert.ok(admissionFunction.includes('triggerProfile?.id'), 'admission should update a trigger-created profile instead of inserting it again');
 

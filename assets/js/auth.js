@@ -197,7 +197,21 @@ class Auth {
     }
 
     static async isLoggedIn() {
-        return !!(await this.session());
+        const session = await this.session();
+        if (!session?.access_token) {
+            return false;
+        }
+
+        // getSession() only reads the locally persisted session. Validate its
+        // access token with Auth so a revoked or stale browser session cannot
+        // continue into a privileged dashboard action.
+        const { data, error } = await this.client.auth.getUser(session.access_token);
+        if (error || !data?.user) {
+            this.clearCache();
+            return false;
+        }
+
+        return true;
     }
 
     static clearCache() {

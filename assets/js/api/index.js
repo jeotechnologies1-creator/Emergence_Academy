@@ -617,6 +617,12 @@ class API {
                     throw new Error("Your session has expired. Please sign in again and retry.");
                 }
 
+                const { data: userData, error: userError } = await API.db.auth.getUser(accessToken);
+                if (userError || !userData?.user) {
+                    await API.db.auth.signOut();
+                    throw new Error("Your sign-in session is no longer valid. Please sign in again and retry.");
+                }
+
                 // Use fetch here instead of functions.invoke. Some cached SDK
                 // builds replace a caller-supplied Authorization header with
                 // the anon key, which makes an otherwise signed-in admin look
