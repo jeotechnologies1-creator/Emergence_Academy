@@ -35,6 +35,13 @@ const ALLOWED_ROLES = new Set([
   "library",
 ]);
 
+const ROLE_ALIASES: Record<string, string> = {
+  "administrator": "admin",
+  "super admin": "admin",
+  "ceo office": "ceo",
+  "executive office": "executive",
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -70,10 +77,14 @@ function jsonResponse(
 function normalizeRole(value: unknown): string {
   const role = String(value ?? "student")
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/[\-_]+/g, " ")
+    .replace(/\s+/g, " ");
 
-  return ALLOWED_ROLES.has(role)
-    ? role
+  const normalized = ROLE_ALIASES[role] || role;
+
+  return ALLOWED_ROLES.has(normalized)
+    ? normalized
     : "student";
 }
 
@@ -83,6 +94,12 @@ function normalizeRole(value: unknown): string {
 
 function normalizeName(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function generateEmployeeId(): string {
+  const year = new Date().getUTCFullYear();
+  const suffix = crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
+  return `EA-EMP-${year}-${suffix}`;
 }
 
 async function deleteCreatedUser(
@@ -298,10 +315,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const callerRole =
-      String(callerProfile.role ?? "")
-        .trim()
-        .toLowerCase();
+    const callerRole = normalizeRole(callerProfile.role);
 
     /* ======================================================
        ONLY ADMIN / CEO CAN CREATE USERS
@@ -582,10 +596,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
           unknown
         >;
 
-      const employeeId =
-        normalizeName(
-          teacherInput.employee_id,
-        );
+      // Employee IDs are issued by this trusted admin workflow. Do not accept
+      // a browser-supplied ID as it can collide with or impersonate a record.
+      const employeeId = generateEmployeeId();
 
       const departmentName =
         normalizeName(
@@ -606,24 +619,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
         normalizeName(
           teacherInput.status,
         ) || "active";
-
-      /* ====================================================
-         EMPLOYEE ID
-      ==================================================== */
-
-      if (!employeeId) {
-        await deleteCreatedUser(supabaseAdmin, userId);
-
-        return jsonResponse(
-          {
-            error:
-              "Employee ID is required for teachers.",
-            function_version:
-              FUNCTION_VERSION,
-          },
-          400,
-        );
-      }
 
       /* ====================================================
          FIND DEPARTMENT

@@ -45,9 +45,10 @@ export function normalizedRole(value: unknown) {
 
 export function statusFor(startsAt: string, endsAt: string, stored: unknown) {
   const status = String(stored || "scheduled").toLowerCase();
-  if (status === "cancelled") return "cancelled";
+  if (status === "cancelled" || status === "ended") return status;
   const now = Date.now();
   if (now >= new Date(endsAt).getTime()) return "ended";
+  if (status === "live") return "live";
   if (now >= new Date(startsAt).getTime()) return "live";
   return "upcoming";
 }

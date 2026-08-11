@@ -7,6 +7,9 @@ const corsHeaders = {
 };
 
 const ADMISSION_ROLES = new Set(["ceo", "admin", "executive", "admission"]);
+const ROLE_ALIASES: Record<string, string> = {
+  administrator: "admin", "super admin": "admin", admissions: "admission",
+};
 const CLASS_LEVELS = new Set([
   "Primary 3", "Primary 4", "Primary 5", "Primary 6",
   "JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3",
@@ -17,6 +20,11 @@ function json(body: Record<string, unknown>, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function normalizedRole(value: unknown) {
+  const role = String(value || "").trim().toLowerCase().replace(/[\-_]+/g, " ").replace(/\s+/g, " ");
+  return ROLE_ALIASES[role] || role;
 }
 
 async function deleteCreatedUser(admin: any, userId: string) {
@@ -54,7 +62,7 @@ Deno.serve(async (req) => {
       .eq("id", callerData.user.id)
       .single();
 
-    if (profileLookupError || !ADMISSION_ROLES.has(String(callerProfile?.role || "").toLowerCase())) {
+    if (profileLookupError || !ADMISSION_ROLES.has(normalizedRole(callerProfile?.role))) {
       return json({ error: "You do not have permission to admit students." }, 403);
     }
 
@@ -96,6 +104,14 @@ Deno.serve(async (req) => {
         classId = String(newClass.id);
       }
     }
+
+    const { data: selectedClass, error: selectedClassError } = await admin
+      .from("classes")
+      .select("id")
+      .eq("id", classId)
+      .maybeSingle();
+    if (selectedClassError) throw selectedClassError;
+    if (!selectedClass?.id) return json({ error: "The selected class is no longer available. Refresh the form and choose a class again." }, 400);
 
     const { data: authData, error: authError } = await admin.auth.admin.createUser({
       email,

@@ -11,6 +11,7 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   const teachers = read('assets', 'js', 'dashboard', 'teachers.js');
   const api = read('assets', 'js', 'api', 'index.js');
   const admissionFunction = read('supabase', 'functions', 'admit-student', 'index.ts');
+  const createUser = read('supabase', 'functions', 'create-user', 'index.ts');
 
   ["Primary 3", "Primary 6", "JSS 1", "JSS 3", "SSS 1", "SSS 3"].forEach((level) => {
     assert.ok(students.includes(`"${level}"`), `${level} should be available in student admission`);
@@ -24,6 +25,11 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(teachers.includes('"full_name"'), 'teacher creation should collect a name');
   assert.ok(teachers.includes('createAccount(payload)'), 'teacher creation should use the account workflow');
   assert.ok(api.includes('async createAccount(teacherData)'), 'API should implement teacher account creation');
+  assert.ok(!teachers.includes('"employee_id",\n                "department_name"'), 'teacher creation form should not require a browser-entered employee ID');
+  assert.ok(createUser.includes('generateEmployeeId'), 'the trusted create-user function should generate teacher employee IDs');
+  assert.ok(!createUser.includes('Employee ID is required for teachers.'), 'teacher creation should not reject a missing browser employee ID');
+  assert.ok(admissionFunction.includes('normalizedRole(callerProfile?.role)'), 'admission authorization should normalize admin role aliases');
+  assert.ok(admissionFunction.includes('selected class is no longer available'), 'admission should fail clearly for a stale class selection');
 
   console.log('admission and teacher workflow regression test passed');
 })();

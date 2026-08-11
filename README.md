@@ -62,3 +62,18 @@ browser JavaScript): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and
 `GOOGLE_REFRESH_TOKEN`. The refresh token must belong to the Google Calendar
 account that should host the Meet events and have Calendar event/conference
 creation access.
+
+## AI Assistant
+
+The AI Assistant is available to authenticated teachers and students through
+the `ai-chat` Supabase Edge Function. Deploy the function and configure its
+server-side OpenAI key. Do not add this key to browser JavaScript or Vercel
+environment variables that are exposed to the client.
+
+```bash
+supabase functions deploy ai-chat
+supabase secrets set OPENAI_API_KEY=your_openai_api_key
+```
+
+Optionally set `OPENAI_MODEL` to a model available to your OpenAI project; the
+function defaults to `gpt-5`.

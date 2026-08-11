@@ -6,26 +6,6 @@
 /* global OfficeModuleEngine, API */
 
 /**
- * Generate a unique-looking Employee ID.
- *
- * Format:
- * EA-EMP-2026-123456789
- *
- * @returns {string}
- */
-function generateTeacherEmployeeId() {
-    const year = new Date().getFullYear();
-
-    const timestamp = String(Date.now()).slice(-6);
-    const randomNumber = Math.floor(
-        100 + Math.random() * 900
-    );
-
-    return `EA-EMP-${year}-${timestamp}${randomNumber}`;
-}
-
-
-/**
  * Generate a secure-looking temporary password.
  *
  * @returns {string}
@@ -126,7 +106,6 @@ if (
                 "email",
                 "phone",
                 "password",
-                "employee_id",
                 "department_name",
                 "qualification",
                 "status"
@@ -152,8 +131,6 @@ if (
             requiredFields: [
                 "full_name",
                 "email",
-                "employee_id",
-                "department_name",
                 "status"
             ],
 
@@ -184,15 +161,13 @@ if (
                ================================================== */
 
             fieldGenerators: {
-                employee_id:
-                    generateTeacherEmployeeId,
-
                 password:
-                    generateTeacherPassword
+                    generateTeacherPassword,
+
+                status: () => "active"
             },
 
             fieldGeneratorLabels: {
-                employee_id: "Generate ID",
                 password: "Generate Password"
             },
 
@@ -339,44 +314,6 @@ if (
 
 
                         /* ======================================
-                           GENERATE EMPLOYEE ID IF EMPTY
-                           ====================================== */
-
-                        if (
-                            !payload.employee_id ||
-                            String(
-                                payload.employee_id
-                            ).trim() === ""
-                        ) {
-                            payload.employee_id =
-                                generateTeacherEmployeeId();
-                        }
-
-
-                        /* ======================================
-                           NORMALIZE EMPLOYEE ID
-                           ====================================== */
-
-                        payload.employee_id =
-                            String(
-                                payload.employee_id
-                            ).trim();
-
-
-                        /* ======================================
-                           FINAL EMPLOYEE ID VALIDATION
-                           ====================================== */
-
-                        if (
-                            !payload.employee_id
-                        ) {
-                            throw new Error(
-                                "Employee ID could not be generated."
-                            );
-                        }
-
-
-                        /* ======================================
                            VERIFY API
                            ====================================== */
 
@@ -396,12 +333,6 @@ if (
                         /* ======================================
                            CREATE TEACHER ACCOUNT
                            ====================================== */
-
-                        console.log(
-                            "Creating teacher with Employee ID:",
-                            payload.employee_id
-                        );
-
 
                         const result =
                             await window.API.teachers.createAccount(payload);
