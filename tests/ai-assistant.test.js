@@ -8,6 +8,7 @@ const client = read("assets", "js", "dashboard", "ai.js");
 const functionSource = read("supabase", "functions", "ai-chat", "index.ts");
 
 assert.match(client, /functions\.invoke\("ai-chat"/, "the dashboard should invoke the AI chat Edge Function");
+assert.match(client, /await API\.functionErrorMessage\(error/, "the dashboard should display Edge Function error bodies");
 assert.match(client, /deploy the ai-chat service/i, "the dashboard should explain a missing AI function deployment");
 assert.match(client, /HISTORY_PREFIX.*profile/, "chat history should be scoped to the signed-in profile");
 assert.doesNotMatch(client, /OPENAI_API_KEY/, "the OpenAI key must never be shipped to the browser");

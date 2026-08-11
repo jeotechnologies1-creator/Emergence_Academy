@@ -123,7 +123,13 @@ class AIModule {
 
       try {
         const { data, error } = await API.db.functions.invoke("ai-chat", { body: { messages } });
-        if (error || data?.error) throw new Error(data?.error || error?.message || "Unable to reach the AI Assistant.");
+        if (error) {
+          const message = typeof API.functionErrorMessage === "function"
+            ? await API.functionErrorMessage(error, "Unable to reach the AI Assistant.")
+            : error.message;
+          throw new Error(message || "Unable to reach the AI Assistant.");
+        }
+        if (data?.error) throw new Error(data.error);
         const reply = String(data?.reply || "").trim();
         if (!reply) throw new Error("The AI Assistant did not return a response. Please try again.");
         this.saveHistory(profile, [...messages, { role: "assistant", content: reply }]);
