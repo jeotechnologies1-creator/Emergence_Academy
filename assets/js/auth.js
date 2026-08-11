@@ -289,19 +289,35 @@ class Auth {
                 // Never derive authorization from browser storage or user
                 // metadata. A profile-policy failure must be repaired in RLS.
                 console.error("Profile access was denied by database policy.");
-                return null;
+                return await this.recoverProfile();
             }
             const missingProfile = message.includes("no rows") || message.includes("not found") || message.includes("could not find") || String(error.details || "").toLowerCase().includes("not found");
             if (missingProfile) {
                 console.error("Profile is missing. It must be created by the database auth trigger or a trusted Edge Function.");
-                return null;
+                return await this.recoverProfile();
             }
             console.error(error);
-            return null;
+            return await this.recoverProfile();
         }
         this.currentProfile = data;
         this.storageSession.setItem("profile", JSON.stringify(data));
         return data;
+    }
+
+    static async recoverProfile() {
+        try {
+            const { data, error } = await this.client.functions.invoke("ensure-profile", { body: {} });
+            if (error || !data?.profile) {
+                console.error("Profile recovery failed:", error || data?.error);
+                return null;
+            }
+            this.currentProfile = data.profile;
+            this.storageSession.setItem("profile", JSON.stringify(data.profile));
+            return data.profile;
+        } catch (error) {
+            console.error("Profile recovery request failed:", error);
+            return null;
+        }
     }
 
     static async role() {
