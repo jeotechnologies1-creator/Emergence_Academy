@@ -44,7 +44,11 @@ Deno.serve(async (req) => {
     const classId = String(body.class_id || "").trim();
     const startsAt = new Date(String(body.starts_at || ""));
     const endsAt = new Date(String(body.ends_at || ""));
+    const approvedStudentIds = Array.isArray(body.approved_student_ids)
+      ? [...new Set(body.approved_student_ids.map((id) => String(id).trim()).filter(Boolean))]
+      : [];
     if (!title || !subjectId || !classId || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || startsAt <= new Date() || endsAt <= startsAt) return json({ error: "Provide a title, subject, class, and valid future start/end times." }, 400);
+    if (!approvedStudentIds.length) return json({ error: "Approve at least one enrolled student for this live class." }, 400);
 
     const admin = adminClient();
     const { data: profile } = await admin.from("profiles").select("role,status").eq("id", user.id).maybeSingle();
@@ -62,6 +66,17 @@ Deno.serve(async (req) => {
       if (!teacherId) return json({ error: "Select the teacher assigned to this class." }, 400);
     } else return json({ error: "Only an assigned teacher or administrator can schedule live classes." }, 403);
 
+    const { data: eligibleStudents, error: studentsError } = await admin
+      .from("students")
+      .select("id")
+      .eq("class_id", classId)
+      .in("id", approvedStudentIds);
+    if (studentsError) throw studentsError;
+    const eligibleIds = new Set((eligibleStudents || []).map((student) => String(student.id)));
+    if (eligibleIds.size !== approvedStudentIds.length) {
+      return json({ error: "Every approved student must belong to the selected class." }, 400);
+    }
+
     const meet = await createGoogleMeet(title, description, startsAt.toISOString(), endsAt.toISOString());
     const { data: liveClass, error } = await admin.from("live_classes").insert({
       title, description: description || null, subject_id: subjectId, class_id: classId, teacher_id: teacherId,
@@ -69,6 +84,17 @@ Deno.serve(async (req) => {
       meeting_url: meet.meetingUrl, google_event_id: meet.eventId, status: "scheduled",
     }).select("id,title,subject_id,class_id,teacher_id,starts_at,ends_at,status,created_at").single();
     if (error) throw error;
+    const { error: approvalError } = await admin.from("live_class_students").insert(
+      approvedStudentIds.map((studentId) => ({
+        live_class_id: liveClass.id,
+        student_id: studentId,
+        approved_by: user.id,
+      })),
+    );
+    if (approvalError) {
+      await admin.from("live_classes").delete().eq("id", liveClass.id);
+      throw approvalError;
+    }
     return json({ success: true, live_class: liveClass, meeting_url: meet.meetingUrl });
   } catch (error) {
     console.error("schedule-live-class failed", error);

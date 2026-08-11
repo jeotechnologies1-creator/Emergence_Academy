@@ -22,6 +22,13 @@ Deno.serve(async (req) => {
         : { data: false, error: null };
       if (enrollmentError) throw enrollmentError;
       if (!enrolled) return json({ error: "You are not enrolled in this course and cannot join this class." }, 403);
+      const { data: approval } = await admin
+        .from("live_class_students")
+        .select("student_id")
+        .eq("live_class_id", liveClass.id)
+        .eq("student_id", student.id)
+        .maybeSingle();
+      if (!approval) return json({ error: "You have not been approved for this live class." }, 403);
     } else if (role === "teacher") {
       const { data: teacher } = await admin.from("teachers").select("id").eq("profile_id", user.id).maybeSingle();
       if (String(teacher?.id) !== String(liveClass.teacher_id)) return json({ error: "You cannot join another teacher's class." }, 403);
