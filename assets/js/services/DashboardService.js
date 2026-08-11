@@ -13,6 +13,7 @@
         static ROUTE_PERMISSIONS = Object.freeze({
             dashboard: null,
             profiles: "users.view",
+            subjects: null,
             students: "students.view",
             teachers: "teachers.view",
             parents: "parents.view",

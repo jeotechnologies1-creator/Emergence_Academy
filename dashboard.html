@@ -14,7 +14,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css?v=2.0.1">
     <link rel="stylesheet" href="assets/css/components.css?v=2.0.1">
-    <link rel="stylesheet" href="assets/css/dashboard.css?v=2.0.2">
+    <link rel="stylesheet" href="assets/css/dashboard.css?v=2.0.3">
 </head>
 
 <body class="bg-slate-100 font-[Inter]">
@@ -40,7 +40,7 @@
             </div>
             <div class="sidebar-user px-6 py-5 border-b border-blue-800">
                 <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center">👤</div>
+                    <div data-user-avatar class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center font-bold" aria-label="User profile image">👤</div>
                     <div>
                         <div class="user-name font-semibold">Loading...</div>
                         <div class="user-role text-xs text-blue-200">...</div>
@@ -56,6 +56,9 @@
                     <i class="ph ph-users"></i>
                     <span>User Profiles</span>
                 </button>
+                <button data-route="subjects"
+                    class="nav-btn w-full text-left px-4 py-3 rounded-lg hover:bg-blue-800 flex items-center gap-3"><i
+                        class="ph ph-books"></i>Subjects</button>
                 <button data-route="students"
                     class="nav-btn w-full text-left px-4 py-3 rounded-lg hover:bg-blue-800 flex items-center gap-3"><i
                         class="ph ph-student"></i>Students</button>
@@ -112,9 +115,9 @@
                                 class="ph ph-bell text-2xl"></i><span
                                 class="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span></button>
                         <div class="flex items-center gap-3">
-                            <div
-                                class="w-11 h-11 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
-                                👤</div>
+                            <div data-user-avatar
+                                class="w-11 h-11 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold"
+                                aria-label="User profile image">👤</div>
                             <div>
                                 <div class="user-name font-semibold">Loading...</div>
                                 <div class="user-email text-xs text-slate-500">...</div>
@@ -157,16 +160,16 @@
 
     <script src="assets/js/utilities.js?v=2.0.1"></script>
     <script src="assets/js/profile.js?v=2.0.1"></script>
-    <script src="assets/js/roleRouter.js?v=2.0.1"></script>
+    <script src="assets/js/roleRouter.js?v=2.0.2"></script>
     <script src="assets/js/authGuard.js?v=2.0.1"></script>
-    <script src="assets/js/dashboardUser.js?v=2.0.1"></script>
+    <script src="assets/js/dashboardUser.js?v=2.0.2"></script>
 
     <script src="assets/js/api/index.js?v=2.0.3"></script>
 
     <script src="assets/js/router.js?v=2.1.0"></script>
 
     <!-- Dashboard controller MUST load before Dashboard.init() -->
-    <script src="assets/js/dashboard.js?v=2.1.0"></script>
+    <script src="assets/js/dashboard.js?v=2.1.1"></script>
 
     <!-- Dashboard modules -->
     <script src="assets/js/dashboard/dashboard-home.js?v=2.1.0"></script>
@@ -183,13 +186,14 @@
     <script src="assets/js/dashboard/notifications.js?v=2.1.0"></script>
     <script src="assets/js/dashboard/ai.js?v=2.2.2"></script>
     <script src="assets/js/dashboard/ProfilesModule.js?v=2.1.0"></script>
+    <script src="assets/js/dashboard/subjects.js?v=1.0.0"></script>
 
     <script src="assets/js/services/ApiService.js?v=2.0.2"></script>
     <script src="assets/js/services/AuthService.js"></script>
     <script src="assets/js/services/ProfileService.js"></script>
     <script src="assets/js/services/RoleService.js"></script>
     <script src="assets/js/services/PermissionService.js"></script>
-    <script src="assets/js/services/DashboardService.js"></script>
+    <script src="assets/js/services/DashboardService.js?v=2.0.1"></script>
     <script>
         document.addEventListener("DOMContentLoaded", async () => {
 

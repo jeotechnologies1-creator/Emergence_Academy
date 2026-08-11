@@ -88,6 +88,13 @@
 
                     }
 
+                    // Profile.load() can finish after the initial DOM-ready
+                    // header paint. Refresh the shared header once its data
+                    // is available so every dashboard view reflects the user.
+                    if (typeof window.displayUser === "function") {
+                        await window.displayUser();
+                    }
+
                 }
 
                 /* ----------------------------------------------
@@ -181,6 +188,9 @@
 
                 profiles:
                     window.ProfilesModule,
+
+                subjects:
+                    window.SubjectsModule,
 
                 students:
                     window.StudentsModule,

@@ -16,6 +16,9 @@ table {
 
 main {
   scroll-padding-top: 6rem;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+  touch-action: pan-y;
 }
 
 .dashboard-shell {
@@ -92,6 +95,16 @@ nav button[data-route].active {
 }
 
 @media (max-width: 1023px) {
+  body {
+    overscroll-behavior-y: none;
+  }
+
+  .dashboard-shell {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
   #sidebar {
     width: 260px;
     position: fixed;
@@ -104,6 +117,7 @@ nav button[data-route].active {
 
   .dashboard-shell > .flex-1 {
     width: 100%;
+    min-height: 0;
   }
 
   header {
@@ -130,6 +144,8 @@ nav button[data-route].active {
 
   main {
     padding: 1rem !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   #dashboard-content {
