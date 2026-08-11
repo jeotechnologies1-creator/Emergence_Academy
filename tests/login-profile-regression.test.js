@@ -4,6 +4,7 @@ const path = require("path");
 const vm = require("vm");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "assets", "js", "auth.js"), "utf8");
+const recoverySource = fs.readFileSync(path.join(__dirname, "..", "supabase", "functions", "ensure-profile", "index.ts"), "utf8");
 const roles = ["ceo", "admin", "executive", "teacher", "student", "parent", "finance", "hr", "admission", "exam", "library"];
 
 function authFor(profile) {
@@ -48,6 +49,10 @@ function authFor(profile) {
   const missingResult = await missingProfile.Auth.login("user@example.com", "password", "student");
   assert.strictEqual(missingResult.success, false, "a missing profile should show an error");
   assert.strictEqual(missingProfile.signOutCalls(), 0, "a missing profile lookup must not force an immediate logout");
+
+  assert.match(source, /functions\.invoke\("ensure-profile"/, "profile lookup failures should use the trusted recovery function");
+  assert.match(recoverySource, /role:\s*"student"/, "recovered missing profiles must start with the least-privileged role");
+  assert.doesNotMatch(recoverySource, /roleFor\(metadata\.role\)/, "profile recovery must not trust a caller-controlled role");
 
   console.log("login profile regression test passed");
 })();
