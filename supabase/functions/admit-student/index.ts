@@ -74,6 +74,11 @@ Deno.serve(async (req) => {
     const phone = String(body?.phone || "").trim();
     const classLevel = String(body?.class_level || "").trim();
     let classId = String(body?.class_id || "").trim();
+    const departmentId = String(body?.department_id || "").trim() || null;
+    const parentId = String(body?.parent_id || "").trim() || null;
+    const subjectIds = [...new Set(Array.isArray(body?.subject_ids)
+      ? body.subject_ids.map((value: unknown) => String(value || "").trim()).filter(Boolean)
+      : [])];
     const admissionDate = String(body?.admission_date || "").trim() || null;
 
     if (!email || !password || !firstName || !lastName || (!classId && !classLevel)) {
@@ -112,6 +117,24 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (selectedClassError) throw selectedClassError;
     if (!selectedClass?.id) return json({ error: "The selected class is no longer available. Refresh the form and choose a class again." }, 400);
+
+    if (departmentId) {
+      const { data: department, error: departmentError } = await admin.from("departments").select("id").eq("id", departmentId).maybeSingle();
+      if (departmentError) throw departmentError;
+      if (!department?.id) return json({ error: "The selected department is no longer available. Refresh the form and choose a department again." }, 400);
+    }
+
+    if (parentId) {
+      const { data: parent, error: parentError } = await admin.from("parents").select("id").eq("id", parentId).maybeSingle();
+      if (parentError) throw parentError;
+      if (!parent?.id) return json({ error: "The selected parent or guardian record is no longer available." }, 400);
+    }
+
+    if (subjectIds.length) {
+      const { data: subjects, error: subjectsError } = await admin.from("subjects").select("id").in("id", subjectIds);
+      if (subjectsError) throw subjectsError;
+      if ((subjects || []).length !== subjectIds.length) return json({ error: "One or more selected subjects are no longer available. Refresh the form and try again." }, 400);
+    }
 
     const { data: authData, error: authError } = await admin.auth.admin.createUser({
       email,
@@ -159,9 +182,41 @@ Deno.serve(async (req) => {
       return json({ error: studentError?.message || "Unable to create the student record." }, 400);
     }
 
+    // Keep the student department, subject choices, and guardian relationship
+    // in student-owned tables. They must never be inferred from a teacher.
+    if (departmentId) {
+      const { error: departmentWriteError } = await admin.from("students").update({ department_id: departmentId }).eq("id", studentId);
+      if (departmentWriteError) {
+        await deleteCreatedUser(admin, user.id);
+        return json({ error: departmentWriteError.message }, 400);
+      }
+    }
+
+    if (subjectIds.length) {
+      const { error: subjectsWriteError } = await admin.from("student_subjects").upsert(
+        subjectIds.map((subject_id) => ({ student_id: studentId, subject_id })),
+        { onConflict: "student_id,subject_id" },
+      );
+      if (subjectsWriteError) {
+        await deleteCreatedUser(admin, user.id);
+        return json({ error: subjectsWriteError.message }, 400);
+      }
+    }
+
+    if (parentId) {
+      const { error: parentWriteError } = await admin.from("parent_students").upsert(
+        { parent_id: parentId, student_id: studentId },
+        { onConflict: "parent_id,student_id" },
+      );
+      if (parentWriteError) {
+        await deleteCreatedUser(admin, user.id);
+        return json({ error: parentWriteError.message }, 400);
+      }
+    }
+
     const { data: student, error: fetchError } = await admin
       .from("students")
-      .select("*, profiles:profile_id(first_name,last_name,email,phone), classes:class_id(id,class_name)")
+      .select("*, profiles:profile_id(first_name,last_name,email,phone), classes:class_id(id,class_name), departments:department_id(id,name)")
       .eq("id", studentId)
       .single();
 

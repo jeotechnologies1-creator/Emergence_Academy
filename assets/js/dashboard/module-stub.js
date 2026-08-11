@@ -215,7 +215,8 @@ class OfficeModuleEngine {
         }
 
         const map = {};
-        records.forEach((item) => {
+        const recordFilter = typeof lookupConfig.filter === "function" ? lookupConfig.filter : null;
+        records.filter((item) => !recordFilter || recordFilter(item)).forEach((item) => {
           const id = item?.id;
           if (id === null || typeof id === "undefined") {
             return;

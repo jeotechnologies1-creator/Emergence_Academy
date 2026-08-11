@@ -21,7 +21,13 @@ const ParentsModule = window.OfficeModuleEngine.create({
     relationship: ["father", "mother", "guardian", "sponsor", "other"]
   },
   lookups: {
-    profile_id: { table: "profiles", labelKey: "email" }
+    profile_id: {
+      table: "profiles",
+      labelKey: "email",
+      // A parent record must be attached to a parent account. This prevents a
+      // teacher profile from being selected as the child's guardian.
+      filter: (profile) => String(profile?.role || "").toLowerCase() === "parent"
+    }
   }
 });
 

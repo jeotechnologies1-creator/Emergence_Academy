@@ -9,6 +9,9 @@ class StudentsModule {
         container: null,
         students: [],
         classes: [],
+        subjects: [],
+        departments: [],
+        parents: [],
         profile: null,
         query: "",
         modal: {
@@ -107,14 +110,20 @@ class StudentsModule {
     }
 
     static async load() {
-        const [students, classes, profile] = await Promise.all([
+        const [students, classes, subjects, departments, parents, profile] = await Promise.all([
             API.students.getAll(),
             API.classes.getAll(),
+            API.db.from("subjects").select("id,subject_name,subject_code").order("subject_name"),
+            API.db.from("departments").select("id,name").order("name"),
+            API.parents.getAll(),
             Auth.profile()
         ]);
 
         this.state.students = Array.isArray(students) ? students : [];
         this.state.classes = Array.isArray(classes) ? classes : [];
+        this.state.subjects = Array.isArray(subjects?.data) ? subjects.data : [];
+        this.state.departments = Array.isArray(departments?.data) ? departments.data : [];
+        this.state.parents = Array.isArray(parents) ? parents : [];
         this.state.profile = profile || null;
     }
 
@@ -172,6 +181,22 @@ class StudentsModule {
         return `${storedOptions}${standardOptions}`;
     }
 
+    static departmentOptions(selectedValue = "") {
+        return this.state.departments.map((department) => `<option value="${this.safe(department.id)}" ${String(department.id) === String(selectedValue) ? "selected" : ""}>${this.safe(department.name || department.id)}</option>`).join("");
+    }
+
+    static subjectOptions(selectedValues = []) {
+        const selected = new Set((Array.isArray(selectedValues) ? selectedValues : []).map(String));
+        return this.state.subjects.map((subject) => `<option value="${this.safe(subject.id)}" ${selected.has(String(subject.id)) ? "selected" : ""}>${this.safe(subject.subject_name || subject.subject_code || subject.id)}</option>`).join("");
+    }
+
+    static parentOptions(selectedValue = "") {
+        return this.state.parents.map((parent) => {
+            const name = `${parent.profiles?.first_name || ""} ${parent.profiles?.last_name || ""}`.trim();
+            return `<option value="${this.safe(parent.id)}" ${String(parent.id) === String(selectedValue) ? "selected" : ""}>${this.safe(name || parent.profiles?.email || parent.id)}</option>`;
+        }).join("");
+    }
+
     static modalTemplate() {
         if (!this.state.modal.open) {
             return "";
@@ -221,6 +246,27 @@ class StudentsModule {
         </select>
       </label>
       <label class="block">
+        <span class="text-sm text-slate-700">Department of Enrollment</span>
+        <select name="department_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
+          <option value="">No department</option>
+          ${this.departmentOptions()}
+        </select>
+      </label>
+      <label class="block">
+        <span class="text-sm text-slate-700">Parent / Guardian</span>
+        <select name="parent_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
+          <option value="">Link later</option>
+          ${this.parentOptions()}
+        </select>
+      </label>
+      <label class="block md:col-span-2">
+        <span class="text-sm text-slate-700">Subjects</span>
+        <select name="subject_ids" multiple size="5" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" aria-describedby="student-subject-help">
+          ${this.subjectOptions()}
+        </select>
+        <span id="student-subject-help" class="mt-1 block text-xs text-slate-500">Hold Ctrl (Windows) or Command (Mac) to select more than one subject.</span>
+      </label>
+      <label class="block">
         <span class="text-sm text-slate-700">Admission Date</span>
         <input name="admission_date" type="date" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
       </label>
@@ -242,6 +288,13 @@ class StudentsModule {
         <select name="class_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
           <option value="">Select Class</option>
           ${this.classOptions(student?.class_id || "")}
+        </select>
+      </label>
+      <label class="block">
+        <span class="text-sm text-slate-700">Department of Enrollment</span>
+        <select name="department_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
+          <option value="">No department</option>
+          ${this.departmentOptions(student?.department_id || "")}
         </select>
       </label>
       <label class="block">
@@ -372,6 +425,9 @@ class StudentsModule {
             email: String(form.get("email") || "").trim().toLowerCase(),
             phone: String(form.get("phone") || "").trim(),
             class_id: String(form.get("class_id") || "").trim(),
+            department_id: String(form.get("department_id") || "").trim() || null,
+            parent_id: String(form.get("parent_id") || "").trim() || null,
+            subject_ids: form.getAll("subject_ids").map((value) => String(value).trim()).filter(Boolean),
             admission_date: String(form.get("admission_date") || "").trim() || null,
             password: String(form.get("password") || "").trim() || this.generatePassword()
         };
@@ -411,6 +467,7 @@ class StudentsModule {
             student_no: String(form.get("student_no") || "").trim() || null,
             admission_number: String(form.get("admission_number") || "").trim() || null,
             class_id: String(form.get("class_id") || "").trim() || null,
+            department_id: String(form.get("department_id") || "").trim() || null,
             status: String(form.get("status") || "").trim() || "active",
             admission_date: String(form.get("admission_date") || "").trim() || null
         };

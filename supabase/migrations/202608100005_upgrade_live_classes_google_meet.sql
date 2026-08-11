@@ -37,7 +37,11 @@ as $$
   )
 $$;
 
-create or replace function public.get_live_classes()
+-- PostgreSQL cannot change a function's OUT-parameter signature through
+-- CREATE OR REPLACE. Remove the older variant before installing this version.
+drop function if exists public.get_live_classes();
+
+create function public.get_live_classes()
 returns table (
   id uuid, subject_id uuid, class_id uuid, teacher_id uuid, title text,
   description text, starts_at timestamptz, ends_at timestamptz,

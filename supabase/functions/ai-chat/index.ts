@@ -40,6 +40,21 @@ function openAIErrorMessage(status: number, payload: any) {
   return "The AI Assistant is temporarily unavailable. Please try again.";
 }
 
+async function createResponse(apiKey: string, body: Record<string, unknown>) {
+  // Transient gateway failures are common enough to warrant one safe retry.
+  // The request has store:false and contains no server-side side effects.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (response.ok || ![408, 409, 500, 502, 503, 504].includes(response.status) || attempt === 1) return response;
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  }
+  throw new Error("Unable to contact the AI Assistant.");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
@@ -63,16 +78,12 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) throw new Error("The AI Assistant has not been configured. Contact your administrator.");
 
-    const openAIResponse = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const openAIResponse = await createResponse(apiKey, {
         model: Deno.env.get("OPENAI_MODEL") || "gpt-5",
         instructions: assistantInstructions(role),
         input: messages,
         max_output_tokens: 700,
         store: false,
-      }),
     });
     const payload = await openAIResponse.json();
     if (!openAIResponse.ok) {
