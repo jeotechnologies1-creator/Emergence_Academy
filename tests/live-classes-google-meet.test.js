@@ -10,6 +10,7 @@ const path = require('path');
   const join = read('supabase', 'functions', 'join-live-class', 'index.ts');
   const options = read('supabase', 'functions', 'live-class-options', 'index.ts');
   const migration = read('supabase', 'migrations', '202608100005_upgrade_live_classes_google_meet.sql');
+  const classAndTeacherMigration = read('supabase', 'migrations', '202608110004_seed_standard_classes_and_teacher_ids.sql');
 
   assert.ok(schedule.includes('oauth2.googleapis.com/token'), 'scheduling must exchange a server-side refresh token');
   assert.ok(schedule.includes('conferenceDataVersion=1'), 'scheduling must request a Google Meet conference');
@@ -23,5 +24,9 @@ const path = require('path');
   assert.ok(moduleCode.includes('join-live-class'), 'browser must use the protected join endpoint');
   assert.ok(!moduleCode.includes('meet.jit.si'), 'Jitsi room generation must not remain');
   assert.ok(migration.includes('get_live_classes'), 'database must expose an enrollment-scoped class listing');
+  assert.ok(classAndTeacherMigration.includes("'Primary 3'"), 'standard class options must be seeded for class selectors');
+  assert.ok(classAndTeacherMigration.includes("'SSS 3'"), 'senior class options must be seeded for class selectors');
+  assert.ok(classAndTeacherMigration.includes('teacher_employee_id'), 'live classes must return the generated teacher employee ID');
+  assert.ok(moduleCode.includes('teacher_employee_id'), 'live class cards must display the generated teacher employee ID');
   console.log('live classes Google Meet regression test passed');
 })();

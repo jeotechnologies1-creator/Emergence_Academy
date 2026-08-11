@@ -7,6 +7,7 @@ class Auth {
     static initialized = false;
     static currentProfile = null;
     static currentPermissions = [];
+    static logoutRefreshScheduled = false;
     static SESSION_KEY = "emergence_session";
     static LAST_LOGIN_ROLE_KEY = "emergence_last_login_role";
     static DASHBOARDS = {
@@ -101,6 +102,35 @@ class Auth {
         return this.ensureSupabaseClient();
     }
 
+    static refreshAfterLogout() {
+        if (this.logoutRefreshScheduled) {
+            return;
+        }
+
+        this.logoutRefreshScheduled = true;
+
+        const location = this.runtime.location;
+        if (!location) {
+            return;
+        }
+
+        const currentPath = String(location.pathname || "").toLowerCase();
+
+        // A logout from any tab must remove protected dashboard state. On the
+        // login page, reload in place; everywhere else, replace the protected
+        // page with a fresh login page so browser Back cannot reveal it.
+        if (currentPath.endsWith("/login.html") || currentPath === "login.html") {
+            if (typeof location.reload === "function") {
+                location.reload();
+            }
+            return;
+        }
+
+        if (typeof location.replace === "function") {
+            location.replace("login.html?logout=1");
+        }
+    }
+
     static async init() {
         if (this.initialized) return;
         if (typeof this.runtime.waitForSupabase === "function") {
@@ -120,6 +150,8 @@ class Auth {
             if (event === "SIGNED_OUT") {
                 this.clearCache();
                 this.storageSession.clear();
+                this.storageLocal.removeItem(this.SESSION_KEY);
+                this.refreshAfterLogout();
             }
         };
         if (typeof this.runtime.addEventListener === "function") {
@@ -336,9 +368,7 @@ class Auth {
         this.clearCache();
         this.storageSession.clear();
         this.storageLocal.removeItem(this.SESSION_KEY);
-        if (this.runtime.location?.replace) {
-            this.runtime.location.replace("login.html");
-        }
+        this.refreshAfterLogout();
     }
 
     static async dashboard() {

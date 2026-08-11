@@ -232,6 +232,16 @@ class OfficeModuleEngine {
             label = String(profileMap[String(item.profile_id)] || "").trim();
           }
 
+          // Teacher lookups should always retain the generated employee ID.
+          // This keeps the same identifier visible in assignments, grades, and
+          // any other module that selects a teacher by their profile name.
+          if (label && table === "teachers") {
+            const employeeId = String(item.employee_id || item.teacher_no || "").trim();
+            if (employeeId) {
+              label = `${label} (${employeeId})`;
+            }
+          }
+
           if (!label && labelResolver) {
             const profileName = profileMap && item && item.profile_id
               ? String(profileMap[String(item.profile_id)] || "").trim()
