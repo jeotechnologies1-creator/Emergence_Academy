@@ -617,17 +617,37 @@ class API {
                     throw new Error("Your session has expired. Please sign in again and retry.");
                 }
 
-                const { data, error } = await API.db.functions.invoke(
-                    "admit-student",
-                    {
-                        body: studentData,
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`
-                        }
-                    }
-                );
+                // Use fetch here instead of functions.invoke. Some cached SDK
+                // builds replace a caller-supplied Authorization header with
+                // the anon key, which makes an otherwise signed-in admin look
+                // unauthenticated to this privileged endpoint.
+                const functionUrl = `${window.CONFIG?.SUPABASE?.URL}/functions/v1/admit-student`;
+                const anonKey = window.CONFIG?.SUPABASE?.ANON_KEY;
+                if (!functionUrl || !anonKey) {
+                    throw new Error("Supabase function configuration is missing.");
+                }
 
-                if (error) throw error;
+                const response = await fetch(functionUrl, {
+                    method: "POST",
+                    headers: {
+                        apikey: anonKey,
+                        Authorization: `Bearer ${accessToken}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(studentData)
+                });
+
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch {
+                    // Keep the status-based message below if a proxy returns
+                    // an empty or non-JSON error response.
+                }
+
+                if (!response.ok) {
+                    throw new Error(data?.error || `Unable to admit student (${response.status}).`);
+                }
 
                 if (data?.error) {
                     throw new Error(data.error);
