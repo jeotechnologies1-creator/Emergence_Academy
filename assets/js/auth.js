@@ -333,8 +333,11 @@ class Auth {
             }
             const profile = await this.profile(true, selectedRole);
             if (!profile) {
-                await this.client.auth.signOut();
-                return this.error("User profile not found.");
+                // Do not destroy a valid Auth session because a profile read
+                // was delayed or blocked by a transient policy/network error.
+                // Signing out here caused an immediate redirect that hid the
+                // actionable error and affected every office portal.
+                return this.error("Your account profile could not be loaded. Please try again or contact an administrator.");
             }
             const accountStatus = String(profile.status || "").trim().toLowerCase();
             if (accountStatus && accountStatus !== "active") {
@@ -344,11 +347,13 @@ class Auth {
             const databaseRole = this.normalizeRole(profile.role || "");
             const loginRole = this.normalizeRole(selectedRole || "");
             if (loginRole && databaseRole !== loginRole) {
-                await this.client.auth.signOut();
-                return this.error(`Access denied. This account belongs to the '${databaseRole}' portal.`);
+                // The role stored in the protected database is authoritative.
+                // The form selection is only a convenience, never a reason to
+                // sign a valid user out immediately after authentication.
+                console.warn(`Selected '${loginRole}' portal, using account role '${databaseRole}' instead.`);
             }
-            if (loginRole) {
-                this.storageSession.setItem(this.LAST_LOGIN_ROLE_KEY, loginRole);
+            if (databaseRole) {
+                this.storageSession.setItem(this.LAST_LOGIN_ROLE_KEY, databaseRole);
             }
             this.storageSession.setItem("profile", JSON.stringify(profile));
             this.currentProfile = profile;
