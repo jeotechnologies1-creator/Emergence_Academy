@@ -71,6 +71,33 @@ nav button[data-route].active {
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
 }
 
+/* The admission form has more fields than a short mobile viewport. Keep the
+   overlay and dialog independently scrollable so no field or action is cut
+   off by the browser chrome or the dashboard content container. */
+.student-admission-overlay {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.student-admission-dialog {
+  max-height: calc(100vh - 1.5rem);
+  max-height: calc(100dvh - 1.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  margin: auto 0;
+}
+
+.student-admission-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding-top: 1rem;
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+  background: #fff;
+}
+
 .heading-xl {
   font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 700;
@@ -165,6 +192,20 @@ nav button[data-route].active {
 }
 
 @media (max-width: 767px) {
+  .student-admission-dialog {
+    max-height: calc(100vh - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  .student-admission-heading {
+    position: sticky;
+    top: -1rem;
+    z-index: 1;
+    padding-top: 1rem;
+    padding-bottom: 0.75rem;
+    background: #fff;
+  }
+
   .sidebar-logo {
     padding: 1rem 1rem 1.25rem;
   }

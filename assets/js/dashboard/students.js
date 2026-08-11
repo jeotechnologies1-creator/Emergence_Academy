@@ -213,10 +213,10 @@ class StudentsModule {
         const passwordValue = mode === "create" ? this.generatePassword() : "";
 
         return `
-<div class="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center px-4" data-student-overlay>
-  <div class="w-full max-w-3xl bg-white rounded-2xl shadow-2xl p-6">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-xl font-bold text-slate-800">${title}</h3>
+<div class="student-admission-overlay fixed inset-0 z-50 bg-slate-900/50 flex justify-center px-3 py-3 sm:px-4 sm:py-6" data-student-overlay role="dialog" aria-modal="true" aria-labelledby="student-form-title">
+  <div class="student-admission-dialog w-full max-w-3xl bg-white rounded-2xl shadow-2xl p-4 sm:p-6">
+    <div class="student-admission-heading flex items-center justify-between gap-4 mb-4">
+      <h3 id="student-form-title" class="text-xl font-bold text-slate-800">${title}</h3>
       <button type="button" data-student-close class="text-slate-500 hover:text-slate-700">Close</button>
     </div>
     <form id="student-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -309,7 +309,7 @@ class StudentsModule {
         <input name="admission_date" type="date" value="${this.safe(String(student?.admission_date || "").slice(0, 10))}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
       </label>
       `}
-      <div class="md:col-span-2 flex items-center justify-end gap-3 mt-2">
+      <div class="student-admission-actions md:col-span-2 flex items-center justify-end gap-3 mt-2">
         <button type="button" data-student-close class="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">Cancel</button>
         <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Save</button>
       </div>
