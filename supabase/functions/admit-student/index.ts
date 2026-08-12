@@ -133,8 +133,17 @@ Deno.serve(async (req) => {
       .eq("id", callerUser.id)
       .single();
 
-    if (profileLookupError || !ADMISSION_ROLES.has(normalizedRole(callerProfile?.role))) {
-      return json({ error: "You do not have permission to admit students." }, 403);
+    const role = normalizedRole(callerProfile?.role);
+
+    if (
+      profileLookupError ||
+      !callerProfile ||
+      !ADMISSION_ROLES.has(role)
+    ) {
+      return json(
+        { error: "You do not have permission to admit students." },
+        403
+      );
     }
 
     const body = await req.json();
