@@ -18,6 +18,8 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   });
 
   assert.ok(students.includes('class_level'), 'student admission should send an unmapped class level safely');
+  assert.ok(students.includes('Database-connected admission'), 'admission form should clearly identify its live Supabase data connection');
+  assert.ok(students.includes('admissionSubmitting'), 'admission form should prevent duplicate submissions while Supabase is processing a request');
   assert.ok(admissionFunction.includes('CLASS_LEVELS'), 'edge function should validate class levels');
   assert.ok(admissionFunction.includes('rpc("admit_student"'), 'edge function should keep using the admission RPC');
   assert.ok(admissionFunction.includes('SUPABASE_SECRET_KEYS'), 'admission should prefer the managed server-only Supabase secret key');

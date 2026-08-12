@@ -13,6 +13,7 @@ class StudentsModule {
         departments: [],
         parents: [],
         profile: null,
+        admissionSubmitting: false,
         query: "",
         modal: {
             open: false,
@@ -110,7 +111,7 @@ class StudentsModule {
     }
 
     static async load() {
-        const [students, classes, subjects, departments, parents, profile] = await Promise.all([
+        const [students, classes, subjectsResult, departmentsResult, parents, profile] = await Promise.all([
             API.students.getAll(),
             API.classes.getAll(),
             API.db.from("subjects").select("id,subject_name,subject_code").order("subject_name"),
@@ -119,10 +120,13 @@ class StudentsModule {
             Auth.profile()
         ]);
 
+        if (subjectsResult.error) throw subjectsResult.error;
+        if (departmentsResult.error) throw departmentsResult.error;
+
         this.state.students = Array.isArray(students) ? students : [];
         this.state.classes = Array.isArray(classes) ? classes : [];
-        this.state.subjects = Array.isArray(subjects?.data) ? subjects.data : [];
-        this.state.departments = Array.isArray(departments?.data) ? departments.data : [];
+        this.state.subjects = Array.isArray(subjectsResult.data) ? subjectsResult.data : [];
+        this.state.departments = Array.isArray(departmentsResult.data) ? departmentsResult.data : [];
         this.state.parents = Array.isArray(parents) ? parents : [];
         this.state.profile = profile || null;
     }
@@ -197,6 +201,75 @@ class StudentsModule {
         }).join("");
     }
 
+    static admissionFormTemplate() {
+        const passwordValue = this.generatePassword();
+        const today = new Date().toISOString().slice(0, 10);
+        const isSubmitting = this.state.admissionSubmitting;
+
+        return `
+      <div class="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        <strong>Database-connected admission</strong>
+        <span class="block mt-1 text-blue-700">Class, department, guardian, and subject options are loaded from Supabase. Student ID is generated securely after admission.</span>
+      </div>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">First Name <span class="text-red-600">*</span></span>
+        <input name="first_name" autocomplete="given-name" maxlength="80" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Last Name <span class="text-red-600">*</span></span>
+        <input name="last_name" autocomplete="family-name" maxlength="80" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
+      </label>
+      <label class="block md:col-span-2">
+        <span class="text-sm font-medium text-slate-700">Email Address <span class="text-red-600">*</span></span>
+        <input name="email" type="email" autocomplete="email" maxlength="254" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Phone Number</span>
+        <input name="phone" type="tel" autocomplete="tel" maxlength="40" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Class <span class="text-red-600">*</span></span>
+        <select name="class_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required>
+          <option value="">Select a class</option>
+          ${this.classOptions()}
+        </select>
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Department</span>
+        <select name="department_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
+          <option value="">No department</option>
+          ${this.departmentOptions()}
+        </select>
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Parent / Guardian</span>
+        <select name="parent_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
+          <option value="">Link later</option>
+          ${this.parentOptions()}
+        </select>
+      </label>
+      <label class="block md:col-span-2">
+        <span class="text-sm font-medium text-slate-700">Subjects</span>
+        <select name="subject_ids" multiple size="6" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" aria-describedby="student-subject-help">
+          ${this.subjectOptions()}
+        </select>
+        <span id="student-subject-help" class="mt-1 block text-xs text-slate-500">Optional. Hold Ctrl (Windows) or Command (Mac) to select multiple subjects.</span>
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Admission Date</span>
+        <input name="admission_date" type="date" value="${today}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Temporary Password <span class="text-red-600">*</span></span>
+        <input name="password" type="text" minlength="8" value="${this.safe(passwordValue)}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
+        <span class="mt-1 block text-xs text-slate-500">Share this securely with the student or guardian.</span>
+      </label>
+      <div class="student-admission-actions md:col-span-2 flex items-center justify-end gap-3 mt-2">
+        <button type="button" data-student-close class="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50" ${isSubmitting ? "disabled" : ""}>Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60" ${isSubmitting ? "disabled" : ""}>${isSubmitting ? "Saving to Supabase…" : "Admit Student"}</button>
+      </div>`;
+    }
+
     static modalTemplate() {
         if (!this.state.modal.open) {
             return "";
@@ -210,8 +283,6 @@ class StudentsModule {
         }
 
         const title = mode === "create" ? "Admit Student" : "Edit Student";
-        const passwordValue = mode === "create" ? this.generatePassword() : "";
-
         return `
 <div class="student-admission-overlay fixed inset-0 z-50 bg-slate-900/50 flex justify-center px-3 py-3 sm:px-4 sm:py-6" data-student-overlay role="dialog" aria-modal="true" aria-labelledby="student-form-title">
   <div class="student-admission-dialog w-full max-w-3xl bg-white rounded-2xl shadow-2xl p-4 sm:p-6">
@@ -221,60 +292,7 @@ class StudentsModule {
     </div>
     <form id="student-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div id="student-form-error" class="hidden md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"></div>
-      ${mode === "create" ? `
-      <label class="block">
-        <span class="text-sm text-slate-700">First Name *</span>
-        <input name="first_name" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
-      </label>
-      <label class="block">
-        <span class="text-sm text-slate-700">Last Name *</span>
-        <input name="last_name" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
-      </label>
-      <label class="block md:col-span-2">
-        <span class="text-sm text-slate-700">Email *</span>
-        <input name="email" type="email" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
-      </label>
-      <label class="block">
-        <span class="text-sm text-slate-700">Phone</span>
-        <input name="phone" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
-      </label>
-      <label class="block">
-        <span class="text-sm text-slate-700">Class *</span>
-        <select name="class_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required>
-          <option value="">Select Class</option>
-          ${this.classOptions()}
-        </select>
-      </label>
-      <label class="block">
-        <span class="text-sm text-slate-700">Department of Enrollment</span>
-        <select name="department_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
-          <option value="">No department</option>
-          ${this.departmentOptions()}
-        </select>
-      </label>
-      <label class="block">
-        <span class="text-sm text-slate-700">Parent / Guardian</span>
-        <select name="parent_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
-          <option value="">Link later</option>
-          ${this.parentOptions()}
-        </select>
-      </label>
-      <label class="block md:col-span-2">
-        <span class="text-sm text-slate-700">Subjects</span>
-        <select name="subject_ids" multiple size="5" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" aria-describedby="student-subject-help">
-          ${this.subjectOptions()}
-        </select>
-        <span id="student-subject-help" class="mt-1 block text-xs text-slate-500">Hold Ctrl (Windows) or Command (Mac) to select more than one subject.</span>
-      </label>
-      <label class="block">
-        <span class="text-sm text-slate-700">Admission Date</span>
-        <input name="admission_date" type="date" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
-      </label>
-      <label class="block">
-        <span class="text-sm text-slate-700">Temporary Password *</span>
-        <input name="password" value="${this.safe(passwordValue)}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
-      </label>
-      ` : `
+      ${mode === "create" ? this.admissionFormTemplate() : `
       <label class="block">
         <span class="text-sm text-slate-700">Student Number</span>
         <input name="student_no" value="${this.safe(student?.student_no || "")}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
@@ -308,11 +326,10 @@ class StudentsModule {
         <span class="text-sm text-slate-700">Admission Date</span>
         <input name="admission_date" type="date" value="${this.safe(String(student?.admission_date || "").slice(0, 10))}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
       </label>
-      `}
       <div class="student-admission-actions md:col-span-2 flex items-center justify-end gap-3 mt-2">
         <button type="button" data-student-close class="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">Cancel</button>
         <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Save</button>
-      </div>
+      </div>`}
     </form>
   </div>
 </div>
@@ -419,6 +436,8 @@ class StudentsModule {
     }
 
     static async submitCreate(form) {
+        if (this.state.admissionSubmitting) return;
+
         const payload = {
             first_name: String(form.get("first_name") || "").trim(),
             last_name: String(form.get("last_name") || "").trim(),
@@ -442,10 +461,29 @@ class StudentsModule {
             this.showFormError("First name, last name, email, class, and password are required.");
             return;
         }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+            this.showFormError("Enter a valid email address.");
+            return;
+        }
+        if (payload.password.length < 8) {
+            this.showFormError("Temporary password must be at least 8 characters.");
+            return;
+        }
 
-        const result = await API.students.admit(payload);
+        this.state.admissionSubmitting = true;
+        this.redraw();
+
+        let result;
+        try {
+            result = await API.students.admit(payload);
+        } catch (error) {
+            result = { success: false, message: error?.message || "Unable to connect to Supabase." };
+        } finally {
+            this.state.admissionSubmitting = false;
+        }
 
         if (!result?.success) {
+            this.redraw();
             this.showFormError(result?.message || "Unable to admit student.");
             return;
         }
