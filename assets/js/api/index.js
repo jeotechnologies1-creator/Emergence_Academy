@@ -812,7 +812,10 @@ class API {
                 // A stored session can outlive its access token. Refresh it
                 // before an admission request because the Edge Function must
                 // validate the bearer token server-side.
-                const { error: refreshError } = await API.db.auth.refreshSession();
+                const {
+                    data: refreshedSessionData,
+                    error: refreshError
+                } = await API.db.auth.refreshSession();
 
                 if (refreshError) {
                     console.error("Session refresh error:", refreshError);
@@ -823,11 +826,18 @@ class API {
                     );
                 }
 
-                const { data: sessionData, error: sessionError } =
-                    await API.db.auth.getSession();
+                // Use the token returned by refreshSession directly. Reading
+                // getSession immediately afterwards can return a stale cached
+                // token while the auth-state update is still propagating.
+                const sessionData = refreshedSessionData?.session
+                    ? refreshedSessionData
+                    : await API.db.auth.getSession().then(({ data, error }) => {
+                        if (error) throw error;
+                        return data;
+                    });
 
-                if (sessionError) {
-                    console.error("Session error:", sessionError);
+                if (!sessionData) {
+                    console.error("Session error: no session data returned.");
                     return API.response(
                         false,
                         null,
@@ -835,7 +845,7 @@ class API {
                     );
                 }
 
-                const session = sessionData?.session;
+                const session = sessionData.session;
 
                 if (!session?.access_token) {
                     console.error("No Supabase access token found.");
@@ -865,26 +875,44 @@ class API {
                     hasToken: true
                 });
 
-                // Invoke through the authenticated Supabase client instead of
-                // manually building a fetch request. The SDK refreshes and
-                // forwards the current JWT consistently for Edge Functions.
-                const { data: result, error } = await API.db.functions.invoke(
-                    "admit-student",
+                // Do not route this through functions.invoke: some SDK/runtime
+                // combinations replace a supplied Authorization header before
+                // the Edge Function receives it. Send the freshly validated
+                // token directly, including a dedicated admission header.
+                const response = await fetch(
+                    `${window.CONFIG.SUPABASE.URL}/functions/v1/admit-student`,
                     {
-                        body: studentData,
+                        method: "POST",
                         headers: {
-                            Authorization: `Bearer ${session.access_token}`
-                        }
+                            "Content-Type": "application/json",
+                            apikey: window.CONFIG.SUPABASE.ANON_KEY,
+                            Authorization: `Bearer ${session.access_token}`,
+                            "x-admission-token": session.access_token
+                        },
+                        body: JSON.stringify(studentData)
                     }
                 );
 
-                console.log("Admission function response:", { data: result, error });
+                const rawResult = await response.text();
+                let result = {};
 
-                if (error) {
-                    throw new Error(await API.functionErrorMessage(
-                        error,
-                        "Unable to authenticate the admission request."
-                    ));
+                try {
+                    result = rawResult ? JSON.parse(rawResult) : {};
+                } catch {
+                    result = { error: rawResult || "Unknown admission response." };
+                }
+
+                console.log("Admission function response:", {
+                    status: response.status,
+                    data: result
+                });
+
+                if (!response.ok) {
+                    throw new Error(
+                        result?.error ||
+                        result?.message ||
+                        `Admission failed (${response.status}).`
+                    );
                 }
 
                 if (result?.error) {
