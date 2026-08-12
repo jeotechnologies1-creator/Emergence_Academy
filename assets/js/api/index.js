@@ -839,44 +839,30 @@ class API {
                     hasToken: true
                 });
 
-                const functionUrl =
-                    `${API.db.supabaseUrl}/functions/v1/admit-student`;
+                // Invoke through the authenticated Supabase client instead of
+                // manually building a fetch request. The SDK refreshes and
+                // forwards the current JWT consistently for Edge Functions.
+                const { data: result, error } = await API.db.functions.invoke(
+                    "admit-student",
+                    {
+                        body: studentData,
+                        headers: {
+                            Authorization: `Bearer ${session.access_token}`
+                        }
+                    }
+                );
 
-                const response = await fetch(functionUrl, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "apikey": API.db.supabaseKey,
-                        "Authorization": `Bearer ${session.access_token}`
-                    },
-                    body: JSON.stringify(studentData)
-                });
+                console.log("Admission function response:", { data: result, error });
 
-                const responseText = await response.text();
-
-                let result;
-
-                try {
-                    result = responseText
-                        ? JSON.parse(responseText)
-                        : {};
-                } catch {
-                    result = {
-                        error: responseText || "Unknown server response."
-                    };
+                if (error) {
+                    throw new Error(await API.functionErrorMessage(
+                        error,
+                        "Unable to authenticate the admission request."
+                    ));
                 }
 
-                console.log("Admission function response:", {
-                    status: response.status,
-                    data: result
-                });
-
-                if (!response.ok) {
-                    throw new Error(
-                        result?.error ||
-                        result?.message ||
-                        `Admission failed (${response.status}).`
-                    );
+                if (result?.error) {
+                    throw new Error(result.error);
                 }
 
                 return API.response(
