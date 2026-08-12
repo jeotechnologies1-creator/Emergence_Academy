@@ -686,6 +686,11 @@ class API {
 
         // },
 
+
+
+        // ----------------------------------
+
+
         // async admit(studentData) {
         //     try {
         //         const { data: sessionData, error: sessionError } =
@@ -759,43 +764,136 @@ class API {
         //     }
         // },
 
+        // ----------------------------
 
-        catch(error) {
-            console.error("FULL ADMISSION ERROR:", error);
 
-            let serverMessage = error?.message || "Unable to admit student.";
+        // catch(error) {
+        //     console.error("FULL ADMISSION ERROR:", error);
 
+        //     let serverMessage = error?.message || "Unable to admit student.";
+
+        //     try {
+        //         if (error?.context) {
+        //             const response = error.context.clone
+        //                 ? error.context.clone()
+        //                 : error.context;
+
+        //             const text = await response.text();
+
+        //             console.error("EDGE FUNCTION RESPONSE:", text);
+
+        //             if (text) {
+        //                 try {
+        //                     const parsed = JSON.parse(text);
+        //                     serverMessage =
+        //                         parsed?.error ||
+        //                         parsed?.message ||
+        //                         serverMessage;
+        //                 } catch {
+        //                     serverMessage = text;
+        //                 }
+        //             }
+        //         }
+        //     } catch (e) {
+        //         console.error("Could not read Edge Function response:", e);
+        //     }
+
+        //     return API.response(
+        //         false,
+        //         null,
+        //         serverMessage
+        //     );
+        // },
+
+        // -------------------------------
+
+        async admit(studentData) {
             try {
-                if (error?.context) {
-                    const response = error.context.clone
-                        ? error.context.clone()
-                        : error.context;
+                const { data: sessionData, error: sessionError } =
+                    await API.db.auth.getSession();
 
-                    const text = await response.text();
-
-                    console.error("EDGE FUNCTION RESPONSE:", text);
-
-                    if (text) {
-                        try {
-                            const parsed = JSON.parse(text);
-                            serverMessage =
-                                parsed?.error ||
-                                parsed?.message ||
-                                serverMessage;
-                        } catch {
-                            serverMessage = text;
-                        }
-                    }
+                if (sessionError) {
+                    console.error("Session error:", sessionError);
+                    return API.response(
+                        false,
+                        null,
+                        "Unable to verify your login session."
+                    );
                 }
-            } catch (e) {
-                console.error("Could not read Edge Function response:", e);
-            }
 
-            return API.response(
-                false,
-                null,
-                serverMessage
-            );
+                const session = sessionData?.session;
+
+                if (!session?.access_token) {
+                    console.error("No Supabase access token found.");
+                    return API.response(
+                        false,
+                        null,
+                        "Not authenticated. Please sign in again."
+                    );
+                }
+
+                console.log("Admission authentication:", {
+                    authenticated: true,
+                    userId: session.user?.id,
+                    email: session.user?.email,
+                    hasToken: true
+                });
+
+                const functionUrl =
+                    `${API.db.supabaseUrl}/functions/v1/admit-student`;
+
+                const response = await fetch(functionUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "apikey": API.db.supabaseKey,
+                        "Authorization": `Bearer ${session.access_token}`
+                    },
+                    body: JSON.stringify(studentData)
+                });
+
+                const responseText = await response.text();
+
+                let result;
+
+                try {
+                    result = responseText
+                        ? JSON.parse(responseText)
+                        : {};
+                } catch {
+                    result = {
+                        error: responseText || "Unknown server response."
+                    };
+                }
+
+                console.log("Admission function response:", {
+                    status: response.status,
+                    data: result
+                });
+
+                if (!response.ok) {
+                    throw new Error(
+                        result?.error ||
+                        result?.message ||
+                        `Admission failed (${response.status}).`
+                    );
+                }
+
+                return API.response(
+                    true,
+                    result,
+                    result?.message || "Student admitted successfully."
+                );
+
+            } catch (error) {
+                console.error("Student admission failed:", error);
+
+                return API.response(
+                    false,
+                    null,
+                    error?.message || "Unable to admit student."
+                );
+            }
         },
         /* ==============================================
            CREATE STUDENT
