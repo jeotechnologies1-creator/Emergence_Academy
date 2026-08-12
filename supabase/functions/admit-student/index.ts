@@ -75,6 +75,26 @@ Deno.serve(async (req) => {
       error: callerAuthError
     } = await callerClient.auth.getUser(accessToken);
 
+    const {
+      data: callerProfile,
+      error: profileLookupError,
+    } = await admin
+      .from("profiles")
+      .select("id, role, email")
+      .eq("id", callerUser.id)
+      .single();
+
+    console.log("ADMISSION_PROFILE_RESULT", {
+      hasProfile: !!callerProfile,
+      profileId: callerProfile?.id || null,
+      role: callerProfile?.role || null,
+      email: callerProfile?.email || null,
+      error: profileLookupError?.message || null,
+      errorCode: profileLookupError?.code || null,
+      errorDetails: profileLookupError?.details || null,
+      errorHint: profileLookupError?.hint || null,
+    });
+
     console.log("ADMISSION_AUTH_RESULT", {
       hasUser: !!callerData?.user,
       userId: callerData?.user?.id || null,
