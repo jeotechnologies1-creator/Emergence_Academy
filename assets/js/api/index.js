@@ -686,79 +686,117 @@ class API {
 
         // },
 
-        async admit(studentData) {
+        // async admit(studentData) {
+        //     try {
+        //         const { data: sessionData, error: sessionError } =
+        //             await API.db.auth.getSession();
+
+        //         if (sessionError) {
+        //             console.error("Session error:", sessionError);
+        //             throw new Error("Unable to verify your login session.");
+        //         }
+
+        //         const session = sessionData?.session;
+
+        //         if (!session?.access_token) {
+        //             throw new Error(
+        //                 "Not authenticated. Please sign out and sign in again."
+        //             );
+        //         }
+
+        //         const accessToken = session.access_token;
+
+        //         console.log("Admission authentication:", {
+        //             authenticated: true,
+        //             userId: session.user?.id,
+        //             email: session.user?.email,
+        //             hasToken: !!accessToken
+        //         });
+
+        //         const { data, error } =
+        //             await API.db.functions.invoke(
+        //                 "admit-student",
+        //                 {
+        //                     body: studentData,
+        //                     headers: {
+        //                         Authorization: `Bearer ${accessToken}`
+        //                     }
+        //                 }
+        //             );
+
+        //         console.log("Admission function response:", {
+        //             data,
+        //             error
+        //         });
+
+        //         if (error) {
+        //             throw error;
+        //         }
+
+        //         if (data?.error) {
+        //             throw new Error(data.error);
+        //         }
+
+        //         return API.response(
+        //             true,
+        //             data,
+        //             "Student admitted successfully."
+        //         );
+
+        //     } catch (error) {
+        //         console.error("Student admission failed:", error);
+
+        //         const message = await API.functionErrorMessage(
+        //             error,
+        //             "Unable to admit student."
+        //         );
+
+        //         return API.response(
+        //             false,
+        //             null,
+        //             message
+        //         );
+        //     }
+        // },
+
+
+        catch(error) {
+            console.error("FULL ADMISSION ERROR:", error);
+
+            let serverMessage = error?.message || "Unable to admit student.";
+
             try {
-                const { data: sessionData, error: sessionError } =
-                    await API.db.auth.getSession();
+                if (error?.context) {
+                    const response = error.context.clone
+                        ? error.context.clone()
+                        : error.context;
 
-                if (sessionError) {
-                    console.error("Session error:", sessionError);
-                    throw new Error("Unable to verify your login session.");
-                }
+                    const text = await response.text();
 
-                const session = sessionData?.session;
+                    console.error("EDGE FUNCTION RESPONSE:", text);
 
-                if (!session?.access_token) {
-                    throw new Error(
-                        "Not authenticated. Please sign out and sign in again."
-                    );
-                }
-
-                const accessToken = session.access_token;
-
-                console.log("Admission authentication:", {
-                    authenticated: true,
-                    userId: session.user?.id,
-                    email: session.user?.email,
-                    hasToken: !!accessToken
-                });
-
-                const { data, error } =
-                    await API.db.functions.invoke(
-                        "admit-student",
-                        {
-                            body: studentData,
-                            headers: {
-                                Authorization: `Bearer ${accessToken}`
-                            }
+                    if (text) {
+                        try {
+                            const parsed = JSON.parse(text);
+                            serverMessage =
+                                parsed?.error ||
+                                parsed?.message ||
+                                serverMessage;
+                        } catch {
+                            serverMessage = text;
                         }
-                    );
-
-                console.log("Admission function response:", {
-                    data,
-                    error
-                });
-
-                if (error) {
-                    throw error;
+                    }
                 }
-
-                if (data?.error) {
-                    throw new Error(data.error);
-                }
-
-                return API.response(
-                    true,
-                    data,
-                    "Student admitted successfully."
-                );
-
-            } catch (error) {
-                console.error("Student admission failed:", error);
-
-                const message = await API.functionErrorMessage(
-                    error,
-                    "Unable to admit student."
-                );
-
-                return API.response(
-                    false,
-                    null,
-                    message
-                );
+            } catch (e) {
+                console.error("Could not read Edge Function response:", e);
             }
-        },
 
+            return API.response(
+                false,
+                null,
+                serverMessage
+            );
+        }
         /* ==============================================
            CREATE STUDENT
         ============================================== */
