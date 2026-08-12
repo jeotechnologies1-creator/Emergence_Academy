@@ -103,13 +103,6 @@ Deno.serve(async (req) => {
       errorStatus: callerAuthError?.status || null,
     });
 
-    const admin = createClient(url, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-
 
     // Keep a direct Auth endpoint fallback for runtimes where client header
     // normalization interferes with token forwarding.
