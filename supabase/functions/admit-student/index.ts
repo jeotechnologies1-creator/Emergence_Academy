@@ -37,6 +37,13 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
 
   try {
+    console.log("ADMISSION_AUTH_DEBUG", {
+      hasAuthorization: !!req.headers.get("authorization"),
+      hasAdmissionToken: !!req.headers.get("x-admission-token"),
+      hasApiKey: !!req.headers.get("apikey"),
+      authorizationPrefix: req.headers.get("authorization")?.slice(0, 20),
+      admissionTokenPrefix: req.headers.get("x-admission-token")?.slice(0, 20),
+    });
     const url = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const authHeader = req.headers.get("Authorization") || "";
@@ -63,8 +70,18 @@ Deno.serve(async (req) => {
     const callerClient = createClient(url, requestApiKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
-    const { data: callerData } = await callerClient.auth.getUser(accessToken);
+    const {
+      data: callerData,
+      error: callerAuthError
+    } = await callerClient.auth.getUser(accessToken);
 
+    console.log("ADMISSION_AUTH_RESULT", {
+      hasUser: !!callerData?.user,
+      userId: callerData?.user?.id || null,
+      errorMessage: callerAuthError?.message || null,
+      errorName: callerAuthError?.name || null,
+      errorStatus: callerAuthError?.status || null,
+    });
     // Keep a direct Auth endpoint fallback for runtimes where client header
     // normalization interferes with token forwarding.
     const callerResponse = await fetch(`${url}/auth/v1/user`, {
