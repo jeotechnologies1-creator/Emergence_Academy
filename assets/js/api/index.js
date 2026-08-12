@@ -809,50 +809,31 @@ class API {
 
         async admit(studentData) {
             try {
-                // A stored session can outlive its access token. Refresh it
-                // before an admission request because the Edge Function must
-                // validate the bearer token server-side.
-                const {
-                    data: refreshedSessionData,
-                    error: refreshError
-                } = await API.db.auth.refreshSession();
+                // Prefer the existing active session. Forcing a refresh here
+                // can race with Supabase's automatic token refresh and make a
+                // valid dashboard session look empty for one request.
+                let { data: sessionData, error: sessionError } =
+                    await API.db.auth.getSession();
+                let session = sessionData?.session || null;
 
-                if (refreshError) {
-                    console.error("Session refresh error:", refreshError);
-                    return API.response(
-                        false,
-                        null,
-                        "Your login session has expired. Please sign in again."
-                    );
+                // Only request a new session when there is no active one.
+                if (!session) {
+                    const { data: refreshData, error: refreshError } =
+                        await API.db.auth.refreshSession();
+                    session = refreshData?.session || null;
+                    sessionError = sessionError || refreshError;
                 }
 
-                // Use the token returned by refreshSession directly. Reading
-                // getSession immediately afterwards can return a stale cached
-                // token while the auth-state update is still propagating.
-                const sessionData = refreshedSessionData?.session
-                    ? refreshedSessionData
-                    : await API.db.auth.getSession().then(({ data, error }) => {
-                        if (error) throw error;
-                        return data;
-                    });
-
-                if (!sessionData) {
-                    console.error("Session error: no session data returned.");
-                    return API.response(
-                        false,
-                        null,
-                        "Unable to verify your login session."
-                    );
+                if (sessionError && !session) {
+                    console.error("Admission session error:", sessionError);
                 }
-
-                const session = sessionData.session;
 
                 if (!session?.access_token) {
                     console.error("No Supabase access token found.");
                     return API.response(
                         false,
                         null,
-                        "Not authenticated. Please sign in again."
+                        "Your session is unavailable. Please sign out and sign in again."
                     );
                 }
 
