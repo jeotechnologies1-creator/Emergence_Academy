@@ -809,6 +809,20 @@ class API {
 
         async admit(studentData) {
             try {
+                // A stored session can outlive its access token. Refresh it
+                // before an admission request because the Edge Function must
+                // validate the bearer token server-side.
+                const { error: refreshError } = await API.db.auth.refreshSession();
+
+                if (refreshError) {
+                    console.error("Session refresh error:", refreshError);
+                    return API.response(
+                        false,
+                        null,
+                        "Your login session has expired. Please sign in again."
+                    );
+                }
+
                 const { data: sessionData, error: sessionError } =
                     await API.db.auth.getSession();
 
@@ -832,10 +846,22 @@ class API {
                     );
                 }
 
+                const { data: userData, error: userError } =
+                    await API.db.auth.getUser(session.access_token);
+
+                if (userError || !userData?.user) {
+                    console.error("Session validation error:", userError);
+                    return API.response(
+                        false,
+                        null,
+                        "Your login session is no longer valid. Please sign in again."
+                    );
+                }
+
                 console.log("Admission authentication:", {
                     authenticated: true,
-                    userId: session.user?.id,
-                    email: session.user?.email,
+                    userId: userData.user.id,
+                    email: userData.user.email,
                     hasToken: true
                 });
 

@@ -47,18 +47,14 @@ Deno.serve(async (req) => {
     const accessToken = authHeader.replace(/^Bearer\s+/i, "").trim();
     if (!accessToken) return json({ error: "Authentication is required." }, 401);
 
-    const callerClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY") || serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    // Pass the bearer token explicitly. This prevents an Edge Runtime header
-    // normalization issue from turning a valid dashboard session into an
-    // unauthenticated request.
-    const { data: callerData, error: callerError } = await callerClient.auth.getUser(accessToken);
-    if (callerError || !callerData.user) return json({ error: "Invalid authentication session." }, 401);
-
     const admin = createClient(url, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+    // Validate the caller's bearer token through the server-side client. This
+    // avoids coupling admission authentication to the browser's anon-key
+    // configuration while preserving the caller's identity for authorization.
+    const { data: callerData, error: callerError } = await admin.auth.getUser(accessToken);
+    if (callerError || !callerData.user) return json({ error: "Invalid authentication session." }, 401);
     const { data: callerProfile, error: profileLookupError } = await admin
       .from("profiles")
       .select("role")
