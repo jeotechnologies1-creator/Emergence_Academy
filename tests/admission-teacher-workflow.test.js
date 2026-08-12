@@ -20,6 +20,8 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(students.includes('class_level'), 'student admission should send an unmapped class level safely');
   assert.ok(admissionFunction.includes('CLASS_LEVELS'), 'edge function should validate class levels');
   assert.ok(admissionFunction.includes('rpc("admit_student"'), 'edge function should keep using the admission RPC');
+  assert.ok(admissionFunction.includes('SUPABASE_SECRET_KEYS'), 'admission should prefer the managed server-only Supabase secret key');
+  assert.ok(admissionFunction.includes('headers.delete("authorization")'), 'admission must send its server secret only on the apikey header');
   assert.ok(admissionFunction.includes('Student ID: ${generatedStudentId}'), 'admission should return the database-generated student ID');
   assert.ok(!admissionFunction.includes('withSupabase'), 'edge function should use the current Supabase Edge Runtime pattern');
 

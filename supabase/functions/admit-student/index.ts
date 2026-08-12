@@ -27,6 +27,34 @@ function normalizedRole(value: unknown) {
   return ROLE_ALIASES[role] || role;
 }
 
+function getSupabaseAdminKey() {
+  // Supabase now provides server-only secret keys as a JSON dictionary. Prefer
+  // that managed credential: a manually-set legacy SERVICE_ROLE_KEY can become
+  // stale after key rotation and makes auth.admin calls fail as "Not
+  // authenticated" even when the administrator's browser session is valid.
+  try {
+    const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}") as Record<string, unknown>;
+    const managedSecretKey = String(secretKeys.default || "").trim()
+      || Object.values(secretKeys)
+        .map((value) => String(value || "").trim())
+        .find(Boolean);
+    if (managedSecretKey) return managedSecretKey;
+  } catch {
+    // Projects that only use legacy keys do not expose SUPABASE_SECRET_KEYS.
+  }
+  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+}
+
+function serverKeyFetch(input: RequestInfo | URL, init?: RequestInit) {
+  // The current sb_secret key is valid only on the `apikey` header. The
+  // standard client otherwise also mirrors it to Authorization: Bearer, where
+  // it is treated as a JWT and rejected by Supabase Auth as "Not
+  // authenticated". The user JWT is verified by callerClient separately.
+  const headers = new Headers(init?.headers);
+  headers.delete("authorization");
+  return fetch(input, { ...init, headers });
+}
+
 async function deleteCreatedUser(admin: any, userId: string) {
   // Remove dependent records first. Some projects use a restrictive foreign
   // key from students.profile_id, in which case deleting the profile before
@@ -42,7 +70,7 @@ Deno.serve(async (req) => {
 
   try {
     const url = Deno.env.get("SUPABASE_URL");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const serviceRoleKey = getSupabaseAdminKey();
     const authHeader = req.headers.get("Authorization") || "";
     const requestApiKey = req.headers.get("apikey") || Deno.env.get("SUPABASE_ANON_KEY") || "";
 
@@ -66,6 +94,7 @@ Deno.serve(async (req) => {
     // been authenticated below.
     const admin = createClient(url, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
+      global: { fetch: serverKeyFetch },
     });
 
     // Validate with a client configured using the same project public key that
