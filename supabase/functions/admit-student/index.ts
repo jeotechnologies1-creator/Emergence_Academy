@@ -40,6 +40,7 @@ Deno.serve(async (req) => {
     const url = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const authHeader = req.headers.get("Authorization") || "";
+    const requestApiKey = req.headers.get("apikey") || Deno.env.get("SUPABASE_ANON_KEY") || "";
 
     if (!url || !serviceRoleKey) {
       return json({ error: "Supabase function environment is not configured." }, 500);
@@ -52,18 +53,38 @@ Deno.serve(async (req) => {
       .trim();
     if (!accessToken) return json({ error: "Authentication is required." }, 401);
 
+    if (!requestApiKey) {
+      return json({ error: "Admission authentication is not configured." }, 500);
+    }
+
+    // Validate with a client configured using the same project public key that
+    // authenticated the dashboard. This intentionally does not use the
+    // service-role client, which is reserved for privileged writes below.
+    const callerClient = createClient(url, requestApiKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: callerData } = await callerClient.auth.getUser(accessToken);
+
+    // Keep a direct Auth endpoint fallback for runtimes where client header
+    // normalization interferes with token forwarding.
+    const callerResponse = await fetch(`${url}/auth/v1/user`, {
+      headers: {
+        apikey: requestApiKey,
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    const callerUser = callerData?.user || (callerResponse.ok ? await callerResponse.json() : null);
+    if (!callerUser?.id) {
+      return json({ error: "Your sign-in session is invalid or expired. Please sign out and sign in again." }, 401);
+    }
+
     const admin = createClient(url, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
-    // Validate the caller's bearer token through the server-side client. This
-    // avoids coupling admission authentication to the browser's anon-key
-    // configuration while preserving the caller's identity for authorization.
-    const { data: callerData, error: callerError } = await admin.auth.getUser(accessToken);
-    if (callerError || !callerData.user) return json({ error: "Invalid authentication session." }, 401);
     const { data: callerProfile, error: profileLookupError } = await admin
       .from("profiles")
       .select("role")
-      .eq("id", callerData.user.id)
+      .eq("id", callerUser.id)
       .single();
 
     if (profileLookupError || !ADMISSION_ROLES.has(normalizedRole(callerProfile?.role))) {
