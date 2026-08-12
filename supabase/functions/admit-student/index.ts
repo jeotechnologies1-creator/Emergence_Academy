@@ -266,7 +266,14 @@ Deno.serve(async (req) => {
       .eq("id", studentId)
       .single();
 
-    return json({ success: true, student: fetchError ? { id: studentId } : student });
+    const generatedStudentId = student?.student_no || student?.admission_number;
+    return json({
+      success: true,
+      message: generatedStudentId
+        ? `Student admitted successfully. Student ID: ${generatedStudentId}`
+        : "Student admitted successfully.",
+      student: fetchError ? { id: studentId } : student,
+    });
   } catch (error) {
     console.error("admit-student failed", error);
     return json({ error: error instanceof Error ? error.message : "Unable to admit student." }, 500);

@@ -20,6 +20,7 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(students.includes('class_level'), 'student admission should send an unmapped class level safely');
   assert.ok(admissionFunction.includes('CLASS_LEVELS'), 'edge function should validate class levels');
   assert.ok(admissionFunction.includes('rpc("admit_student"'), 'edge function should keep using the admission RPC');
+  assert.ok(admissionFunction.includes('Student ID: ${generatedStudentId}'), 'admission should return the database-generated student ID');
   assert.ok(!admissionFunction.includes('withSupabase'), 'edge function should use the current Supabase Edge Runtime pattern');
 
   assert.ok(teachers.includes('"full_name"'), 'teacher creation should collect a name');
@@ -36,6 +37,7 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(api.includes('API.db.auth.getUser(accessToken)'), 'admission should reject stale browser sessions before calling the function');
   assert.ok(admissionFunction.includes('selected class is no longer available'), 'admission should fail clearly for a stale class selection');
   assert.ok(admissionFunction.includes('triggerProfile?.id'), 'admission should update a trigger-created profile instead of inserting it again');
+  assert.ok(students.includes('admittedStudent.student_no || admittedStudent.admission_number'), 'admission success should display the Supabase-generated student ID');
   assert.ok(
     admissionFunction.indexOf('const admin = createClient') < admissionFunction.indexOf('await admin\n      .from("profiles")'),
     'admission must initialize the service-role client before its profile lookup',

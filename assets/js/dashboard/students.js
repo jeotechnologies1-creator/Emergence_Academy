@@ -450,7 +450,15 @@ class StudentsModule {
             return;
         }
 
-        this.showMessage(`Student admitted successfully. Temporary password: ${payload.password}`, "success");
+        const admittedStudent = result?.data?.student || {};
+        const studentNumber = String(
+            admittedStudent.student_no || admittedStudent.admission_number || ""
+        ).trim();
+        const studentIdNotice = studentNumber ? ` Student ID: ${studentNumber}.` : "";
+        this.showMessage(
+            `Student admitted successfully.${studentIdNotice} Temporary password: ${payload.password}`,
+            "success"
+        );
         this.closeModal();
         await this.load();
         this.redraw();
