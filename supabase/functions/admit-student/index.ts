@@ -102,6 +102,7 @@ Deno.serve(async (req) => {
       errorName: callerAuthError?.name || null,
       errorStatus: callerAuthError?.status || null,
     });
+
     const admin = createClient(url, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
@@ -109,25 +110,7 @@ Deno.serve(async (req) => {
       },
     });
 
-    const {
-      data: callerProfile,
-      error: profileLookupError,
-    } = await admin
-      .from("profiles")
-      .select("id, role, email")
-      .eq("id", callerUser.id)
-      .single();
 
-    console.log("ADMISSION_PROFILE_RESULT", {
-      hasProfile: !!callerProfile,
-      profileId: callerProfile?.id || null,
-      role: callerProfile?.role || null,
-      email: callerProfile?.email || null,
-      error: profileLookupError?.message || null,
-      errorCode: profileLookupError?.code || null,
-      errorDetails: profileLookupError?.details || null,
-      errorHint: profileLookupError?.hint || null,
-    });
     // Keep a direct Auth endpoint fallback for runtimes where client header
     // normalization interferes with token forwarding.
     const callerResponse = await fetch(`${url}/auth/v1/user`, {
