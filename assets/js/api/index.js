@@ -590,69 +590,147 @@ class API {
            ADMIT STUDENT
         ============================================== */
 
+        // async admit(studentData) {
+
+        //     try {
+
+        //         // Get the token from the exact Supabase client used to invoke
+        //         // the function. Refresh a near-expiry session before sending
+        //         // the request so admission never relies on a stale token.
+        //         const { data: sessionData, error: sessionError } = await API.db.auth.getSession();
+        //         if (sessionError || !sessionData?.session) {
+        //             throw new Error("Your session has expired. Please sign in again and retry.");
+        //         }
+
+        //         let session = sessionData.session;
+        //         const expiresSoon = Number(session.expires_at || 0) * 1000 <= Date.now() + 60_000;
+        //         if (expiresSoon) {
+        //             const { data: refreshData, error: refreshError } = await API.db.auth.refreshSession();
+        //             if (refreshError || !refreshData?.session) {
+        //                 throw new Error("Your session has expired. Please sign in again and retry.");
+        //             }
+        //             session = refreshData.session;
+        //         }
+
+        //         const accessToken = session.access_token;
+        //         if (!accessToken) {
+        //             throw new Error("Your session has expired. Please sign in again and retry.");
+        //         }
+
+        //         const { data: userData, error: userError } = await API.db.auth.getUser(accessToken);
+        //         if (userError || !userData?.user) {
+        //             await API.db.auth.signOut();
+        //             throw new Error("Your sign-in session is no longer valid. Please sign in again and retry.");
+        //         }
+
+        //         // Use fetch here instead of functions.invoke. Some cached SDK
+        //         // builds replace a caller-supplied Authorization header with
+        //         // the anon key, which makes an otherwise signed-in admin look
+        //         // unauthenticated to this privileged endpoint.
+        //         const functionUrl = `${window.CONFIG?.SUPABASE?.URL}/functions/v1/admit-student`;
+        //         const anonKey = window.CONFIG?.SUPABASE?.ANON_KEY;
+        //         if (!functionUrl || !anonKey) {
+        //             throw new Error("Supabase function configuration is missing.");
+        //         }
+
+        //         const response = await fetch(functionUrl, {
+        //             method: "POST",
+        //             headers: {
+        //                 apikey: anonKey,
+        //                 Authorization: `Bearer ${accessToken}`,
+        //                 "Content-Type": "application/json"
+        //             },
+        //             body: JSON.stringify(studentData)
+        //         });
+
+        //         let data = null;
+        //         try {
+        //             data = await response.json();
+        //         } catch {
+        //             // Keep the status-based message below if a proxy returns
+        //             // an empty or non-JSON error response.
+        //         }
+
+        //         if (!response.ok) {
+        //             throw new Error(data?.error || `Unable to admit student (${response.status}).`);
+        //         }
+
+        //         if (data?.error) {
+        //             throw new Error(data.error);
+        //         }
+
+        //         return API.response(
+        //             true,
+        //             data,
+        //             "Student admitted successfully."
+        //         );
+
+        //     }
+
+        //     catch (error) {
+
+        //         console.error(error);
+
+        //         const message = await API.functionErrorMessage(
+        //             error,
+        //             "Unable to admit student."
+        //         );
+
+        //         return API.response(
+        //             false,
+        //             null,
+        //             message
+        //         );
+
+        //     }
+
+        // },
+
         async admit(studentData) {
-
             try {
+                const { data: sessionData, error: sessionError } =
+                    await API.db.auth.getSession();
 
-                // Get the token from the exact Supabase client used to invoke
-                // the function. Refresh a near-expiry session before sending
-                // the request so admission never relies on a stale token.
-                const { data: sessionData, error: sessionError } = await API.db.auth.getSession();
-                if (sessionError || !sessionData?.session) {
-                    throw new Error("Your session has expired. Please sign in again and retry.");
+                if (sessionError) {
+                    console.error("Session error:", sessionError);
+                    throw new Error("Unable to verify your login session.");
                 }
 
-                let session = sessionData.session;
-                const expiresSoon = Number(session.expires_at || 0) * 1000 <= Date.now() + 60_000;
-                if (expiresSoon) {
-                    const { data: refreshData, error: refreshError } = await API.db.auth.refreshSession();
-                    if (refreshError || !refreshData?.session) {
-                        throw new Error("Your session has expired. Please sign in again and retry.");
-                    }
-                    session = refreshData.session;
+                const session = sessionData?.session;
+
+                if (!session?.access_token) {
+                    throw new Error(
+                        "Not authenticated. Please sign out and sign in again."
+                    );
                 }
 
                 const accessToken = session.access_token;
-                if (!accessToken) {
-                    throw new Error("Your session has expired. Please sign in again and retry.");
-                }
 
-                const { data: userData, error: userError } = await API.db.auth.getUser(accessToken);
-                if (userError || !userData?.user) {
-                    await API.db.auth.signOut();
-                    throw new Error("Your sign-in session is no longer valid. Please sign in again and retry.");
-                }
-
-                // Use fetch here instead of functions.invoke. Some cached SDK
-                // builds replace a caller-supplied Authorization header with
-                // the anon key, which makes an otherwise signed-in admin look
-                // unauthenticated to this privileged endpoint.
-                const functionUrl = `${window.CONFIG?.SUPABASE?.URL}/functions/v1/admit-student`;
-                const anonKey = window.CONFIG?.SUPABASE?.ANON_KEY;
-                if (!functionUrl || !anonKey) {
-                    throw new Error("Supabase function configuration is missing.");
-                }
-
-                const response = await fetch(functionUrl, {
-                    method: "POST",
-                    headers: {
-                        apikey: anonKey,
-                        Authorization: `Bearer ${accessToken}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(studentData)
+                console.log("Admission authentication:", {
+                    authenticated: true,
+                    userId: session.user?.id,
+                    email: session.user?.email,
+                    hasToken: !!accessToken
                 });
 
-                let data = null;
-                try {
-                    data = await response.json();
-                } catch {
-                    // Keep the status-based message below if a proxy returns
-                    // an empty or non-JSON error response.
-                }
+                const { data, error } =
+                    await API.db.functions.invoke(
+                        "admit-student",
+                        {
+                            body: studentData,
+                            headers: {
+                                Authorization: `Bearer ${accessToken}`
+                            }
+                        }
+                    );
 
-                if (!response.ok) {
-                    throw new Error(data?.error || `Unable to admit student (${response.status}).`);
+                console.log("Admission function response:", {
+                    data,
+                    error
+                });
+
+                if (error) {
+                    throw error;
                 }
 
                 if (data?.error) {
@@ -665,11 +743,8 @@ class API {
                     "Student admitted successfully."
                 );
 
-            }
-
-            catch (error) {
-
-                console.error(error);
+            } catch (error) {
+                console.error("Student admission failed:", error);
 
                 const message = await API.functionErrorMessage(
                     error,
@@ -681,9 +756,7 @@ class API {
                     null,
                     message
                 );
-
             }
-
         },
 
         /* ==============================================
@@ -918,9 +991,9 @@ class API {
     ====================================================== */
 
     static teachers = {
-                /* ==============================================
-           GET ALL TEACHERS
-        ============================================== */
+        /* ==============================================
+   GET ALL TEACHERS
+============================================== */
 
         async getAll() {
 
@@ -1308,7 +1381,7 @@ specialization.ilike.%${keyword}%`
 
             }
 
-          },
+        },
 
         /* ==============================================
            STUDENT COUNT
@@ -1350,9 +1423,9 @@ specialization.ilike.%${keyword}%`
     ====================================================== */
 
     static parents = {
-                /* ==============================================
-           GET ALL PARENTS
-        ============================================== */
+        /* ==============================================
+   GET ALL PARENTS
+============================================== */
 
         async getAll() {
 
@@ -1835,9 +1908,9 @@ specialization.ilike.%${keyword}%`
     ====================================================== */
 
     static subjects = {
-                /* ==============================================
-           GET ALL SUBJECTS
-        ============================================== */
+        /* ==============================================
+   GET ALL SUBJECTS
+============================================== */
 
         async getAll() {
 
