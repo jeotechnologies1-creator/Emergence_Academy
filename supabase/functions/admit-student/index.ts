@@ -28,6 +28,10 @@ function normalizedRole(value: unknown) {
 }
 
 async function deleteCreatedUser(admin: any, userId: string) {
+  // Remove dependent records first. Some projects use a restrictive foreign
+  // key from students.profile_id, in which case deleting the profile before
+  // its student record leaves a partially admitted account behind.
+  await admin.from("students").delete().eq("profile_id", userId);
   await admin.from("profiles").delete().eq("id", userId);
   await admin.auth.admin.deleteUser(userId);
 }
@@ -37,13 +41,6 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
 
   try {
-    console.log("ADMISSION_AUTH_DEBUG", {
-      hasAuthorization: !!req.headers.get("authorization"),
-      hasAdmissionToken: !!req.headers.get("x-admission-token"),
-      hasApiKey: !!req.headers.get("apikey"),
-      authorizationPrefix: req.headers.get("authorization")?.slice(0, 20),
-      admissionTokenPrefix: req.headers.get("x-admission-token")?.slice(0, 20),
-    });
     const url = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const authHeader = req.headers.get("Authorization") || "";
@@ -64,6 +61,13 @@ Deno.serve(async (req) => {
       return json({ error: "Admission authentication is not configured." }, 500);
     }
 
+    // This client is deliberately created before any privileged database
+    // operation. It is used for every lookup and write after the caller has
+    // been authenticated below.
+    const admin = createClient(url, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
     // Validate with a client configured using the same project public key that
     // authenticated the dashboard. This intentionally does not use the
     // service-role client, which is reserved for privileged writes below.
@@ -75,35 +79,6 @@ Deno.serve(async (req) => {
       error: callerAuthError
     } = await callerClient.auth.getUser(accessToken);
 
-    const {
-      data: callerProfile,
-      error: profileLookupError,
-    } = await admin
-      .from("profiles")
-      .select("id, role, email")
-      .eq("id", callerUser.id)
-      .single();
-
-    console.log("ADMISSION_PROFILE_RESULT", {
-      hasProfile: !!callerProfile,
-      profileId: callerProfile?.id || null,
-      role: callerProfile?.role || null,
-      email: callerProfile?.email || null,
-      error: profileLookupError?.message || null,
-      errorCode: profileLookupError?.code || null,
-      errorDetails: profileLookupError?.details || null,
-      errorHint: profileLookupError?.hint || null,
-    });
-
-    console.log("ADMISSION_AUTH_RESULT", {
-      hasUser: !!callerData?.user,
-      userId: callerData?.user?.id || null,
-      errorMessage: callerAuthError?.message || null,
-      errorName: callerAuthError?.name || null,
-      errorStatus: callerAuthError?.status || null,
-    });
-
-
     // Keep a direct Auth endpoint fallback for runtimes where client header
     // normalization interferes with token forwarding.
     const callerResponse = await fetch(`${url}/auth/v1/user`, {
@@ -114,15 +89,13 @@ Deno.serve(async (req) => {
     });
     const callerUser = callerData?.user || (callerResponse.ok ? await callerResponse.json() : null);
     if (!callerUser?.id) {
+      console.warn("Admission caller authentication failed", callerAuthError?.message || "Auth endpoint rejected token");
       return json({ error: "Your sign-in session is invalid or expired. Please sign out and sign in again." }, 401);
     }
 
-    const admin = createClient(url, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
     const { data: callerProfile, error: profileLookupError } = await admin
       .from("profiles")
-      .select("role")
+      .select("id, role")
       .eq("id", callerUser.id)
       .single();
 

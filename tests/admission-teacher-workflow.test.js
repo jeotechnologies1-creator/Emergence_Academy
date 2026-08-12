@@ -36,6 +36,14 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(api.includes('API.db.auth.getUser(accessToken)'), 'admission should reject stale browser sessions before calling the function');
   assert.ok(admissionFunction.includes('selected class is no longer available'), 'admission should fail clearly for a stale class selection');
   assert.ok(admissionFunction.includes('triggerProfile?.id'), 'admission should update a trigger-created profile instead of inserting it again');
+  assert.ok(
+    admissionFunction.indexOf('const admin = createClient') < admissionFunction.indexOf('await admin\n      .from("profiles")'),
+    'admission must initialize the service-role client before its profile lookup',
+  );
+  assert.ok(
+    admissionFunction.indexOf('const callerUser =') < admissionFunction.indexOf('.eq("id", callerUser.id)'),
+    'admission must authenticate the caller before looking up that caller profile',
+  );
 
   console.log('admission and teacher workflow regression test passed');
 })();

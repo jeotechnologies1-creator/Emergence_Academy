@@ -809,19 +809,21 @@ class API {
 
         async admit(studentData) {
             try {
-                // Prefer the existing active session. Forcing a refresh here
-                // can race with Supabase's automatic token refresh and make a
-                // valid dashboard session look empty for one request.
+                // A persisted session can still contain an expired access
+                // token. Refresh it before the privileged request rather
+                // than forwarding a token the Edge Function must reject.
                 let { data: sessionData, error: sessionError } =
                     await API.db.auth.getSession();
                 let session = sessionData?.session || null;
+                let refreshed = false;
+                const expiresSoon = Number(session?.expires_at || 0) * 1000 <= Date.now() + 60_000;
 
-                // Only request a new session when there is no active one.
-                if (!session) {
+                if (!session || expiresSoon) {
                     const { data: refreshData, error: refreshError } =
                         await API.db.auth.refreshSession();
                     session = refreshData?.session || null;
                     sessionError = sessionError || refreshError;
+                    refreshed = true;
                 }
 
                 if (sessionError && !session) {
@@ -837,8 +839,21 @@ class API {
                     );
                 }
 
-                const { data: userData, error: userError } =
+                let { data: userData, error: userError } =
                     await API.db.auth.getUser(session.access_token);
+
+                // If the tab resumed after the token was revoked or rotated,
+                // ask Auth for one fresh token before declaring the admin
+                // signed out. This handles refresh races across browser tabs.
+                if ((userError || !userData?.user) && !refreshed) {
+                    const { data: refreshData, error: refreshError } =
+                        await API.db.auth.refreshSession();
+                    if (!refreshError && refreshData?.session?.access_token) {
+                        session = refreshData.session;
+                        ({ data: userData, error: userError } =
+                            await API.db.auth.getUser(session.access_token));
+                    }
+                }
 
                 if (userError || !userData?.user) {
                     console.error("Session validation error:", userError);
@@ -860,8 +875,9 @@ class API {
                 // combinations replace a supplied Authorization header before
                 // the Edge Function receives it. Send the freshly validated
                 // token directly, including a dedicated admission header.
+                const functionUrl = `${window.CONFIG.SUPABASE.URL}/functions/v1/admit-student`;
                 const response = await fetch(
-                    `${window.CONFIG.SUPABASE.URL}/functions/v1/admit-student`,
+                    functionUrl,
                     {
                         method: "POST",
                         headers: {
