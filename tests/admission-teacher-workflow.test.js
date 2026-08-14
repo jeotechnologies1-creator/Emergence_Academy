@@ -24,6 +24,7 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(admissionFunction.includes('rpc("admit_student"'), 'edge function should keep using the admission RPC');
   assert.ok(admissionFunction.includes('SUPABASE_SECRET_KEYS'), 'admission should retain a managed-secret fallback for privileged database requests');
   assert.ok(admissionFunction.includes('legacyServiceRoleKey'), 'admission should use the service-role JWT for Auth Admin account creation');
+  assert.ok(admissionFunction.includes('/auth/v1/admin/users'), 'admission should call the Auth Admin endpoint with explicit key headers');
   assert.ok(admissionFunction.includes('headers.delete("authorization")'), 'admission must send its server secret only on the apikey header');
   assert.ok(admissionFunction.includes('Student ID: ${generatedStudentId}'), 'admission should return the database-generated student ID');
   assert.ok(!admissionFunction.includes('withSupabase'), 'edge function should use the current Supabase Edge Runtime pattern');

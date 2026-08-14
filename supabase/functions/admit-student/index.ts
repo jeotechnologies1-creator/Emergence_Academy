@@ -58,6 +58,51 @@ function serverKeyFetch(input: RequestInfo | URL, init?: RequestInit) {
   return fetch(input, { ...init, headers });
 }
 
+async function createStudentAuthUser(
+  url: string,
+  publicApiKey: string,
+  serviceRoleKey: string,
+  input: { email: string; password: string; firstName: string; lastName: string },
+) {
+  // Do this request explicitly instead of through supabase-js. The Admin API
+  // requires the public project key as `apikey` and the legacy service-role
+  // JWT as the bearer credential. Supplying the service key for both headers
+  // is what produced Supabase Auth's unhelpful "Not authenticated" response.
+  const response = await fetch(`${url}/auth/v1/admin/users`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: publicApiKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+    body: JSON.stringify({
+      email: input.email,
+      password: input.password,
+      email_confirm: true,
+      user_metadata: {
+        first_name: input.firstName,
+        last_name: input.lastName,
+        role: "student",
+      },
+    }),
+  });
+
+  const raw = await response.text();
+  let data: Record<string, any> = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = { message: raw };
+  }
+
+  if (!response.ok || !data?.user?.id) {
+    const message = String(data?.msg || data?.message || data?.error || `Auth Admin request failed (${response.status}).`);
+    throw new Error(`Student account creation was rejected by Supabase Auth: ${message}`);
+  }
+
+  return data.user;
+}
+
 async function deleteCreatedUser(admin: any, userId: string) {
   // Remove dependent records first. Some projects use a restrictive foreign
   // key from students.profile_id, in which case deleting the profile before
@@ -221,14 +266,13 @@ Deno.serve(async (req) => {
       if ((subjects || []).length !== subjectIds.length) return json({ error: "One or more selected subjects are no longer available. Refresh the form and try again." }, 400);
     }
 
-    const { data: authData, error: authError } = await admin.auth.admin.createUser({
+    const publicApiKey = Deno.env.get("SUPABASE_ANON_KEY") || requestApiKey;
+    const user = await createStudentAuthUser(url, publicApiKey, serviceRoleKey, {
       email,
       password,
-      email_confirm: true,
-      user_metadata: { first_name: firstName, last_name: lastName, role: "student" },
+      firstName,
+      lastName,
     });
-    const user = authData?.user;
-    if (authError || !user) return json({ error: authError?.message || "Unable to create the student account." }, 400);
 
     // The auth trigger normally creates this profile synchronously. Updating
     // that row avoids a duplicate primary-key insert on installations whose
