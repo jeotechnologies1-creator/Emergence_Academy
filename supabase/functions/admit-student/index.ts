@@ -22,6 +22,13 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
+function admissionFailure(stage: string, error: unknown, fallback: string) {
+  const message = error instanceof Error
+    ? error.message
+    : String((error as { message?: unknown } | null)?.message || fallback);
+  return json({ error: `${stage}: ${message}`, stage }, 400);
+}
+
 function normalizedRole(value: unknown) {
   const role = String(value || "").trim().toLowerCase().replace(/[\-_]+/g, " ").replace(/\s+/g, " ");
   return ROLE_ALIASES[role] || role;
@@ -293,7 +300,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (triggerProfileError) {
       await admin.auth.admin.deleteUser(user.id);
-      return json({ error: triggerProfileError.message }, 400);
+      return admissionFailure("Student profile lookup failed", triggerProfileError, "Unable to read the new student profile.");
     }
 
     const profileValues = {
@@ -305,7 +312,7 @@ Deno.serve(async (req) => {
 
     if (profileWrite.error) {
       await admin.auth.admin.deleteUser(user.id);
-      return json({ error: profileWrite.error.message }, 400);
+      return admissionFailure("Student profile setup failed", profileWrite.error, "Unable to save the new student profile.");
     }
 
     const { data: studentId, error: studentError } = await admin.rpc("admit_student", {
@@ -317,7 +324,7 @@ Deno.serve(async (req) => {
     });
     if (studentError || !studentId) {
       await deleteCreatedUser(admin, user.id);
-      return json({ error: studentError?.message || "Unable to create the student record." }, 400);
+      return admissionFailure("Student record setup failed", studentError, "Unable to create the student record.");
     }
 
     // Keep the student department, subject choices, and guardian relationship
@@ -326,7 +333,7 @@ Deno.serve(async (req) => {
       const { error: departmentWriteError } = await admin.from("students").update({ department_id: departmentId }).eq("id", studentId);
       if (departmentWriteError) {
         await deleteCreatedUser(admin, user.id);
-        return json({ error: departmentWriteError.message }, 400);
+        return admissionFailure("Student department setup failed", departmentWriteError, "Unable to save the department.");
       }
     }
 
@@ -337,7 +344,7 @@ Deno.serve(async (req) => {
       );
       if (subjectsWriteError) {
         await deleteCreatedUser(admin, user.id);
-        return json({ error: subjectsWriteError.message }, 400);
+        return admissionFailure("Student subject setup failed", subjectsWriteError, "Unable to save subjects.");
       }
     }
 
@@ -348,7 +355,7 @@ Deno.serve(async (req) => {
       );
       if (parentWriteError) {
         await deleteCreatedUser(admin, user.id);
-        return json({ error: parentWriteError.message }, 400);
+        return admissionFailure("Parent connection setup failed", parentWriteError, "Unable to link the parent or guardian.");
       }
     }
 
