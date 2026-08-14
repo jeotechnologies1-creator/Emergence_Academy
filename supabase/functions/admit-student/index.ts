@@ -95,12 +95,17 @@ Deno.serve(async (req) => {
     // This client is deliberately created before any privileged database
     // operation. It is used for every lookup and write after the caller has
     // been authenticated below.
-    const admin = createClient(url, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-      // A legacy service-role JWT is valid as a bearer token. New sb_secret
-      // keys are not, so strip Authorization only for that fallback format.
-      global: serviceRoleKey.startsWith("sb_secret_") ? { fetch: serverKeyFetch } : undefined,
-    });
+    // Keep the JWT service-role client identical to create-user, which uses
+    // Supabase Auth Admin successfully in this project. A new-format secret
+    // key needs the custom fetch only when no legacy JWT is available.
+    const admin = serviceRoleKey.startsWith("sb_secret_")
+      ? createClient(url, serviceRoleKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+          global: { fetch: serverKeyFetch },
+        })
+      : createClient(url, serviceRoleKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
 
     // Validate with a client configured using the same project public key that
     // authenticated the dashboard. This intentionally does not use the
