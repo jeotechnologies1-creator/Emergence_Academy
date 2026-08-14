@@ -40,6 +40,12 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(api.includes('fetch(functionUrl'), 'admission should send the bearer token directly to the privileged function');
   assert.ok(api.includes('API.db.auth.getUser(accessToken)'), 'admission should reject stale browser sessions before calling the function');
   assert.ok(admissionFunction.includes('selected class is no longer available'), 'admission should fail clearly for a stale class selection');
+  assert.ok(admissionFunction.includes('parent_students'), 'admission should support linking a guardian to the newly admitted student');
+  assert.ok(!read('assets', 'js', 'dashboard', 'dashboard-home.js').includes('<option value="student">Student</option>'), 'office account creation must not offer student admission');
+  assert.ok(!read('assets', 'js', 'dashboard', 'dashboard-home.js').includes('<option value="teacher">Teacher</option>'), 'office account creation must not bypass the teacher employment workflow');
+  assert.ok(createUser.includes('Students must be admitted from the Students module.'), 'the create-user function must reject student creation outside admission');
+  assert.ok(createUser.includes('relationship: "guardian"'), 'parent accounts should receive a parent record that can be linked during admission');
+  assert.ok(read('supabase', 'migrations', '202608140001_enforce_student_identity_integrity.sql').includes('students_student_no_unique'), 'student numbers must be protected by a database uniqueness constraint');
   assert.ok(admissionFunction.includes('triggerProfile?.id'), 'admission should update a trigger-created profile instead of inserting it again');
   assert.ok(students.includes('admittedStudent.student_no || admittedStudent.admission_number'), 'admission success should display the Supabase-generated student ID');
   assert.ok(

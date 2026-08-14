@@ -475,11 +475,15 @@ class Auth {
             const lastName = String(userData.last_name || "").trim();
             const email = String(userData.email || "").trim().toLowerCase();
             const password = String(userData.password || "").trim();
-            const targetRole = this.normalizeRole(userData.role || this.config.DEFAULT_ROLE || "student");
+            const targetRole = this.normalizeRole(userData.role || "executive");
             const phone = String(userData.phone || "").trim();
 
             if (!firstName || !lastName || !email || !password) {
                 return this.error("First name, last name, email, and password are required.");
+            }
+
+            if (targetRole === "student") {
+                return this.error("Students must be admitted from the Students module.");
             }
 
             const response = await this.client.functions.invoke("create-user", {

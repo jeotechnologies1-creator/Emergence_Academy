@@ -108,6 +108,7 @@ async function deleteCreatedUser(
 ) {
   // Do not assume the profile foreign key has ON DELETE CASCADE. This makes
   // failures after the auth trigger atomic from the caller's perspective.
+  await admin.from("parents").delete().eq("profile_id", userId);
   await admin.from("profiles").delete().eq("id", userId);
   await admin.auth.admin.deleteUser(userId);
 }
@@ -442,6 +443,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // Students must go through admit-student. That transaction creates the
+    // auth profile, the class enrollment, the database-issued student number,
+    // and optional guardian link together.
+    if (role === "student") {
+      return jsonResponse(
+        {
+          error: "Students must be admitted from the Students module.",
+          function_version: FUNCTION_VERSION,
+        },
+        400,
+      );
+    }
+
     if (
       role === "teacher" &&
       (
@@ -584,10 +598,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     /* ======================================================
-       CREATE TEACHER RECORD
+       CREATE LINKED ROLE RECORDS
     ====================================================== */
 
     let teacher = null;
+    let parent = null;
 
     if (role === "teacher") {
       const teacherInput =
@@ -735,6 +750,28 @@ Deno.serve(async (req: Request): Promise<Response> => {
         teacherRecord;
     }
 
+    // A parent portal account needs a parents row before it can be selected
+    // in Student Admission and linked through parent_students. Creating it
+    // here avoids an account that can log in but has no child relationship.
+    if (role === "parent") {
+      const { data: parentRecord, error: parentError } = await supabaseAdmin
+        .from("parents")
+        .insert({ profile_id: userId, relationship: "guardian" })
+        .select()
+        .single();
+
+      if (parentError) {
+        console.error(`[${FUNCTION_VERSION}] Parent creation failed:`, parentError);
+        await deleteCreatedUser(supabaseAdmin, userId);
+        return jsonResponse(
+          { error: parentError.message, function_version: FUNCTION_VERSION },
+          400,
+        );
+      }
+
+      parent = parentRecord;
+    }
+
     /* ======================================================
        SUCCESS
     ====================================================== */
@@ -758,6 +795,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
         profile,
 
         teacher,
+
+        parent,
 
         function_version:
           FUNCTION_VERSION,

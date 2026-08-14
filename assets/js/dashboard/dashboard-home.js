@@ -632,7 +632,9 @@ No announcements available.
 
     <p class="text-sm text-gray-500 mb-5">
 
-        Admin/CEO can generate accounts for offices and staff access.
+        Admin/CEO can generate office and parent accounts. Teachers use the
+        Teachers module; students use Student Admission, where their class,
+        unique student ID, live-class access, and guardian link are set up.
 
     </p>
 
@@ -647,7 +649,6 @@ No announcements available.
         <input id="office-phone" type="text" placeholder="Phone number" class="w-full rounded-lg border border-slate-300 px-3 py-2.5">
 
         <select id="office-role" class="w-full rounded-lg border border-slate-300 px-3 py-2.5" required>
-            <option value="teacher">Teacher</option>
             <option value="executive">Executive</option>
             <option value="admin">Admin</option>
             <option value="finance">Finance</option>
@@ -655,7 +656,6 @@ No announcements available.
             <option value="admission">Admission</option>
             <option value="exam">Exam</option>
             <option value="library">Library</option>
-            <option value="student">Student</option>
             <option value="parent">Parent</option>
         </select>
 
@@ -921,12 +921,16 @@ No announcements available.
                     last_name: document.getElementById("office-last-name")?.value?.trim() || "",
                     email: document.getElementById("office-email")?.value?.trim().toLowerCase() || "",
                     phone: document.getElementById("office-phone")?.value?.trim() || "",
-                    role: document.getElementById("office-role")?.value || "student",
+                    role: document.getElementById("office-role")?.value || "executive",
                     password: passwordInput?.value?.trim() || this.generatePassword()
                 };
 
                 if (!payload.first_name || !payload.last_name || !payload.email) {
                     throw new Error("First name, last name, and email are required.");
+                }
+
+                if (payload.role === "student") {
+                    throw new Error("Students must be admitted from the Students module.");
                 }
 
                 const result = await Auth.createOfficeAccount(payload);
