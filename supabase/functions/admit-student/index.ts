@@ -29,10 +29,16 @@ function normalizedRole(value: unknown) {
 
 function getSupabaseAdminKey() {
   // Auth Admin endpoints still require a service-role JWT for this SDK flow.
-  // Supabase provides this legacy credential alongside its new secret keys.
-  // Prefer it when present; `sb_secret` is retained as a fallback for
-  // privileged database requests on projects that have disabled legacy keys.
-  const legacyServiceRoleKey = String(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "").trim();
+  // Managed SUPABASE_SERVICE_ROLE_KEY cannot be overridden in every project,
+  // so accept the custom `sb_secret` name configured for this admission flow.
+  // Only JWT-shaped values are valid bearer credentials for Auth Admin.
+  const legacyServiceRoleKey = [
+    Deno.env.get("sb_secret"),
+    Deno.env.get("ADMISSION_SERVICE_ROLE_KEY"),
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+  ]
+    .map((value) => String(value || "").trim())
+    .find((value) => value.startsWith("eyJ") && value.split(".").length === 3);
   if (legacyServiceRoleKey) return legacyServiceRoleKey;
 
   try {
@@ -95,12 +101,15 @@ async function createStudentAuthUser(
     data = { message: raw };
   }
 
-  if (!response.ok || !data?.user?.id) {
+  // GoTrue's Admin create-user endpoint returns the user object directly,
+  // unlike supabase-js, which wraps it in { user }. Support both shapes.
+  const user = data?.user?.id ? data.user : data;
+  if (!response.ok || !user?.id) {
     const message = String(data?.msg || data?.message || data?.error || `Auth Admin request failed (${response.status}).`);
     throw new Error(`Student account creation was rejected by Supabase Auth: ${message}`);
   }
 
-  return data.user;
+  return user;
 }
 
 async function deleteCreatedUser(admin: any, userId: string) {
