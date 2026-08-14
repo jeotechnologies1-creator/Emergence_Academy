@@ -28,10 +28,13 @@ function normalizedRole(value: unknown) {
 }
 
 function getSupabaseAdminKey() {
-  // Supabase now provides server-only secret keys as a JSON dictionary. Prefer
-  // that managed credential: a manually-set legacy SERVICE_ROLE_KEY can become
-  // stale after key rotation and makes auth.admin calls fail as "Not
-  // authenticated" even when the administrator's browser session is valid.
+  // Auth Admin endpoints still require a service-role JWT for this SDK flow.
+  // Supabase provides this legacy credential alongside its new secret keys.
+  // Prefer it when present; `sb_secret` is retained as a fallback for
+  // privileged database requests on projects that have disabled legacy keys.
+  const legacyServiceRoleKey = String(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "").trim();
+  if (legacyServiceRoleKey) return legacyServiceRoleKey;
+
   try {
     const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}") as Record<string, unknown>;
     const managedSecretKey = String(secretKeys.default || "").trim()
@@ -42,7 +45,7 @@ function getSupabaseAdminKey() {
   } catch {
     // Projects that only use legacy keys do not expose SUPABASE_SECRET_KEYS.
   }
-  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  return "";
 }
 
 function serverKeyFetch(input: RequestInfo | URL, init?: RequestInit) {
@@ -94,7 +97,9 @@ Deno.serve(async (req) => {
     // been authenticated below.
     const admin = createClient(url, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
-      global: { fetch: serverKeyFetch },
+      // A legacy service-role JWT is valid as a bearer token. New sb_secret
+      // keys are not, so strip Authorization only for that fallback format.
+      global: serviceRoleKey.startsWith("sb_secret_") ? { fetch: serverKeyFetch } : undefined,
     });
 
     // Validate with a client configured using the same project public key that
