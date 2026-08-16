@@ -25,6 +25,7 @@ class StudentsModule {
     static CREATE_ROLES = ["ceo", "admin", "executive", "admission"];
     static EDIT_ROLES = ["ceo", "admin", "executive", "admission"];
     static ARCHIVE_ROLES = ["ceo", "admin", "executive"];
+    static DELETE_ROLES = ["ceo", "admin", "executive"];
 
     static safe(value) {
         return String(value ?? "")
@@ -49,6 +50,10 @@ class StudentsModule {
 
     static canArchive() {
         return this.ARCHIVE_ROLES.includes(this.role());
+    }
+
+    static canDelete() {
+        return this.DELETE_ROLES.includes(this.role());
     }
 
     static showMessage(text, tone = "success") {
@@ -228,6 +233,18 @@ class StudentsModule {
         <input name="phone" type="tel" autocomplete="tel" maxlength="40" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
       </label>
       <label class="block">
+        <span class="text-sm font-medium text-slate-700">Gender</span>
+        <select name="gender" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
+          <option value="">Prefer not to say</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Date of Birth</span>
+        <input name="date_of_birth" type="date" autocomplete="bday" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+      </label>
+      <label class="block">
         <span class="text-sm font-medium text-slate-700">Class <span class="text-red-600">*</span></span>
         <select name="class_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required>
           <option value="">Select a class</option>
@@ -248,12 +265,32 @@ class StudentsModule {
           ${this.parentOptions()}
         </select>
       </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Guardian Relationship</span>
+        <input name="parent_relationship" maxlength="80" placeholder="e.g. Mother, Father, Guardian" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+      </label>
       <label class="block md:col-span-2">
         <span class="text-sm font-medium text-slate-700">Subjects</span>
         <select name="subject_ids" multiple size="6" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" aria-describedby="student-subject-help">
           ${this.subjectOptions()}
         </select>
         <span id="student-subject-help" class="mt-1 block text-xs text-slate-500">Optional. Hold Ctrl (Windows) or Command (Mac) to select multiple subjects.</span>
+      </label>
+      <label class="block md:col-span-2">
+        <span class="text-sm font-medium text-slate-700">Home Address</span>
+        <input name="address" autocomplete="street-address" maxlength="300" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">City</span>
+        <input name="city" autocomplete="address-level2" maxlength="100" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">State</span>
+        <input name="state" autocomplete="address-level1" maxlength="100" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+      </label>
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Country</span>
+        <input name="country" autocomplete="country-name" maxlength="100" value="Nigeria" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
       </label>
       <label class="block">
         <span class="text-sm font-medium text-slate-700">Admission Date</span>
@@ -295,12 +332,16 @@ class StudentsModule {
       ${mode === "create" ? this.admissionFormTemplate() : `
       <label class="block">
         <span class="text-sm text-slate-700">Student Number</span>
-        <input name="student_no" value="${this.safe(student?.student_no || "")}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+        <input value="${this.safe(student?.student_no || "")}" readonly class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5" />
       </label>
       <label class="block">
         <span class="text-sm text-slate-700">Admission Number</span>
-        <input name="admission_number" value="${this.safe(student?.admission_number || "")}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+        <input value="${this.safe(student?.admission_number || "")}" readonly class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5" />
       </label>
+      <label class="block"><span class="text-sm text-slate-700">First Name</span><input name="first_name" value="${this.safe(student?.profiles?.first_name || "")}" required maxlength="80" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" /></label>
+      <label class="block"><span class="text-sm text-slate-700">Last Name</span><input name="last_name" value="${this.safe(student?.profiles?.last_name || "")}" required maxlength="80" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" /></label>
+      <label class="block md:col-span-2"><span class="text-sm text-slate-700">Email Address</span><input name="email" type="email" value="${this.safe(student?.profiles?.email || "")}" required maxlength="254" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" /></label>
+      <label class="block"><span class="text-sm text-slate-700">Phone Number</span><input name="phone" value="${this.safe(student?.profiles?.phone || "")}" maxlength="40" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" /></label>
       <label class="block">
         <span class="text-sm text-slate-700">Class</span>
         <select name="class_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
@@ -340,6 +381,7 @@ class StudentsModule {
         const rows = this.filteredStudents();
         const canEdit = this.canEdit();
         const canArchive = this.canArchive();
+        const canDelete = this.canDelete();
 
         if (!rows.length) {
             return '<div class="text-center py-8 text-slate-500">No students found.</div>';
@@ -371,7 +413,8 @@ class StudentsModule {
         <td class="px-3 py-2.5 text-right">
           ${canEdit ? `<button data-action="edit" data-id="${this.safe(student.id)}" class="text-blue-600 hover:text-blue-700 mr-3">Edit</button>` : ""}
           ${canArchive && String(student.status || "").toLowerCase() !== "inactive" ? `<button data-action="archive" data-id="${this.safe(student.id)}" class="text-red-600 hover:text-red-700">Archive</button>` : ""}
-          ${!canEdit && !canArchive ? '<span class="text-slate-400">Read only</span>' : ''}
+          ${canDelete ? `<button data-action="delete" data-id="${this.safe(student.id)}" class="ml-3 text-red-700 hover:text-red-900">Delete</button>` : ""}
+          ${!canEdit && !canArchive && !canDelete ? '<span class="text-slate-400">Read only</span>' : ''}
         </td>
       </tr>`).join("")}
     </tbody>
@@ -443,10 +486,17 @@ class StudentsModule {
             last_name: String(form.get("last_name") || "").trim(),
             email: String(form.get("email") || "").trim().toLowerCase(),
             phone: String(form.get("phone") || "").trim(),
+            gender: String(form.get("gender") || "").trim() || null,
+            date_of_birth: String(form.get("date_of_birth") || "").trim() || null,
             class_id: String(form.get("class_id") || "").trim(),
             department_id: String(form.get("department_id") || "").trim() || null,
             parent_id: String(form.get("parent_id") || "").trim() || null,
+            parent_relationship: String(form.get("parent_relationship") || "").trim() || null,
             subject_ids: form.getAll("subject_ids").map((value) => String(value).trim()).filter(Boolean),
+            address: String(form.get("address") || "").trim() || null,
+            city: String(form.get("city") || "").trim() || null,
+            state: String(form.get("state") || "").trim() || null,
+            country: String(form.get("country") || "").trim() || "Nigeria",
             admission_date: String(form.get("admission_date") || "").trim() || null,
             password: String(form.get("password") || "").trim() || this.generatePassword()
         };
@@ -510,15 +560,17 @@ class StudentsModule {
         }
 
         const payload = {
-            student_no: String(form.get("student_no") || "").trim() || null,
-            admission_number: String(form.get("admission_number") || "").trim() || null,
             class_id: String(form.get("class_id") || "").trim() || null,
             department_id: String(form.get("department_id") || "").trim() || null,
             status: String(form.get("status") || "").trim() || "active",
-            admission_date: String(form.get("admission_date") || "").trim() || null
+            admission_date: String(form.get("admission_date") || "").trim() || null,
+            profile: {
+                first_name: String(form.get("first_name") || "").trim(), last_name: String(form.get("last_name") || "").trim(),
+                email: String(form.get("email") || "").trim().toLowerCase(), phone: String(form.get("phone") || "").trim() || null
+            }
         };
 
-        const result = await API.students.update(student.id, payload);
+        const result = await API.students.manage("update", student.id, payload);
 
         if (!result?.success) {
             this.showFormError(result?.message || "Unable to update student.");
@@ -574,6 +626,18 @@ class StudentsModule {
                 }
 
                 this.showMessage("Student archived successfully.", "success");
+                await this.load();
+                this.redraw();
+            });
+        });
+
+        container.querySelectorAll("[data-action='delete']").forEach((button) => {
+            button.addEventListener("click", async () => {
+                const id = button.getAttribute("data-id");
+                if (!id || !window.confirm("Permanently delete this student and their login? This cannot be undone.")) return;
+                const result = await API.students.manage("delete", id);
+                if (!result?.success) return this.showMessage(result?.message || "Unable to delete student.", "error");
+                this.showMessage("Student and login deleted successfully.", "success");
                 await this.load();
                 this.redraw();
             });

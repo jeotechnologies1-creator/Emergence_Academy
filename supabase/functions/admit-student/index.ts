@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const ADMISSION_ROLES = new Set(["ceo", "admin", "executive", "admission"]);
+const STUDENT_DELETE_ROLES = new Set(["ceo", "admin", "executive"]);
 const ROLE_ALIASES: Record<string, string> = {
   administrator: "admin", "super admin": "admin", admissions: "admission",
 };
@@ -213,15 +214,55 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
+    const operation = String(body?.operation || "").trim().toLowerCase();
+    if (operation === "update" || operation === "delete") {
+      if (!ADMISSION_ROLES.has(role)) return json({ error: "You do not have permission to manage students." }, 403);
+      const studentId = String(body?.student_id || "").trim();
+      if (!studentId) return json({ error: "Student ID is required." }, 400);
+      const { data: existing, error: existingError } = await admin
+        .from("students").select("id, profile_id").eq("id", studentId).maybeSingle();
+      if (existingError || !existing?.profile_id) return json({ error: "Student record was not found." }, 404);
+
+      if (operation === "delete") {
+        if (!STUDENT_DELETE_ROLES.has(role)) return json({ error: "You do not have permission to delete students." }, 403);
+        const { error: studentDeleteError } = await admin.from("students").delete().eq("id", studentId);
+        if (studentDeleteError) return admissionFailure("Student deletion failed", studentDeleteError, "Unable to delete the student record.");
+        const { error: profileDeleteError } = await admin.from("profiles").delete().eq("id", existing.profile_id);
+        if (profileDeleteError) return admissionFailure("Student profile deletion failed", profileDeleteError, "The student record was deleted, but the profile could not be removed.");
+        const { error: authDeleteError } = await admin.auth.admin.deleteUser(existing.profile_id);
+        if (authDeleteError) return admissionFailure("Student login deletion failed", authDeleteError, "The student record was deleted, but the login could not be removed.");
+        return json({ success: true, message: "Student and login deleted successfully." });
+      }
+
+      const profile = body?.profile || {};
+      const email = String(profile.email || "").trim().toLowerCase();
+      const firstName = String(profile.first_name || "").trim();
+      const lastName = String(profile.last_name || "").trim();
+      if (!email || !firstName || !lastName) return json({ error: "First name, last name, and email are required." }, 400);
+      const { error: authUpdateError } = await admin.auth.admin.updateUserById(existing.profile_id, { email });
+      if (authUpdateError) return admissionFailure("Student login update failed", authUpdateError, "Unable to update the student email.");
+      const { error: profileUpdateError } = await admin.from("profiles").update({ first_name: firstName, last_name: lastName, email, phone: String(profile.phone || "").trim() || null }).eq("id", existing.profile_id);
+      if (profileUpdateError) return admissionFailure("Student profile update failed", profileUpdateError, "Unable to update the student profile.");
+      const { error: studentUpdateError } = await admin.from("students").update({ class_id: String(body.class_id || "").trim() || null, department_id: String(body.department_id || "").trim() || null, status: String(body.status || "active").trim(), admission_date: String(body.admission_date || "").trim() || null }).eq("id", studentId);
+      if (studentUpdateError) return admissionFailure("Student update failed", studentUpdateError, "Unable to update the student record.");
+      return json({ success: true, message: "Student profile updated successfully." });
+    }
     const email = String(body?.email || "").trim().toLowerCase();
     const password = String(body?.password || "");
     const firstName = String(body?.first_name || "").trim();
     const lastName = String(body?.last_name || "").trim();
     const phone = String(body?.phone || "").trim();
+    const gender = String(body?.gender || "").trim() || null;
+    const dateOfBirth = String(body?.date_of_birth || "").trim() || null;
+    const address = String(body?.address || "").trim() || null;
+    const city = String(body?.city || "").trim() || null;
+    const state = String(body?.state || "").trim() || null;
+    const country = String(body?.country || "").trim() || "Nigeria";
     const classLevel = String(body?.class_level || "").trim();
     let classId = String(body?.class_id || "").trim();
     const departmentId = String(body?.department_id || "").trim() || null;
     const parentId = String(body?.parent_id || "").trim() || null;
+    const parentRelationship = String(body?.parent_relationship || "").trim() || null;
     const subjectIds = [...new Set(Array.isArray(body?.subject_ids)
       ? body.subject_ids.map((value: unknown) => String(value || "").trim()).filter(Boolean)
       : [])];
@@ -304,7 +345,8 @@ Deno.serve(async (req) => {
     }
 
     const profileValues = {
-      email, role: "student", first_name: firstName, last_name: lastName, phone, status: "active",
+      email, role: "student", first_name: firstName, last_name: lastName, phone,
+      gender, date_of_birth: dateOfBirth, address, city, state, country, status: "active",
     };
     const profileWrite = triggerProfile?.id
       ? await admin.from("profiles").update(profileValues).eq("id", user.id)
@@ -350,7 +392,7 @@ Deno.serve(async (req) => {
 
     if (parentId) {
       const { error: parentWriteError } = await admin.from("parent_students").upsert(
-        { parent_id: parentId, student_id: studentId },
+        { parent_id: parentId, student_id: studentId, relationship: parentRelationship },
         { onConflict: "parent_id,student_id" },
       );
       if (parentWriteError) {

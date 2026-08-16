@@ -932,6 +932,29 @@ class API {
                 );
             }
         },
+        async manage(action, studentId, payload = {}) {
+            try {
+                const { data: sessionData, error: sessionError } = await API.db.auth.getSession();
+                let session = sessionData?.session;
+                if (sessionError || !session?.access_token) throw new Error("Your session is unavailable. Please sign in again.");
+                if (Number(session.expires_at || 0) * 1000 <= Date.now() + 60_000) {
+                    const { data, error } = await API.db.auth.refreshSession();
+                    if (error || !data?.session?.access_token) throw new Error("Your session has expired. Please sign in again.");
+                    session = data.session;
+                }
+                const response = await fetch(`${window.CONFIG.SUPABASE.URL}/functions/v1/admit-student`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", apikey: window.CONFIG.SUPABASE.ANON_KEY, Authorization: `Bearer ${session.access_token}`, "x-admission-token": session.access_token },
+                    body: JSON.stringify({ operation: action, student_id: studentId, ...payload })
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok || result?.error) throw new Error(result?.error || `Student ${action} failed.`);
+                return API.response(true, result, result?.message || "Student updated successfully.");
+            } catch (error) {
+                console.error("Student management failed:", error);
+                return API.response(false, null, error?.message || "Unable to manage student.");
+            }
+        },
         /* ==============================================
            CREATE STUDENT
         ============================================== */
