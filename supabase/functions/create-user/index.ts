@@ -630,6 +630,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
           teacherInput.qualification,
         );
 
+      const specialization =
+        normalizeName(
+          teacherInput.specialization,
+        );
+
+      const employmentDate =
+        normalizeName(
+          teacherInput.employment_date,
+        ) || null;
+
       const teacherStatus =
         normalizeName(
           teacherInput.status,
@@ -713,7 +723,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
               employeeId,
             department_id:
               departmentId,
+            employment_date:
+              employmentDate,
             qualification,
+            specialization,
             status:
               teacherStatus,
           })

@@ -117,6 +117,8 @@ if (
                 "password",
                 "department_name",
                 "qualification",
+                "specialization",
+                "employment_date",
                 "status"
             ],
 
@@ -129,6 +131,8 @@ if (
                 "employee_id",
                 "department_id",
                 "qualification",
+                "specialization",
+                "employment_date",
                 "status"
             ],
 
@@ -161,7 +165,8 @@ if (
 
             fieldTypes: {
                 email: "email",
-                password: "password"
+                password: "password",
+                employment_date: "date"
             },
 
 

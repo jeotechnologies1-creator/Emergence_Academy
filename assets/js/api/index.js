@@ -1442,6 +1442,8 @@ specialization.ilike.%${keyword}%`
                                 department_id: teacherData.department_id,
                                 department_name: teacherData.department_name,
                                 qualification: teacherData.qualification,
+                                specialization: teacherData.specialization,
+                                employment_date: teacherData.employment_date,
                                 status: teacherData.status || "active"
                             }
                         },
