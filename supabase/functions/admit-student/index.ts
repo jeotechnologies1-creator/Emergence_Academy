@@ -75,7 +75,7 @@ async function createStudentAuthUser(
   url: string,
   publicApiKey: string,
   serviceRoleKey: string,
-  input: { email: string; password: string; firstName: string; lastName: string },
+  input: { email: string; password: string; firstName: string; lastName: string; phone: string },
 ) {
   // Do this request explicitly instead of through supabase-js. The Admin API
   // requires the public project key as `apikey` and the legacy service-role
@@ -98,6 +98,7 @@ async function createStudentAuthUser(
       user_metadata: {
         first_name: input.firstName,
         last_name: input.lastName,
+        phone: input.phone,
         role: "student",
       },
     }),
@@ -364,11 +365,13 @@ Deno.serve(async (req) => {
       password,
       firstName,
       lastName,
+      phone,
     });
 
-    // The auth trigger normally creates this profile synchronously. Updating
-    // that row avoids a duplicate primary-key insert on installations whose
-    // trigger does not implement an UPSERT itself.
+    // The auth trigger creates the profile synchronously. Its metadata holds
+    // the identity fields required for admission, so do not issue a second
+    // UPDATE here: some legacy installations have a profile-update trigger
+    // that rejects service requests with P0001 "Not authenticated".
     const { data: triggerProfile, error: triggerProfileError } = await admin
       .from("profiles")
       .select("id")
@@ -383,16 +386,9 @@ Deno.serve(async (req) => {
       email, role: "student", first_name: firstName, last_name: lastName, phone,
       gender, date_of_birth: dateOfBirth, address, city, state, country, status: "active",
     };
-    // Use an explicit REST request here. It prevents Edge Runtime from
-    // substituting the dashboard caller's JWT for the service credential.
-    const profileWriteError = await writeProfileWithServiceKey(
-      url,
-      serviceRoleKey,
-      publicApiKey,
-      user.id,
-      profileValues,
-      Boolean(triggerProfile?.id),
-    );
+    const profileWriteError = triggerProfile?.id
+      ? null
+      : await writeProfileWithServiceKey(url, serviceRoleKey, publicApiKey, user.id, profileValues, false);
 
     if (profileWriteError) {
       await admin.auth.admin.deleteUser(user.id);
