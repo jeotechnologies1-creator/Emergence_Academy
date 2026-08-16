@@ -355,6 +355,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // Profile deletion must be performed server-side so a browser never gets
+    // access to Auth Admin credentials. It is intentionally limited to the
+    // same CEO/Admin roles already verified above.
+    if (String(body.operation || "").trim().toLowerCase() === "delete-profile") {
+      const targetId = String(body.profile_id || "").trim();
+      if (!targetId) return jsonResponse({ error: "Profile ID is required.", function_version: FUNCTION_VERSION }, 400);
+      if (targetId === callerId) return jsonResponse({ error: "You cannot delete your own signed-in account.", function_version: FUNCTION_VERSION }, 400);
+
+      const { data: targetProfile, error: targetError } = await supabaseAdmin
+        .from("profiles").select("id").eq("id", targetId).maybeSingle();
+      if (targetError || !targetProfile) return jsonResponse({ error: "Profile was not found.", function_version: FUNCTION_VERSION }, 404);
+
+      // Role records are deleted first. A foreign-key-protected academic
+      // history causes a clear error instead of bypassing database integrity.
+      for (const table of ["students", "teachers", "parents"]) {
+        const { error } = await supabaseAdmin.from(table).delete().eq("profile_id", targetId);
+        if (error) return jsonResponse({ error: `Cannot delete this profile while related ${table} records are in use: ${error.message}`, function_version: FUNCTION_VERSION }, 409);
+      }
+      const { error: profileDeleteError } = await supabaseAdmin.from("profiles").delete().eq("id", targetId);
+      if (profileDeleteError) return jsonResponse({ error: profileDeleteError.message, function_version: FUNCTION_VERSION }, 409);
+      const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(targetId);
+      if (authDeleteError) return jsonResponse({ error: `Profile was removed, but its Auth login could not be removed: ${authDeleteError.message}`, function_version: FUNCTION_VERSION }, 500);
+      return jsonResponse({ success: true, message: "User profile and login deleted successfully.", function_version: FUNCTION_VERSION });
+    }
+
     /* ======================================================
        BASIC USER DATA
     ====================================================== */

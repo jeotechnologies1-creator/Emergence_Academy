@@ -368,13 +368,22 @@
                 if (button.classList.contains("view-btn")) return this.openModal("view", profile);
                 if (button.classList.contains("edit-btn")) return this.openModal("edit", profile);
                 if (button.classList.contains("delete-btn")) {
-                    if (!window.confirm(`Deactivate ${profile.email}?`)) return;
+                    if (!window.confirm(`Permanently delete ${profile.email}? This removes the login and cannot be undone.`)) return;
                     try {
-                        await ApiService.update("profiles", profile.id, { status: "inactive" });
+                        const { data, error } = await API.db.functions.invoke("create-user", {
+                            body: { operation: "delete-profile", profile_id: profile.id }
+                        });
+                        if (error) {
+                            const message = typeof API.functionErrorMessage === "function"
+                                ? await API.functionErrorMessage(error, "Unable to delete user.")
+                                : error.message;
+                            throw new Error(message);
+                        }
+                        if (data?.error) throw new Error(data.error);
                         await this.loadProfiles();
-                        this.notify("User deactivated successfully.");
+                        this.notify(data?.message || "User profile deleted successfully.");
                     } catch (error) {
-                        this.notify(error.message || "Unable to deactivate user.", "error");
+                        this.notify(error.message || "Unable to delete user.", "error");
                     }
                 }
             });

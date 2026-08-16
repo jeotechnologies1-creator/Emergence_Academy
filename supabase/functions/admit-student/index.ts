@@ -41,9 +41,9 @@ function getSupabaseAdminKey() {
   // so accept the custom `sb_secret` name configured for this admission flow.
   // Only JWT-shaped values are valid bearer credentials for Auth Admin.
   const legacyServiceRoleKey = [
-    Deno.env.get("sb_secret"),
-    Deno.env.get("ADMISSION_SERVICE_ROLE_KEY"),
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    Deno.env.get("ADMISSION_SERVICE_ROLE_KEY"),
+    Deno.env.get("sb_secret"),
   ]
     .map((value) => String(value || "").trim())
     .find((value) => value.startsWith("eyJ") && value.split(".").length === 3);
@@ -167,6 +167,10 @@ Deno.serve(async (req) => {
         })
       : createClient(url, serviceRoleKey, {
           auth: { autoRefreshToken: false, persistSession: false },
+          // Explicitly retain the service-role JWT for PostgREST requests.
+          // Edge Runtime can otherwise inherit the caller's bearer token,
+          // which produces "Not authenticated" when writing profiles.
+          global: { headers: { Authorization: `Bearer ${serviceRoleKey}` } },
         });
 
     // Validate with a client configured using the same project public key that
