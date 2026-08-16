@@ -39,14 +39,13 @@ function getSupabaseAdminKey() {
   // Auth Admin endpoints still require a service-role JWT for this SDK flow.
   // Managed SUPABASE_SERVICE_ROLE_KEY cannot be overridden in every project,
   // so accept the custom `sb_secret` name configured for this admission flow.
-  // Only JWT-shaped values are valid bearer credentials for Auth Admin.
   const legacyServiceRoleKey = [
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
     Deno.env.get("ADMISSION_SERVICE_ROLE_KEY"),
     Deno.env.get("sb_secret"),
   ]
     .map((value) => String(value || "").trim())
-    .find((value) => value.startsWith("eyJ") && value.split(".").length === 3);
+    .find((value) => (value.startsWith("eyJ") && value.split(".").length === 3) || value.startsWith("sb_secret_"));
   if (legacyServiceRoleKey) return legacyServiceRoleKey;
 
   try {
@@ -82,12 +81,15 @@ async function createStudentAuthUser(
   // requires the public project key as `apikey` and the legacy service-role
   // JWT as the bearer credential. Supplying the service key for both headers
   // is what produced Supabase Auth's unhelpful "Not authenticated" response.
+  const usesModernSecretKey = serviceRoleKey.startsWith("sb_secret_");
   const response = await fetch(`${url}/auth/v1/admin/users`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      apikey: publicApiKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
+      // Modern sb_secret keys authenticate only through apikey. Legacy
+      // service_role JWTs use the public apikey plus a bearer credential.
+      apikey: usesModernSecretKey ? serviceRoleKey : publicApiKey,
+      ...(usesModernSecretKey ? {} : { Authorization: `Bearer ${serviceRoleKey}` }),
     },
     body: JSON.stringify({
       email: input.email,
@@ -127,6 +129,35 @@ async function deleteCreatedUser(admin: any, userId: string) {
   await admin.from("students").delete().eq("profile_id", userId);
   await admin.from("profiles").delete().eq("id", userId);
   await admin.auth.admin.deleteUser(userId);
+}
+
+async function writeProfileWithServiceKey(
+  url: string,
+  serviceRoleKey: string,
+  publicApiKey: string,
+  userId: string,
+  values: Record<string, unknown>,
+  exists: boolean,
+) {
+  const usesModernSecretKey = serviceRoleKey.startsWith("sb_secret_");
+  const response = await fetch(
+    exists
+      ? `${url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`
+      : `${url}/rest/v1/profiles`,
+    {
+      method: exists ? "PATCH" : "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+        apikey: usesModernSecretKey ? serviceRoleKey : publicApiKey,
+        ...(usesModernSecretKey ? {} : { Authorization: `Bearer ${serviceRoleKey}` }),
+      },
+      body: JSON.stringify(exists ? values : { id: userId, ...values }),
+    },
+  );
+  if (response.ok) return null;
+  const raw = await response.text();
+  return new Error(raw || `Supabase profile request failed (${response.status}).`);
 }
 
 Deno.serve(async (req) => {
@@ -352,13 +383,20 @@ Deno.serve(async (req) => {
       email, role: "student", first_name: firstName, last_name: lastName, phone,
       gender, date_of_birth: dateOfBirth, address, city, state, country, status: "active",
     };
-    const profileWrite = triggerProfile?.id
-      ? await admin.from("profiles").update(profileValues).eq("id", user.id)
-      : await admin.from("profiles").insert({ id: user.id, ...profileValues });
+    // Use an explicit REST request here. It prevents Edge Runtime from
+    // substituting the dashboard caller's JWT for the service credential.
+    const profileWriteError = await writeProfileWithServiceKey(
+      url,
+      serviceRoleKey,
+      publicApiKey,
+      user.id,
+      profileValues,
+      Boolean(triggerProfile?.id),
+    );
 
-    if (profileWrite.error) {
+    if (profileWriteError) {
       await admin.auth.admin.deleteUser(user.id);
-      return admissionFailure("Student profile setup failed", profileWrite.error, "Unable to save the new student profile.");
+      return admissionFailure("Student profile setup failed", profileWriteError, "Unable to save the new student profile.");
     }
 
     const { data: studentId, error: studentError } = await admin.rpc("admit_student", {
