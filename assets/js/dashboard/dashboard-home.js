@@ -42,7 +42,7 @@ class DashboardHome {
     };
 
     static METRIC_META = {
-        students: { label: "Students", icon: "👨‍🎓" },
+        students: { label: "Enrolled Students", icon: "👨‍🎓" },
         teachers: { label: "Teachers", icon: "👩‍🏫" },
         parents: { label: "Parents", icon: "👨‍👩‍👧" },
         classes: { label: "Classes", icon: "🏫" },

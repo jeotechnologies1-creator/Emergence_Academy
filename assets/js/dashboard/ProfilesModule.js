@@ -307,7 +307,7 @@
             const value = (key) => this.safe(profile?.[key] || "");
             // Student and teacher accounts need their dedicated admission and
             // employment workflows, which also create linked records.
-            const roles = ["admin", "executive", "finance", "hr", "admission", "exam", "library"];
+            const roles = ["admin", "executive", "finance", "hr", "admission", "exam", "library", "parent"];
 
             const modal = document.createElement("div");
             modal.id = "profile-action-modal";

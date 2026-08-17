@@ -186,7 +186,7 @@
                 return;
             }
 
-            const total = await API.dashboard.countTable("students");
+            const total = await API.dashboard.enrolledStudentCount();
             badge.textContent = String(total);
             badge.classList.remove("hidden");
 

@@ -72,6 +72,30 @@ class API {
 
     static dashboard = {
 
+        // Read the actual enrolment records, not merely profiles carrying the
+        // student role. This is the number shown to administrators everywhere
+        // a student count is displayed.
+        async enrolledStudentCount() {
+
+            try {
+
+                const { data, error } = await API.db
+                    .from("students")
+                    .select("id");
+
+                if (error) throw error;
+
+                return (data || []).length;
+
+            } catch (error) {
+
+                console.error("Enrolled student count failed:", error);
+                return 0;
+
+            }
+
+        },
+
         async countTable(tableName) {
 
             try {
@@ -115,7 +139,7 @@ class API {
                     announcements,
                     activity
                 ] = await Promise.all([
-                    this.countTable("students"),
+                    this.enrolledStudentCount(),
                     this.countTable("teachers"),
                     this.countTable("parents"),
                     this.countTable("classes"),
