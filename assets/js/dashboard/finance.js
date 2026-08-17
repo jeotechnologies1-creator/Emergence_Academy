@@ -1,4 +1,4 @@
-const FinanceModule = window.OfficeModuleEngine.create({
+const FinanceOfficeModule = window.OfficeModuleEngine.create({
   moduleKey: "finance",
   title: "Finance",
   tableName: "payments",
@@ -12,12 +12,8 @@ const FinanceModule = window.OfficeModuleEngine.create({
   ],
   formFields: ["student_id", "amount", "payment_method", "payment_reference", "payment_status"],
   requiredFields: ["student_id", "amount", "payment_method", "payment_status"],
-  fieldTypes: {
-    amount: "number"
-  },
-  fieldRules: {
-    amount: { min: 0.01 }
-  },
+  fieldTypes: { amount: "number" },
+  fieldRules: { amount: { min: 0.01 } },
   fieldOptions: {
     payment_method: ["cash", "bank_transfer", "card", "pos", "mobile_money"],
     payment_status: ["pending", "paid", "failed", "refunded"]
@@ -32,16 +28,67 @@ const FinanceModule = window.OfficeModuleEngine.create({
   softDeleteValue: "refunded",
   softRestoreValue: "pending",
   lookups: {
-    student_id: {
-      table: "students",
-      preferProfileName: true,
-      labelResolver: (row, context = {}) => {
-        const studentNo = String(row?.student_no || row?.admission_number || "").trim();
-        const suffix = studentNo ? ` (${studentNo})` : "";
-        return `${context.profileName || "Student"}${suffix}`.trim();
-      }
-    }
+    student_id: { table: "students", preferProfileName: true }
   }
 });
+
+class ParentPaymentsModule {
+  static state = { container: null, profile: null, students: [], payments: [] };
+  static RECEIPT_BUCKET = "payment-receipts";
+  static safe(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#39;"); }
+  static studentLabel(student) {
+    const name = `${student.profiles?.first_name || ""} ${student.profiles?.last_name || ""}`.trim() || "Student";
+    const studentId = String(student.student_no || student.admission_number || "").trim();
+    return studentId ? `${name} (${studentId})` : name;
+  }
+  static money(value) { return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(Number(value || 0)); }
+  static async load() {
+    this.state.profile = await Auth.profile(true);
+    const [studentsResult, paymentsResult] = await Promise.all([
+      API.db.from("students").select("id,student_no,admission_number,profiles:profile_id(first_name,last_name)").order("student_no"),
+      API.db.from("payments").select("id,student_id,amount,payment_method,payment_reference,payment_status,receipt_path,created_at").order("created_at", { ascending: false })
+    ]);
+    if (studentsResult.error) throw studentsResult.error;
+    if (paymentsResult.error) throw paymentsResult.error;
+    this.state.students = studentsResult.data || [];
+    this.state.payments = paymentsResult.data || [];
+  }
+  static template() {
+    const students = this.state.students;
+    const names = Object.fromEntries(students.map((student) => [student.id, this.studentLabel(student)]));
+    return `<div class="space-y-6"><div class="rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-600 p-6 text-white shadow"><h2 class="text-3xl font-bold">Submit a Payment</h2><p class="mt-2 text-emerald-100">Choose your enrolled child, payment method, and upload the bank, OPay, or PalmPay receipt for review.</p></div>
+      <section class="rounded-xl bg-white p-5 shadow"><form id="parent-payment-form" class="grid grid-cols-1 gap-4 md:grid-cols-2"><label class="md:col-span-2"><span class="text-sm font-medium text-slate-700">Student *</span><select required name="student_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5"><option value="">Choose an enrolled student</option>${students.map((student) => `<option value="${this.safe(student.id)}">${this.safe(this.studentLabel(student))}</option>`).join("")}</select></label><label><span class="text-sm font-medium text-slate-700">Amount (₦) *</span><input required name="amount" type="number" min="0.01" step="0.01" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="0.00"></label><label><span class="text-sm font-medium text-slate-700">Payment method *</span><select required name="payment_method" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5"><option value="">Choose a method</option><option value="bank_transfer">Bank transfer</option><option value="opay">OPay</option><option value="palmpay">PalmPay</option></select></label><label class="md:col-span-2"><span class="text-sm font-medium text-slate-700">Reference / purpose</span><input name="payment_reference" maxlength="120" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="Transfer reference or fee description"></label><label class="md:col-span-2"><span class="text-sm font-medium text-slate-700">Receipt (PDF or image) *</span><input required name="receipt" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" class="mt-1 block w-full text-sm"><span class="mt-1 block text-xs text-slate-500">Accepted: PDF, JPG, PNG, or WebP. Maximum file size: 5 MB.</span></label><div id="parent-payment-error" class="hidden md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"></div><div class="md:col-span-2 flex justify-end"><button type="submit" class="rounded-lg bg-emerald-600 px-4 py-2.5 font-medium text-white hover:bg-emerald-700">Submit payment for review</button></div></form></section>
+      <section class="rounded-xl bg-white p-5 shadow"><h3 class="text-lg font-bold text-slate-800">Your payment submissions</h3><div class="mt-4 overflow-x-auto"><table class="min-w-full text-sm"><thead><tr class="border-b text-left text-slate-600"><th class="p-2">Student</th><th class="p-2">Amount</th><th class="p-2">Method</th><th class="p-2">Status</th><th class="p-2">Date</th><th class="p-2">Receipt</th></tr></thead><tbody>${this.state.payments.length ? this.state.payments.map((payment) => `<tr class="border-b border-slate-100"><td class="p-2">${this.safe(names[payment.student_id] || "Student")}</td><td class="p-2">${this.safe(this.money(payment.amount))}</td><td class="p-2">${this.safe(String(payment.payment_method || "").replace(/_/g, " "))}</td><td class="p-2 capitalize">${this.safe(payment.payment_status || "pending")}</td><td class="p-2">${this.safe(payment.created_at ? new Date(payment.created_at).toLocaleDateString() : "—")}</td><td class="p-2">${payment.receipt_path ? `<button data-receipt-path="${this.safe(payment.receipt_path)}" class="text-blue-600 hover:text-blue-700">View</button>` : "—"}</td></tr>`).join("") : `<tr><td colspan="6" class="p-6 text-center text-slate-500">No payment submissions yet.</td></tr>`}</tbody></table></div></section></div>`;
+  }
+  static showError(message) { const box = this.state.container?.querySelector("#parent-payment-error"); if (box) { box.textContent = message; box.classList.remove("hidden"); } }
+  static async render(container) { this.state.container = container; container.innerHTML = '<div class="rounded-xl bg-white p-8 text-slate-500 shadow">Loading payment options…</div>'; try { await this.load(); container.innerHTML = this.template(); this.bind(); } catch (error) { console.error(error); container.innerHTML = `<div class="rounded-xl bg-white p-8 text-red-600 shadow">${this.safe(error.message || "Unable to load payment options.")}</div>`; } }
+  static async submit(form) {
+    const data = new FormData(form); const file = data.get("receipt"); const studentId = String(data.get("student_id") || ""); const amount = Number(data.get("amount")); const method = String(data.get("payment_method") || "");
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    if (!this.state.students.some((student) => String(student.id) === studentId)) throw new Error("Choose one of your enrolled students.");
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid payment amount.");
+    if (!["bank_transfer", "opay", "palmpay"].includes(method)) throw new Error("Choose Bank transfer, OPay, or PalmPay.");
+    if (!(file instanceof File) || !file.size) throw new Error("Attach a payment receipt.");
+    if (!allowedTypes.includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error("Receipt must be a PDF, JPG, PNG, or WebP no larger than 5 MB.");
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_"); const path = `${this.state.profile.id}/${Date.now()}-${safeName}`;
+    const { error: uploadError } = await API.db.storage.from(this.RECEIPT_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+    if (uploadError) throw uploadError;
+    const { error: paymentError } = await API.db.from("payments").insert({ student_id: studentId, amount, payment_method: method, payment_reference: String(data.get("payment_reference") || "").trim() || null, payment_status: "pending", receipt_path: path, submitted_by: this.state.profile.id, submitted_at: new Date().toISOString() });
+    if (paymentError) { await API.db.storage.from(this.RECEIPT_BUCKET).remove([path]); throw paymentError; }
+  }
+  static bind() {
+    this.state.container.querySelector("#parent-payment-form")?.addEventListener("submit", async (event) => { event.preventDefault(); const button = event.currentTarget.querySelector("button[type='submit']"); button.disabled = true; try { await this.submit(event.currentTarget); window.Utils?.success?.("Payment submitted. It will remain pending until finance verifies the receipt."); await this.render(this.state.container); } catch (error) { this.showError(error.message || "Unable to submit payment."); } finally { button.disabled = false; } });
+    this.state.container.querySelectorAll("[data-receipt-path]").forEach((button) => button.addEventListener("click", async () => { const { data, error } = await API.db.storage.from(this.RECEIPT_BUCKET).createSignedUrl(button.dataset.receiptPath, 60); if (error || !data?.signedUrl) return this.showError(error?.message || "Unable to open receipt."); window.open(data.signedUrl, "_blank", "noopener,noreferrer"); }));
+  }
+}
+
+class FinanceModule {
+  static async render(container) {
+    const profile = await Auth.profile(true);
+    return String(profile?.role || "").toLowerCase() === "parent"
+      ? ParentPaymentsModule.render(container)
+      : FinanceOfficeModule.render(container);
+  }
+}
 
 window.FinanceModule = FinanceModule;

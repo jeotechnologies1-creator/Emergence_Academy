@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
     const [subjectsResult, classesResult, studentsResult] = await Promise.all([
       subjectIds.length ? admin.from("subjects").select("id,subject_name").in("id", subjectIds) : { data: [], error: null },
       classIds.length ? admin.from("classes").select("id,class_name").in("id", classIds) : { data: [], error: null },
-      classIds.length ? admin.from("students").select("id,class_id,profiles:profile_id(first_name,last_name,email)").in("class_id", classIds) : { data: [], error: null },
+      classIds.length ? admin.from("students").select("id,student_no,admission_number,class_id,profiles:profile_id(first_name,last_name,email)").in("class_id", classIds) : { data: [], error: null },
     ]);
     if (subjectsResult.error || classesResult.error || studentsResult.error) throw subjectsResult.error || classesResult.error || studentsResult.error;
     return json({ success: true, teacher, assignments: assignments || [], subjects: subjectsResult.data || [], classes: classesResult.data || [], students: studentsResult.data || [] });

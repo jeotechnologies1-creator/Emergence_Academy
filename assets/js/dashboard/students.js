@@ -14,6 +14,8 @@ class StudentsModule {
         parents: [],
         profile: null,
         admissionSubmitting: false,
+        detailLoading: false,
+        studentDetails: null,
         query: "",
         modal: {
             open: false,
@@ -134,11 +136,20 @@ class StudentsModule {
         this.state.departments = Array.isArray(departmentsResult.data) ? departmentsResult.data : [];
         this.state.parents = Array.isArray(parents) ? parents : [];
         this.state.profile = profile || null;
+
+        if (window.DashboardService?.updateStudentBadge) {
+            await window.DashboardService.updateStudentBadge();
+        }
     }
 
     static currentStudent() {
         if (!this.state.modal.studentId) return null;
         return this.state.students.find((student) => String(student.id) === String(this.state.modal.studentId)) || null;
+    }
+
+    static currentStudentDetails() {
+        if (!this.state.modal.studentId) return null;
+        return this.state.studentDetails || this.currentStudent();
     }
 
     static generatePassword(length = 12) {
@@ -315,11 +326,14 @@ class StudentsModule {
         const mode = this.state.modal.mode;
         const student = this.currentStudent();
 
-        if (mode === "edit" && !student) {
+        if (["edit", "details"].includes(mode) && !student) {
             return "";
         }
 
-        const title = mode === "create" ? "Admit Student" : "Edit Student";
+        const title = mode === "create" ? "Admit Student" : mode === "details" ? "Student Details" : "Edit Student";
+        if (mode === "details") {
+            return this.detailsModalTemplate();
+        }
         return `
 <div class="student-admission-overlay fixed inset-0 z-50 bg-slate-900/50 flex justify-center px-3 py-3 sm:px-4 sm:py-6" data-student-overlay role="dialog" aria-modal="true" aria-labelledby="student-form-title">
   <div class="student-admission-dialog w-full max-w-3xl bg-white rounded-2xl shadow-2xl p-4 sm:p-6">
@@ -377,6 +391,45 @@ class StudentsModule {
 `;
     }
 
+    static detailValue(value) {
+        return this.safe(String(value ?? "").trim() || "—");
+    }
+
+    static detailsModalTemplate() {
+        const student = this.currentStudentDetails();
+        if (!student) return "";
+        if (this.state.detailLoading) {
+            return `<div class="student-admission-overlay fixed inset-0 z-50 bg-slate-900/50 flex justify-center px-3 py-3 sm:px-4 sm:py-6" data-student-overlay><div class="w-full max-w-3xl self-start rounded-2xl bg-white p-6 shadow-2xl text-slate-500">Loading student details…</div></div>`;
+        }
+
+        const profile = student.profiles || {};
+        const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Student";
+        const subjects = Array.isArray(student.subjects) ? student.subjects : [];
+        const guardians = Array.isArray(student.guardians) ? student.guardians : [];
+        const fields = [
+            ["Student ID", student.student_no || student.admission_number],
+            ["Admission Number", student.admission_number],
+            ["Class", student.classes?.class_name || student.classes?.class_code],
+            ["Department", student.departments?.name],
+            ["Status", student.status],
+            ["Admission Date", student.admission_date ? String(student.admission_date).slice(0, 10) : ""],
+            ["Email", profile.email],
+            ["Phone", profile.phone],
+            ["Gender", profile.gender],
+            ["Date of Birth", profile.date_of_birth ? String(profile.date_of_birth).slice(0, 10) : ""],
+            ["Address", [profile.address, profile.city, profile.state, profile.country].filter(Boolean).join(", ")]
+        ];
+
+        return `
+<div class="student-admission-overlay fixed inset-0 z-50 bg-slate-900/50 flex justify-center overflow-y-auto px-3 py-3 sm:px-4 sm:py-6" data-student-overlay role="dialog" aria-modal="true" aria-labelledby="student-details-title">
+  <div class="w-full max-w-3xl self-start rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
+    <div class="mb-5 flex items-start justify-between gap-4"><div><h3 id="student-details-title" class="text-xl font-bold text-slate-800">${this.safe(fullName)}</h3><p class="mt-1 text-sm text-slate-500">Complete enrolled-student record</p></div><button type="button" data-student-close class="text-slate-500 hover:text-slate-700">Close</button></div>
+    <dl class="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2">${fields.map(([label, value]) => `<div><dt class="font-medium text-slate-500">${this.safe(label)}</dt><dd class="mt-1 text-slate-800 break-words">${this.detailValue(value)}</dd></div>`).join("")}</dl>
+    <div class="mt-6 grid gap-4 border-t border-slate-200 pt-5 sm:grid-cols-2"><div><h4 class="font-semibold text-slate-700">Enrolled Subjects</h4><p class="mt-1 text-sm text-slate-600">${subjects.length ? subjects.map((subject) => this.safe(subject.subject_name || subject.subject_code || "Subject")).join(", ") : "—"}</p></div><div><h4 class="font-semibold text-slate-700">Parent / Guardian</h4><p class="mt-1 text-sm text-slate-600">${guardians.length ? guardians.map((guardian) => this.safe(`${guardian.name || guardian.email || "Guardian"}${guardian.relationship ? ` (${guardian.relationship})` : ""}`)).join(", ") : "—"}</p></div></div>
+  </div>
+</div>`;
+    }
+
     static table() {
         const rows = this.filteredStudents();
         const canEdit = this.canEdit();
@@ -411,6 +464,7 @@ class StudentsModule {
         <td class="px-3 py-2.5">${this.safe(student.profiles?.phone || "-")}</td>
         <td class="px-3 py-2.5">${this.safe(student.status || "-")}</td>
         <td class="px-3 py-2.5 text-right">
+          <button data-action="details" data-id="${this.safe(student.id)}" class="mr-3 text-slate-700 hover:text-slate-900">Details</button>
           ${canEdit ? `<button data-action="edit" data-id="${this.safe(student.id)}" class="text-blue-600 hover:text-blue-700 mr-3">Edit</button>` : ""}
           ${canArchive && String(student.status || "").toLowerCase() !== "inactive" ? `<button data-action="archive" data-id="${this.safe(student.id)}" class="text-red-600 hover:text-red-700">Archive</button>` : ""}
           ${canDelete ? `<button data-action="delete" data-id="${this.safe(student.id)}" class="ml-3 text-red-700 hover:text-red-900">Delete</button>` : ""}
@@ -459,6 +513,7 @@ class StudentsModule {
             mode,
             studentId
         };
+        this.state.studentDetails = null;
         this.redraw();
     }
 
@@ -468,7 +523,41 @@ class StudentsModule {
             mode: "create",
             studentId: null
         };
+        this.state.studentDetails = null;
+        this.state.detailLoading = false;
         this.redraw();
+    }
+
+    static async openDetails(studentId) {
+        const student = this.state.students.find((item) => String(item.id) === String(studentId));
+        if (!student) return;
+        this.state.modal = { open: true, mode: "details", studentId };
+        this.state.studentDetails = student;
+        this.state.detailLoading = true;
+        this.redraw();
+
+        try {
+            const [subjectResult, guardianResult] = await Promise.all([
+                API.db.from("student_subjects").select("subjects:subject_id(subject_name,subject_code)").eq("student_id", studentId),
+                API.db.from("parent_students").select("relationship,parents:parent_id(profiles:profile_id(first_name,last_name,email))").eq("student_id", studentId)
+            ]);
+            if (subjectResult.error) throw subjectResult.error;
+            if (guardianResult.error) throw guardianResult.error;
+            this.state.studentDetails = {
+                ...student,
+                subjects: (subjectResult.data || []).map((item) => item.subjects).filter(Boolean),
+                guardians: (guardianResult.data || []).map((item) => {
+                    const profile = item.parents?.profiles || {};
+                    return { name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim(), email: profile.email, relationship: item.relationship };
+                })
+            };
+        } catch (error) {
+            console.error("Unable to load student details:", error);
+            this.showMessage("Some linked student details could not be loaded.", "error");
+        } finally {
+            this.state.detailLoading = false;
+            this.redraw();
+        }
     }
 
     static showFormError(message) {
@@ -609,6 +698,10 @@ class StudentsModule {
             button.addEventListener("click", () => {
                 this.openModal("edit", button.getAttribute("data-id"));
             });
+        });
+
+        container.querySelectorAll("[data-action='details']").forEach((button) => {
+            button.addEventListener("click", () => this.openDetails(button.getAttribute("data-id")));
         });
 
         container.querySelectorAll("[data-action='archive']").forEach((button) => {

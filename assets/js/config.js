@@ -75,7 +75,8 @@ const DEFAULT_CONFIG = {
       ASSIGNMENTS: "assignments",
       DOCUMENTS: "documents",
       GALLERY: "gallery",
-      CERTIFICATES: "certificates"
+      CERTIFICATES: "certificates",
+      PAYMENT_RECEIPTS: "payment-receipts"
    },
    SETTINGS: {
       ITEMS_PER_PAGE: 10,

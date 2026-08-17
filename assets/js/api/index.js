@@ -432,6 +432,16 @@ class API {
 
                                 gender,
 
+                                date_of_birth,
+
+                                address,
+
+                                city,
+
+                                state,
+
+                                country,
+
                                 avatar_url
 
                             ),
@@ -443,6 +453,14 @@ class API {
                                 class_name,
 
                                 class_code
+
+                            ),
+
+                            departments:department_id(
+
+                                id,
+
+                                name
 
                             )
 
@@ -499,12 +517,21 @@ class API {
                             email,
                             phone,
                             gender,
+                            date_of_birth,
+                            address,
+                            city,
+                            state,
+                            country,
                             avatar_url
                         ),
                         classes:class_id(
                             id,
                             class_name,
                             class_code
+                        ),
+                        departments:department_id(
+                            id,
+                            name
                         )
                     `)
 

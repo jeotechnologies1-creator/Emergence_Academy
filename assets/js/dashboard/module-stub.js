@@ -243,6 +243,16 @@ class OfficeModuleEngine {
             }
           }
 
+          // Student choices must identify the enrolled learner unambiguously.
+          // Names can be shared, while student numbers are unique and are what
+          // teachers and students are given during admission.
+          if (label && table === "students") {
+            const studentNumber = String(item.student_no || item.admission_number || "").trim();
+            if (studentNumber) {
+              label = `${label} (${studentNumber})`;
+            }
+          }
+
           if (!label && labelResolver) {
             const profileName = profileMap && item && item.profile_id
               ? String(profileMap[String(item.profile_id)] || "").trim()

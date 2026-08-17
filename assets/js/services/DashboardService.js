@@ -171,6 +171,25 @@
 
                 });
 
+            await this.updateStudentBadge();
+
+        }
+
+        static async updateStudentBadge() {
+
+            const badge = document.getElementById("students-nav-badge");
+            if (!badge) return;
+
+            const role = String(await this.getRole() || "").toLowerCase();
+            if (!["admin", "ceo", "executive", "admission"].includes(role)) {
+                badge.classList.add("hidden");
+                return;
+            }
+
+            const total = await API.dashboard.countTable("students");
+            badge.textContent = String(total);
+            badge.classList.remove("hidden");
+
         }
 
         static async protect(route) {
