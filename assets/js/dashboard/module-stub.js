@@ -551,6 +551,7 @@ class OfficeModuleEngine {
     if (declared === "number") return "number";
     if (declared === "date") return "date";
     if (declared === "email") return "email";
+    if (declared === "password") return "password";
     return "text";
   }
 

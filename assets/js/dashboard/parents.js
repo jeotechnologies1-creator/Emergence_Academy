@@ -10,10 +10,13 @@ const ParentsModule = window.OfficeModuleEngine.create({
     { key: "address", label: "Address" },
     { key: "created_at", label: "Created" }
   ],
-  formFields: ["profile_id", "student_id", "occupation", "relationship", "address"],
-  requiredFields: ["profile_id", "student_id", "relationship"],
+  // Create the portal account and link it to the enrolled student in one step.
+  formFields: ["student_id", "first_name", "last_name", "email", "phone", "password", "occupation", "relationship", "address"],
+  editFormFields: ["occupation", "relationship", "address"],
+  requiredFields: ["student_id", "first_name", "last_name", "email", "password", "relationship"],
+  fieldTypes: { email: "email", password: "password" },
   permissions: {
-    create: ["ceo", "admin", "executive", "admission"],
+    create: ["ceo", "admin"],
     edit: ["ceo", "admin", "executive", "admission"],
     delete: ["ceo", "admin", "executive"]
   },
@@ -21,52 +24,41 @@ const ParentsModule = window.OfficeModuleEngine.create({
     relationship: ["father", "mother", "guardian", "sponsor", "other"]
   },
   lookups: {
-    profile_id: {
-      table: "profiles",
-      labelKey: "email",
-      // A parent record must be attached to a parent account. This prevents a
-      // teacher profile from being selected as the child's guardian.
-      filter: (profile) => String(profile?.role || "").toLowerCase() === "parent"
-    },
     student_id: {
       table: "students",
-      preferProfileName: true,
-      filter: (student) => String(student?.status || "active").toLowerCase() === "active"
+      preferProfileName: true
     }
   },
-  // The same action can create the parent record for a new parent account or
-  // connect another enrolled student to an existing parent account.
   async createRecord(payload) {
     const studentId = String(payload.student_id || "").trim();
-    const profileId = String(payload.profile_id || "").trim();
-    const parentPayload = {
-      profile_id: profileId,
-      occupation: String(payload.occupation || "").trim() || null,
-      relationship: String(payload.relationship || "").trim(),
-      address: String(payload.address || "").trim() || null
-    };
-
-    const { data: existingParent, error: parentLookupError } = await API.db
-      .from("parents")
-      .select("id")
-      .eq("profile_id", profileId)
-      .maybeSingle();
-    if (parentLookupError) return API.response(false, null, parentLookupError.message);
-
-    let parentId = existingParent?.id;
-    if (!parentId) {
-      const parentResult = await API.records.create("parents", parentPayload);
-      if (!parentResult?.success || !parentResult?.data?.id) return parentResult;
-      parentId = parentResult.data.id;
+    const accountResult = await Auth.createOfficeAccount({
+      first_name: String(payload.first_name || "").trim(),
+      last_name: String(payload.last_name || "").trim(),
+      email: String(payload.email || "").trim().toLowerCase(),
+      phone: String(payload.phone || "").trim(),
+      password: String(payload.password || "").trim(),
+      role: "parent"
+    });
+    if (!accountResult?.success || !accountResult?.parent?.id) {
+      return API.response(false, null, accountResult?.message || "Unable to create the parent portal account.");
     }
 
+    const parentId = accountResult.parent.id;
+    const relationship = String(payload.relationship || "").trim();
+    const { error: parentUpdateError } = await API.db.from("parents").update({
+      occupation: String(payload.occupation || "").trim() || null,
+      relationship,
+      address: String(payload.address || "").trim() || null
+    }).eq("id", parentId);
+    if (parentUpdateError) return API.response(false, null, parentUpdateError.message);
+
     const { error: linkError } = await API.db.from("parent_students").upsert(
-      { parent_id: parentId, student_id: studentId, relationship: parentPayload.relationship },
+      { parent_id: parentId, student_id: studentId, relationship },
       { onConflict: "parent_id,student_id" }
     );
     if (linkError) return API.response(false, null, linkError.message);
 
-    return API.response(true, { id: parentId }, "Parent account linked to the selected student.");
+    return API.response(true, { id: parentId }, "Parent portal account created and linked to the selected student.");
   }
 });
 
