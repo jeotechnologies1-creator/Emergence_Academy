@@ -172,6 +172,14 @@ class DashboardHome {
         ]
     };
 
+    static normalizedRole(profile) {
+        const rawRole = String(profile?.role || "student").trim();
+        if (window.RoleRouter?.normalizeRole) {
+            return RoleRouter.normalizeRole(rawRole);
+        }
+        return rawRole.toLowerCase() === "administrator" ? "admin" : rawRole.toLowerCase();
+    }
+
     /* ======================================================
        RENDER
     ====================================================== */
@@ -245,7 +253,7 @@ class DashboardHome {
 
     static template(profile, stats, announcements, permissions, recentActivity) {
 
-        const role = String(profile?.role || "student").toLowerCase();
+        const role = this.normalizedRole(profile);
         const copy = this.ROLE_COPY[role] || this.ROLE_COPY.student;
 
         return `
@@ -331,7 +339,7 @@ class DashboardHome {
         try {
             const profile = await Auth.profile();
             return await API.dashboard.recentActivity(8, {
-                role: profile?.role || "",
+                role: this.normalizedRole(profile),
                 userId: profile?.id || ""
             });
         } catch (error) {
@@ -613,7 +621,7 @@ No announcements available.
 
     static officeGenerator(profile, permissions = null) {
 
-        const role = String(profile?.role || "").toLowerCase();
+        const role = this.normalizedRole(profile);
         const canCreateUsers = role === "admin" || role === "ceo" || Boolean(permissions?.canDelete);
 
         if (!canCreateUsers) {
