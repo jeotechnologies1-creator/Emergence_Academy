@@ -3,8 +3,17 @@ class OfficeModuleEngine {
   static state = {};
 
   static create(config) {
+    // Dashboard modules historically declared `formFields` and
+    // `editFormFields`, while the renderer reads `fields`. Normalize both
+    // conventions here so configured forms are actually rendered.
+    const normalizedConfig = {
+      ...config,
+      fields: config.fields || config.formFields || [],
+      editFields: config.editFields || config.editFormFields || config.fields || config.formFields || []
+    };
+
     return class {
-      static config = config;
+      static config = normalizedConfig;
 
       static async render(container) {
         return OfficeModuleEngine.render(this, container);
@@ -2634,6 +2643,21 @@ ${
             }
           );
 
+          const multiValueFields =
+            moduleClass.config.multiValueFields ||
+            [];
+
+          // Keep all selections from enrollment forms. FormData.forEach()
+          // otherwise leaves only the final selected value for a field.
+          multiValueFields.forEach(
+            (field) => {
+              payload[field] = formData
+                .getAll(field)
+                .map((value) => String(value ?? "").trim())
+                .filter(Boolean);
+            }
+          );
+
 
           const hasAnyValue =
             Object.values(
@@ -2879,8 +2903,9 @@ ${
         : {};
 
     const fields =
-      moduleClass.config.fields ||
-      [];
+      isEdit
+        ? (moduleClass.config.editFields || moduleClass.config.fields || [])
+        : (moduleClass.config.fields || []);
 
     const requiredFields =
       moduleClass.config.requiredFields ||
@@ -2893,6 +2918,10 @@ ${
     const fieldOptions =
       moduleClass.config.fieldOptions ||
       {};
+
+    const multiValueFields =
+      moduleClass.config.multiValueFields ||
+      [];
 
     return `
 <div
@@ -3013,7 +3042,23 @@ ${
                           ? field.options
                           : null
                       ) ||
-                      [];
+                      (
+                        type === "multi-select" ||
+                        Object.prototype.hasOwnProperty.call(
+                          moduleClass.config.lookups || {},
+                          key
+                        )
+                          ? Object.entries(
+                              state.lookups[key] || {}
+                            ).map(
+                              ([value, label]) => ({ value, label })
+                            )
+                          : []
+                      );
+
+                    const isMultiValue =
+                      type === "multi-select" ||
+                      multiValueFields.includes(key);
 
                     const generated =
                       this.generatedFieldValue(
@@ -3084,6 +3129,11 @@ ${
     key
   )}"
   ${
+    isMultiValue
+      ? "multiple"
+      : ""
+  }
+  ${
     required
       ? "required"
       : ""
@@ -3096,11 +3146,11 @@ ${
   class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
 >
 
-  <option value="">
-    Select ${this.safe(
-      label
-    )}
-  </option>
+  ${
+    isMultiValue
+      ? ""
+      : `<option value="">\n    Select ${this.safe(label)}\n  </option>`
+  }
 
   ${options
     .map(
@@ -3122,14 +3172,11 @@ ${
             : option;
 
         const selected =
-          String(
-            current ??
-            ""
-          ) ===
-          String(
-            optionValue ??
-            ""
-          );
+          isMultiValue
+            ? (Array.isArray(current) ? current : [])
+                .map((value) => String(value))
+                .includes(String(optionValue ?? ""))
+            : String(current ?? "") === String(optionValue ?? "");
 
         return `
 <option
@@ -3910,6 +3957,10 @@ ${
       fieldRules:
         options.fieldRules ||
         {},
+
+      multiValueFields:
+        options.multiValueFields ||
+        [],
 
       permissions:
         options.permissions ||

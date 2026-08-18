@@ -19,7 +19,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.0";
    - first_name and last_name are used instead.
    ========================================================== */
 
-const FUNCTION_VERSION = "2026-08-10-FIX-03";
+const FUNCTION_VERSION = "2026-08-18-ENROLLMENT-01";
 
 const ALLOWED_ROLES = new Set([
   "ceo",
@@ -94,6 +94,11 @@ function normalizeRole(value: unknown): string {
 
 function normalizeName(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function normalizeIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((item) => String(item ?? "").trim()).filter(Boolean))];
 }
 
 function generateEmployeeId(): string {
@@ -411,6 +416,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const teacherData =
       body.teacher_data;
 
+    const parentData =
+      body.parent_data;
+
     /* ======================================================
        VALIDATION
     ====================================================== */
@@ -494,6 +502,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
             "Teacher information is required.",
           function_version: FUNCTION_VERSION,
         },
+        400,
+      );
+    }
+
+    if (role === "parent" && (!parentData || typeof parentData !== "object")) {
+      return jsonResponse(
+        { error: "Select at least one enrolled child for this parent.", function_version: FUNCTION_VERSION },
         400,
       );
     }
@@ -670,6 +685,32 @@ Deno.serve(async (req: Request): Promise<Response> => {
           teacherInput.status,
         ) || "active";
 
+      const classIds = normalizeIdList(teacherInput.class_ids);
+      const subjectIds = normalizeIdList(teacherInput.subject_ids);
+
+      if (!classIds.length || !subjectIds.length) {
+        await deleteCreatedUser(supabaseAdmin, userId);
+        return jsonResponse(
+          { error: "Assign at least one class and one subject to the teacher.", function_version: FUNCTION_VERSION },
+          400,
+        );
+      }
+
+      const [classesResult, subjectsResult] = await Promise.all([
+        supabaseAdmin.from("classes").select("id").in("id", classIds),
+        supabaseAdmin.from("subjects").select("id").in("id", subjectIds),
+      ]);
+
+      if (classesResult.error || subjectsResult.error ||
+        (classesResult.data || []).length !== classIds.length ||
+        (subjectsResult.data || []).length !== subjectIds.length) {
+        await deleteCreatedUser(supabaseAdmin, userId);
+        return jsonResponse(
+          { error: "One or more selected classes or subjects are no longer available.", function_version: FUNCTION_VERSION },
+          400,
+        );
+      }
+
       /* ====================================================
          FIND DEPARTMENT
       ==================================================== */
@@ -786,15 +827,68 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       teacher =
         teacherRecord;
+
+      const teachingAssignments = classIds.flatMap((classId) =>
+        subjectIds.map((subjectId) => ({
+          teacher_id: teacherRecord.id,
+          class_id: classId,
+          subject_id: subjectId,
+        }))
+      );
+
+      const { error: assignmentError } = await supabaseAdmin
+        .from("teacher_subjects")
+        .upsert(teachingAssignments, { onConflict: "teacher_id,class_id,subject_id" });
+
+      if (assignmentError) {
+        console.error(`[${FUNCTION_VERSION}] Teacher assignment creation failed:`, assignmentError);
+        await supabaseAdmin.from("teacher_subjects").delete().eq("teacher_id", teacherRecord.id);
+        await supabaseAdmin.from("teachers").delete().eq("id", teacherRecord.id);
+        await deleteCreatedUser(supabaseAdmin, userId);
+        return jsonResponse(
+          { error: assignmentError.message, function_version: FUNCTION_VERSION },
+          400,
+        );
+      }
     }
 
     // A parent portal account needs a parents row before it can be selected
     // in Student Admission and linked through parent_students. Creating it
     // here avoids an account that can log in but has no child relationship.
     if (role === "parent") {
+      const parentInput = parentData as Record<string, unknown>;
+      const studentIds = normalizeIdList(parentInput.student_ids);
+      const relationship = normalizeName(parentInput.relationship);
+
+      if (!studentIds.length || !relationship) {
+        await deleteCreatedUser(supabaseAdmin, userId);
+        return jsonResponse(
+          { error: "A relationship and at least one enrolled child are required.", function_version: FUNCTION_VERSION },
+          400,
+        );
+      }
+
+      const { data: linkedStudents, error: linkedStudentsError } = await supabaseAdmin
+        .from("students")
+        .select("id")
+        .in("id", studentIds);
+
+      if (linkedStudentsError || (linkedStudents || []).length !== studentIds.length) {
+        await deleteCreatedUser(supabaseAdmin, userId);
+        return jsonResponse(
+          { error: "One or more selected children are no longer enrolled.", function_version: FUNCTION_VERSION },
+          400,
+        );
+      }
+
       const { data: parentRecord, error: parentError } = await supabaseAdmin
         .from("parents")
-        .insert({ profile_id: userId, relationship: "guardian" })
+        .insert({
+          profile_id: userId,
+          occupation: normalizeName(parentInput.occupation) || null,
+          relationship,
+          address: normalizeName(parentInput.address) || null,
+        })
         .select()
         .single();
 
@@ -808,6 +902,28 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
 
       parent = parentRecord;
+
+      const { error: parentLinkError } = await supabaseAdmin
+        .from("parent_students")
+        .upsert(
+          studentIds.map((studentId) => ({
+            parent_id: parentRecord.id,
+            student_id: studentId,
+            relationship,
+          })),
+          { onConflict: "parent_id,student_id" },
+        );
+
+      if (parentLinkError) {
+        console.error(`[${FUNCTION_VERSION}] Parent-child link creation failed:`, parentLinkError);
+        await supabaseAdmin.from("parent_students").delete().eq("parent_id", parentRecord.id);
+        await supabaseAdmin.from("parents").delete().eq("id", parentRecord.id);
+        await deleteCreatedUser(supabaseAdmin, userId);
+        return jsonResponse(
+          { error: parentLinkError.message, function_version: FUNCTION_VERSION },
+          400,
+        );
+      }
     }
 
     /* ======================================================

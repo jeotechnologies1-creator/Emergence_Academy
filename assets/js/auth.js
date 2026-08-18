@@ -494,6 +494,7 @@ class Auth {
                     first_name: firstName,
                     last_name: lastName,
                     phone,
+                    parent_data: targetRole === "parent" ? userData.parent_data : undefined,
                     created_by: profile.id
                 }
             });

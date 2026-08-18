@@ -1495,7 +1495,9 @@ specialization.ilike.%${keyword}%`
                                 qualification: teacherData.qualification,
                                 specialization: teacherData.specialization,
                                 employment_date: teacherData.employment_date,
-                                status: teacherData.status || "active"
+                                status: teacherData.status || "active",
+                                class_ids: Array.isArray(teacherData.class_ids) ? teacherData.class_ids : [],
+                                subject_ids: Array.isArray(teacherData.subject_ids) ? teacherData.subject_ids : []
                             }
                         },
                         headers: {

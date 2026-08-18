@@ -119,6 +119,18 @@ if (
                 "qualification",
                 "specialization",
                 "employment_date",
+                {
+                    key: "class_ids",
+                    label: "Assigned Classes",
+                    type: "multi-select",
+                    fullWidth: true
+                },
+                {
+                    key: "subject_ids",
+                    label: "Assigned Subjects",
+                    type: "multi-select",
+                    fullWidth: true
+                },
                 "status"
             ],
 
@@ -144,7 +156,14 @@ if (
             requiredFields: [
                 "full_name",
                 "email",
+                "class_ids",
+                "subject_ids",
                 "status"
+            ],
+
+            multiValueFields: [
+                "class_ids",
+                "subject_ids"
             ],
 
 
@@ -246,6 +265,14 @@ if (
                 department_id: {
                     table: "departments",
                     labelKey: "name"
+                },
+                class_ids: {
+                    table: "classes",
+                    labelKey: "class_name"
+                },
+                subject_ids: {
+                    table: "subjects",
+                    labelKey: "subject_name"
                 }
             },
 
