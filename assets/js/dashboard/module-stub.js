@@ -2929,7 +2929,8 @@ ${
   data-modal
 >
   <div
-    class="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+    class="w-full max-w-3xl max-h-[90vh] overflow-y-auto overscroll-contain rounded-2xl bg-white shadow-2xl"
+    style="-webkit-overflow-scrolling: touch; scroll-behavior: smooth;"
   >
 
     <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">

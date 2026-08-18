@@ -555,7 +555,12 @@ class API {
 
                 );
 
-                return [];
+                // Do not turn an RLS/database failure into an apparently
+                // empty admission register. The module can now show the
+                // administrator the actionable Supabase error instead.
+                throw new Error(
+                    error?.message || "Unable to load enrolled students."
+                );
 
             }
 
