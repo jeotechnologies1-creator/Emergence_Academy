@@ -551,6 +551,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
           role,
           phone,
         },
+        // RLS reads the trusted app_metadata role; regular users cannot alter
+        // this claim with the client SDK.
+        app_metadata: { role },
       });
 
     if (
