@@ -406,6 +406,9 @@ class StudentsModule {
         const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Student";
         const subjects = Array.isArray(student.subjects) ? student.subjects : [];
         const guardians = Array.isArray(student.guardians) ? student.guardians : [];
+        const attendance = Array.isArray(student.attendance) ? student.attendance : [];
+        const grades = Array.isArray(student.grades) ? student.grades : [];
+        const payments = Array.isArray(student.payments) ? student.payments : [];
         const fields = [
             ["Student ID", student.student_no || student.admission_number],
             ["Admission Number", student.admission_number],
@@ -425,7 +428,7 @@ class StudentsModule {
   <div class="w-full max-w-3xl self-start rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
     <div class="mb-5 flex items-start justify-between gap-4"><div><h3 id="student-details-title" class="text-xl font-bold text-slate-800">${this.safe(fullName)}</h3><p class="mt-1 text-sm text-slate-500">Complete enrolled-student record</p></div><button type="button" data-student-close class="text-slate-500 hover:text-slate-700">Close</button></div>
     <dl class="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2">${fields.map(([label, value]) => `<div><dt class="font-medium text-slate-500">${this.safe(label)}</dt><dd class="mt-1 text-slate-800 break-words">${this.detailValue(value)}</dd></div>`).join("")}</dl>
-    <div class="mt-6 grid gap-4 border-t border-slate-200 pt-5 sm:grid-cols-2"><div><h4 class="font-semibold text-slate-700">Enrolled Subjects</h4><p class="mt-1 text-sm text-slate-600">${subjects.length ? subjects.map((subject) => this.safe(subject.subject_name || subject.subject_code || "Subject")).join(", ") : "—"}</p></div><div><h4 class="font-semibold text-slate-700">Parent / Guardian</h4><p class="mt-1 text-sm text-slate-600">${guardians.length ? guardians.map((guardian) => this.safe(`${guardian.name || guardian.email || "Guardian"}${guardian.relationship ? ` (${guardian.relationship})` : ""}`)).join(", ") : "—"}</p></div></div>
+    <div class="mt-6 grid gap-4 border-t border-slate-200 pt-5 sm:grid-cols-2"><div><h4 class="font-semibold text-slate-700">Enrolled Subjects</h4><ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">${subjects.length ? subjects.map((subject) => `<li>${this.safe(subject.subject_name || subject.subject_code || "Subject")}</li>`).join("") : "<li>None assigned</li>"}</ul></div><div><h4 class="font-semibold text-slate-700">Parent / Guardian</h4><ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">${guardians.length ? guardians.map((guardian) => `<li>${this.safe(`${guardian.name || guardian.email || "Guardian"}${guardian.relationship ? ` (${guardian.relationship})` : ""}`)}</li>`).join("") : "<li>None linked</li>"}</ul></div><div><h4 class="font-semibold text-slate-700">Recent Attendance</h4><ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">${attendance.length ? attendance.map((item) => `<li>${this.safe(`${String(item.date || "").slice(0, 10)} — ${item.status || "recorded"}`)}</li>`).join("") : "<li>No attendance records</li>"}</ul></div><div><h4 class="font-semibold text-slate-700">Recent Grades</h4><ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">${grades.length ? grades.map((item) => `<li>${this.safe(`${item.subjects?.subject_name || "Subject"}: ${item.grade || item.score || "recorded"}`)}</li>`).join("") : "<li>No grades recorded</li>"}</ul></div><div class="sm:col-span-2"><h4 class="font-semibold text-slate-700">Payments</h4><ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">${payments.length ? payments.map((item) => `<li>${this.safe(`${item.payment_status || "pending"} — ₦${item.amount || 0}${item.created_at ? ` (${new Date(item.created_at).toLocaleDateString()})` : ""}`)}</li>`).join("") : "<li>No payment records</li>"}</ul></div></div>
   </div>
 </div>`;
     }
@@ -537,19 +540,28 @@ class StudentsModule {
         this.redraw();
 
         try {
-            const [subjectResult, guardianResult] = await Promise.all([
+            const [subjectResult, guardianResult, attendanceResult, gradesResult, paymentsResult] = await Promise.all([
                 API.db.from("student_subjects").select("subjects:subject_id(subject_name,subject_code)").eq("student_id", studentId),
-                API.db.from("parent_students").select("relationship,parents:parent_id(profiles:profile_id(first_name,last_name,email))").eq("student_id", studentId)
+                API.db.from("parent_students").select("relationship,parents:parent_id(profiles:profile_id(first_name,last_name,email))").eq("student_id", studentId),
+                API.db.from("attendance").select("date,status").eq("student_id", studentId).order("date", { ascending: false }).limit(5),
+                API.db.from("grades").select("score,grade,subjects:subject_id(subject_name)").eq("student_id", studentId).order("created_at", { ascending: false }).limit(5),
+                API.db.from("payments").select("amount,payment_status,created_at").eq("student_id", studentId).order("created_at", { ascending: false }).limit(5)
             ]);
             if (subjectResult.error) throw subjectResult.error;
             if (guardianResult.error) throw guardianResult.error;
+            if (attendanceResult.error) throw attendanceResult.error;
+            if (gradesResult.error) throw gradesResult.error;
+            if (paymentsResult.error) throw paymentsResult.error;
             this.state.studentDetails = {
                 ...student,
                 subjects: (subjectResult.data || []).map((item) => item.subjects).filter(Boolean),
                 guardians: (guardianResult.data || []).map((item) => {
                     const profile = item.parents?.profiles || {};
                     return { name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim(), email: profile.email, relationship: item.relationship };
-                })
+                }),
+                attendance: attendanceResult.data || [],
+                grades: gradesResult.data || [],
+                payments: paymentsResult.data || []
             };
         } catch (error) {
             console.error("Unable to load student details:", error);

@@ -79,18 +79,55 @@ class API {
 
             try {
 
-                const { data, error } = await API.db
+                const { count, error } = await API.db
                     .from("students")
-                    .select("id");
+                    .select("id", {
+                        count: "exact",
+                        head: true
+                    });
 
                 if (error) throw error;
 
-                return (data || []).length;
+                return count || 0;
 
             } catch (error) {
 
                 console.error("Enrolled student count failed:", error);
                 return 0;
+
+            }
+
+        },
+
+        // Lightweight list for the dashboard's enrolled-student card. It
+        // uses the same `students` records as the count, so only admitted
+        // students appear here.
+        async enrolledStudents(limit = 6) {
+
+            try {
+
+                const { data, error } = await API.db
+                    .from("students")
+                    .select(`
+                        id,
+                        student_no,
+                        admission_number,
+                        status,
+                        created_at,
+                        profiles:profile_id(first_name,last_name),
+                        classes:class_id(class_name,class_code)
+                    `)
+                    .order("created_at", { ascending: false })
+                    .limit(limit);
+
+                if (error) throw error;
+
+                return data || [];
+
+            } catch (error) {
+
+                console.error("Enrolled student list failed:", error);
+                return [];
 
             }
 

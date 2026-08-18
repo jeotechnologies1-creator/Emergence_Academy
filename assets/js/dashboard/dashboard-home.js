@@ -190,22 +190,22 @@ class DashboardHome {
 
         try {
 
+            const profile = await Auth.profile();
+            const role = this.normalizedRole(profile);
+            const canViewEnrolledStudents = ["ceo", "admin", "executive", "admission"].includes(role);
+
             const [
-
-                profile,
-
                 stats,
 
                 announcements,
 
                 permissions,
 
-                recentActivity
+                recentActivity,
+
+                enrolledStudents
 
             ] = await Promise.all([
-
-                Auth.profile(),
-
                 API.dashboard.stats(),
 
                 API.announcements.getLatest(),
@@ -213,7 +213,11 @@ class DashboardHome {
 
                 Auth.permissions(),
 
-                this.fetchRecentActivity()
+                this.fetchRecentActivity(),
+
+                canViewEnrolledStudents
+                    ? API.dashboard.enrolledStudents()
+                    : Promise.resolve([])
 
             ]);
 
@@ -229,7 +233,9 @@ class DashboardHome {
 
                 permissions,
 
-                recentActivity
+                recentActivity,
+
+                enrolledStudents
 
             );
 
@@ -251,7 +257,7 @@ class DashboardHome {
        TEMPLATE
     ====================================================== */
 
-    static template(profile, stats, announcements, permissions, recentActivity) {
+    static template(profile, stats, announcements, permissions, recentActivity, enrolledStudents = []) {
 
         const role = this.normalizedRole(profile);
         const copy = this.ROLE_COPY[role] || this.ROLE_COPY.student;
@@ -284,7 +290,7 @@ class DashboardHome {
 
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
-        ${this.roleCards(role, stats)}
+        ${this.roleCards(role, stats, enrolledStudents)}
 
     </div>
 
@@ -528,13 +534,40 @@ class DashboardHome {
 
     }
 
-    static roleCards(role, stats) {
+    static enrolledStudentsCard(value, students) {
+
+        const items = Array.isArray(students) ? students : [];
+        const studentRows = items.length
+            ? items.map((student) => {
+                const name = `${student.profiles?.first_name || ""} ${student.profiles?.last_name || ""}`.trim() || "Student";
+                const className = student.classes?.class_name || student.classes?.class_code || "No class";
+                const number = student.student_no || student.admission_number || "";
+                return `<li class="flex items-center justify-between gap-2 border-t border-blue-100 py-2 text-sm"><span class="min-w-0 truncate font-medium text-slate-700">${this.safeText(name)}</span><span class="shrink-0 text-right text-xs text-slate-500">${this.safeText(className)}${number ? ` · ${this.safeText(number)}` : ""}</span></li>`;
+            }).join("")
+            : '<li class="border-t border-blue-100 py-2 text-sm text-slate-500">No enrolled students yet.</li>';
+
+        return `
+<div class="rounded-xl bg-white p-5 shadow">
+    <div class="flex items-center justify-between gap-3">
+        <div><p class="text-gray-500">Enrolled Students</p><h2 class="mt-2 text-3xl font-bold">${value ?? 0}</h2><p class="mt-1 text-xs text-slate-500">Total admitted students</p></div>
+        <div class="text-5xl">👨‍🎓</div>
+    </div>
+    <ul class="mt-4">${studentRows}</ul>
+    <button type="button" data-dashboard-action-route="students" class="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700">View all enrolled students →</button>
+</div>`;
+
+    }
+
+    static roleCards(role, stats, enrolledStudents = []) {
 
         const keys = this.ROLE_METRICS[role] || this.ROLE_METRICS.student;
 
         return keys.map((key) => {
             const meta = this.METRIC_META[key] || { label: key, icon: "📌" };
             const value = Number(stats?.[key] ?? 0);
+            if (key === "students" && ["ceo", "admin", "executive", "admission"].includes(role)) {
+                return this.enrolledStudentsCard(value, enrolledStudents);
+            }
             return this.card(meta.label, value, meta.icon);
         }).join("");
 
