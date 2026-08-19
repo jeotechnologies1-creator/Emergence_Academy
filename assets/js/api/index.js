@@ -66,6 +66,37 @@ class API {
 
     }
 
+    // Office modules must not embed public.profiles in a browser database
+    // query. Older Supabase projects can retain a recursive profiles RLS
+    // policy; this existing privileged function safely returns the directory
+    // for Admin/CEO users instead.
+    static async officeProfileMap() {
+
+        const { data, error } = await API.db.functions.invoke(
+            "list-profiles",
+            { body: {} }
+        );
+
+        if (error) {
+            throw new Error(
+                await API.functionErrorMessage(
+                    error,
+                    "Unable to load user profiles."
+                )
+            );
+        }
+
+        if (data?.error) throw new Error(data.error);
+
+        return Object.fromEntries(
+            (data?.profiles || []).map((profile) => [
+                String(profile.id),
+                profile
+            ])
+        );
+
+    }
+
     /* ======================================================
        DASHBOARD
     ====================================================== */
@@ -469,43 +500,11 @@ class API {
 
             try {
 
-                const { data, error }
-
-                    = await API.db
-
+                const [studentResult, profileMap] = await Promise.all([
+                    API.db
                         .from("students")
-
                         .select(`
-
                             *,
-
-                            profiles:profile_id(
-
-                                id,
-
-                                first_name,
-
-                                last_name,
-
-                                email,
-
-                                phone,
-
-                                gender,
-
-                                date_of_birth,
-
-                                address,
-
-                                city,
-
-                                state,
-
-                                country,
-
-                                avatar_url
-
-                            ),
 
                             classes:class_id(
 
@@ -526,22 +525,16 @@ class API {
                             )
 
                         `)
+                        .order("created_at", { ascending: false }),
+                    API.officeProfileMap()
+                ]);
 
-                        .order(
+                if (studentResult.error) throw studentResult.error;
 
-                            "created_at",
-
-                            {
-
-                                ascending: false
-
-                            }
-
-                        );
-
-                if (error) throw error;
-
-                return data || [];
+                return (studentResult.data || []).map((student) => ({
+                    ...student,
+                    profiles: profileMap[String(student.profile_id)] || null
+                }));
 
             }
 
@@ -1724,32 +1717,20 @@ specialization.ilike.%${keyword}%`
 
             try {
 
-                const { data, error } = await API.db
+                const [parentResult, profileMap] = await Promise.all([
+                    API.db
+                        .from("parents")
+                        .select("*")
+                        .order("created_at", { ascending: false }),
+                    API.officeProfileMap()
+                ]);
 
-                    .from("parents")
+                if (parentResult.error) throw parentResult.error;
 
-                    .select(`
-                        *,
-                        profiles:profile_id(
-                            id,
-                            first_name,
-                            last_name,
-                            email,
-                            phone,
-                            gender,
-                            avatar_url
-                        )
-                    `)
-
-                    .order("created_at", {
-
-                        ascending: false
-
-                    });
-
-                if (error) throw error;
-
-                return data || [];
+                return (parentResult.data || []).map((parent) => ({
+                    ...parent,
+                    profiles: profileMap[String(parent.profile_id)] || null
+                }));
 
             }
 
