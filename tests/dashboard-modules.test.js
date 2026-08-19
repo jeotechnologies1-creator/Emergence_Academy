@@ -5,6 +5,7 @@ const vm = require('vm');
 
 (() => {
   const file = path.join(__dirname, '..', 'assets', 'js', 'dashboard', 'module-stub.js');
+  const dashboardHomeFile = path.join(__dirname, '..', 'assets', 'js', 'dashboard', 'dashboard-home.js');
   assert.ok(fs.existsSync(file), 'module stub file should exist');
 
   const code = fs.readFileSync(file, 'utf8');
@@ -17,6 +18,10 @@ const vm = require('vm');
 
   const vmContext = vm.createContext(context);
   vm.runInContext(code, vmContext);
+
+  const dashboardHome = fs.readFileSync(dashboardHomeFile, 'utf8');
+  assert.ok(dashboardHome.includes('static enrolledStudentsCard(value)'), 'The enrolled-student dashboard card should only receive the count.');
+  assert.ok(!dashboardHome.includes('API.dashboard.enrolledStudents()'), 'The dashboard should not fetch or render enrolled student names in the count card.');
 
   ['TeachersModule', 'ParentsModule', 'AttendanceModule', 'AssignmentModule', 'GradesModule', 'FinanceModule', 'ReportsModule', 'NotificationModule', 'AIModule'].forEach((name) => {
     assert.ok(context.window[name], `${name} should be registered on window`);
