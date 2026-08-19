@@ -38,8 +38,8 @@
                 </div>
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">Password</label>
-                    <input id="registerPassword" type="password"
-                        class="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <div class="relative"><input id="registerPassword" type="password"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-16 outline-none focus:ring-2 focus:ring-indigo-500" /><button id="toggleRegisterPassword" type="button" class="absolute inset-y-0 right-2 text-sm text-indigo-700 hover:text-indigo-900" aria-label="Show password">Show</button></div>
                 </div>
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">Role / Office</label>
@@ -78,6 +78,16 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const form = document.getElementById('registerForm');
             const errorEl = document.getElementById('registerError');
+            const passwordInput = document.getElementById('registerPassword');
+            const togglePassword = document.getElementById('toggleRegisterPassword');
+
+            togglePassword?.addEventListener('click', () => {
+                const hidden = passwordInput?.type === 'password';
+                if (!passwordInput) return;
+                passwordInput.type = hidden ? 'text' : 'password';
+                togglePassword.textContent = hidden ? 'Hide' : 'Show';
+                togglePassword.setAttribute('aria-label', `${hidden ? 'Hide' : 'Show'} password`);
+            });
 
             if (!window.Auth) {
                 errorEl.textContent = 'Authentication module is unavailable.';

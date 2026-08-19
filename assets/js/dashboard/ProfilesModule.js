@@ -318,17 +318,25 @@
                 <form id="profile-action-form" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <label>First name<input name="first_name" value="${value("first_name")}" ${readOnly ? "readonly" : "required"} class="mt-1 w-full rounded border px-3 py-2" /></label>
                   <label>Last name<input name="last_name" value="${value("last_name")}" ${readOnly ? "readonly" : "required"} class="mt-1 w-full rounded border px-3 py-2" /></label>
-                  <label class="md:col-span-2">Email<input name="email" type="email" value="${value("email")}" ${readOnly || !isCreate ? "readonly" : "required"} class="mt-1 w-full rounded border px-3 py-2" /></label>
+                  <label class="md:col-span-2">Email<input name="email" type="email" value="${value("email")}" ${readOnly ? "readonly" : "required"} class="mt-1 w-full rounded border px-3 py-2" /></label>
                   <label>Phone<input name="phone" value="${value("phone")}" ${readOnly ? "readonly" : ""} class="mt-1 w-full rounded border px-3 py-2" /></label>
-                  <label>Role<select name="role" ${readOnly || !isCreate ? "disabled" : ""} class="mt-1 w-full rounded border px-3 py-2">${roles.map((role) => `<option value="${role}" ${String(profile?.role || "student") === role ? "selected" : ""}>${role}</option>`).join("")}</select></label>
+                  <label>Role<select name="role" ${readOnly ? "disabled" : ""} class="mt-1 w-full rounded border px-3 py-2">${roles.map((role) => `<option value="${role}" ${String(profile?.role || "student") === role ? "selected" : ""}>${role}</option>`).join("")}</select></label>
                   <label>Status<select name="status" ${readOnly ? "disabled" : ""} class="mt-1 w-full rounded border px-3 py-2">${["active", "inactive", "pending", "suspended"].map((status) => `<option value="${status}" ${String(profile?.status || "active") === status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
-                  ${isCreate ? `<label>Password<input name="password" type="password" minlength="8" required class="mt-1 w-full rounded border px-3 py-2" /></label>` : ""}
+                  ${isCreate ? `<label>Password<div class="relative mt-1"><input name="password" type="password" minlength="8" required class="w-full rounded border px-3 py-2 pr-16" /><button type="button" data-password-toggle class="absolute inset-y-0 right-2 text-sm text-blue-700 hover:text-blue-900" aria-label="Show password">Show</button></div></label>` : ""}
                   <div class="md:col-span-2 flex justify-end gap-2"><button type="button" data-profile-close class="rounded border px-4 py-2">Cancel</button>${readOnly ? "" : '<button class="rounded bg-blue-600 px-4 py-2 text-white">Save</button>'}</div>
                 </form>
               </div>`;
             document.body.appendChild(modal);
 
             modal.querySelectorAll("[data-profile-close]").forEach((button) => button.addEventListener("click", () => this.closeModal()));
+            modal.querySelectorAll("[data-password-toggle]").forEach((button) => button.addEventListener("click", () => {
+                const input = button.parentElement?.querySelector('input[type="password"], input[type="text"]');
+                if (!input) return;
+                const hidden = input.type === "password";
+                input.type = hidden ? "text" : "password";
+                button.textContent = hidden ? "Hide" : "Show";
+                button.setAttribute("aria-label", `${hidden ? "Hide" : "Show"} password`);
+            }));
             modal.addEventListener("click", (event) => { if (event.target === modal) this.closeModal(); });
             modal.querySelector("form")?.addEventListener("submit", async (event) => {
                 event.preventDefault();
@@ -339,12 +347,20 @@
                         const result = await Auth.createOfficeAccount(payload);
                         if (!result?.success) throw new Error(result?.message || "Unable to create user.");
                     } else {
-                        await ApiService.update("profiles", profile.id, {
-                            first_name: payload.first_name,
-                            last_name: payload.last_name,
-                            phone: payload.phone,
-                            status: payload.status
+                        const { data, error } = await API.db.functions.invoke("create-user", {
+                            body: {
+                                operation: "update-profile",
+                                profile_id: profile.id,
+                                first_name: payload.first_name,
+                                last_name: payload.last_name,
+                                email: payload.email,
+                                phone: payload.phone,
+                                role: payload.role,
+                                status: payload.status
+                            }
                         });
+                        if (error) throw new Error(error.message || "Unable to update profile.");
+                        if (data?.error) throw new Error(data.error);
                     }
                     this.closeModal();
                     await this.loadProfiles();

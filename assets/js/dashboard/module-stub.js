@@ -2614,6 +2614,19 @@ ${
     if (
       form
     ) {
+      form.querySelectorAll("[data-password-toggle]").forEach(
+        (button) => {
+          button.addEventListener("click", () => {
+            const input = button.parentElement?.querySelector('input[type="password"], input[type="text"]');
+            if (!input) return;
+            const hidden = input.type === "password";
+            input.type = hidden ? "text" : "password";
+            button.textContent = hidden ? "Hide" : "Show";
+            button.setAttribute("aria-label", `${hidden ? "Hide" : "Show"} password`);
+          });
+        }
+      );
+
       form.addEventListener(
         "submit",
         async (event) => {
@@ -3230,6 +3243,21 @@ ${
 >${this.safe(
     current
   )}</textarea>
+`
+      : type === "password"
+      ? `
+<div class="relative">
+<input
+  id="${this.safe(key)}"
+  name="${this.safe(key)}"
+  type="password"
+  value="${this.safe(current)}"
+  ${required ? "required" : ""}
+  ${disabled ? "disabled" : ""}
+  class="w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-16 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+/>
+<button type="button" data-password-toggle class="absolute inset-y-0 right-2 text-sm text-blue-700 hover:text-blue-900" aria-label="Show password">Show</button>
+</div>
 `
       : `
 <input

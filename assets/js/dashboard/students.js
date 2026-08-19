@@ -309,7 +309,7 @@ class StudentsModule {
       </label>
       <label class="block">
         <span class="text-sm font-medium text-slate-700">Temporary Password <span class="text-red-600">*</span></span>
-        <input name="password" type="text" minlength="8" value="${this.safe(passwordValue)}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" required />
+        <div class="relative mt-1"><input name="password" type="password" minlength="8" value="${this.safe(passwordValue)}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-16" required /><button type="button" data-password-toggle class="absolute inset-y-0 right-2 text-sm text-blue-700 hover:text-blue-900" aria-label="Show password">Show</button></div>
         <span class="mt-1 block text-xs text-slate-500">Share this securely with the student or guardian.</span>
       </label>
       <div class="student-admission-actions md:col-span-2 flex items-center justify-end gap-3 mt-2">
@@ -762,6 +762,16 @@ class StudentsModule {
         }
 
         const form = container.querySelector("#student-form");
+        container.querySelectorAll("[data-password-toggle]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const input = button.parentElement?.querySelector('input[type="password"], input[type="text"]');
+                if (!input) return;
+                const hidden = input.type === "password";
+                input.type = hidden ? "text" : "password";
+                button.textContent = hidden ? "Hide" : "Show";
+                button.setAttribute("aria-label", `${hidden ? "Hide" : "Show"} password`);
+            });
+        });
         if (form) {
             form.addEventListener("submit", async (event) => {
                 event.preventDefault();

@@ -701,7 +701,7 @@ No announcements available.
         </select>
 
         <div class="flex gap-2">
-            <input id="office-password" type="text" placeholder="Password (leave blank to auto-generate)" class="w-full rounded-lg border border-slate-300 px-3 py-2.5">
+            <div class="relative flex-1"><input id="office-password" type="password" placeholder="Password (leave blank to auto-generate)" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-16"><button id="office-toggle-password" type="button" class="absolute inset-y-0 right-2 text-sm text-blue-700 hover:text-blue-900" aria-label="Show password">Show</button></div>
             <button id="office-generate-password" type="button" class="px-4 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">Generate</button>
             <button id="office-copy-password" type="button" class="px-4 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">Copy</button>
         </div>
@@ -922,6 +922,7 @@ No announcements available.
         const passwordInput = document.getElementById("office-password");
         const generateBtn = document.getElementById("office-generate-password");
         const copyBtn = document.getElementById("office-copy-password");
+        const toggleBtn = document.getElementById("office-toggle-password");
         const clearRecentBtn = document.getElementById("office-clear-recent");
         const submit = document.getElementById("office-submit");
 
@@ -934,6 +935,15 @@ No announcements available.
         if (copyBtn) {
             copyBtn.onclick = async () => {
                 await this.copyPassword();
+            };
+        }
+
+        if (toggleBtn && passwordInput) {
+            toggleBtn.onclick = () => {
+                const hidden = passwordInput.type === "password";
+                passwordInput.type = hidden ? "text" : "password";
+                toggleBtn.textContent = hidden ? "Hide" : "Show";
+                toggleBtn.setAttribute("aria-label", `${hidden ? "Hide" : "Show"} password`);
             };
         }
 
