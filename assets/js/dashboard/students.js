@@ -62,6 +62,10 @@ class StudentsModule {
         return ["ceo", "admin"].includes(this.role());
     }
 
+    static isTeacher() {
+        return this.role() === "teacher";
+    }
+
     static showMessage(text, tone = "success") {
         const fallback = String(text || "Action completed.");
 
@@ -444,7 +448,9 @@ class StudentsModule {
         const canDelete = this.canDelete();
 
         if (!rows.length) {
-            return '<div class="text-center py-8 text-slate-500">No students found.</div>';
+            return `<div class="text-center py-8 text-slate-500">${this.isTeacher()
+                ? "No students are enrolled in your assigned class and subject combinations yet."
+                : "No students found."}</div>`;
         }
 
         return `
@@ -491,7 +497,9 @@ class StudentsModule {
   <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
     <div>
       <h2 class="text-3xl font-bold text-slate-800">Students</h2>
-      <p class="text-sm text-slate-500 mt-1">Manage student admissions, class placement, and active records.</p>
+      <p class="text-sm text-slate-500 mt-1">${this.isTeacher()
+          ? "Students appear automatically when they are in your assigned class and enrolled in a subject you teach."
+          : "Manage student admissions, class placement, and active records."}</p>
     </div>
     <div class="flex items-center gap-2">
       ${this.canCreate() ? '<button id="addStudent" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Admit Student</button>' : ''}

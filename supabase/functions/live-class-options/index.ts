@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
     const { data: teacher } = await admin.from("teachers").select("id").eq("profile_id", user.id).maybeSingle();
     if (!teacher) return json({ error: "Your teacher record could not be found." }, 403);
     const { data: assignments, error: assignmentError } = await admin
-      .from("teacher_subjects").select("subject_id,class_id").eq("teacher_id", teacher.id);
+      .from("teacher_subjects").select("teacher_id,subject_id,class_id").eq("teacher_id", teacher.id);
     if (assignmentError) throw assignmentError;
     const subjectIds = [...new Set((assignments || []).map((row) => row.subject_id))];
     const classIds = [...new Set((assignments || []).map((row) => row.class_id))];
