@@ -43,5 +43,8 @@ const path = require('path');
   const teacherStudentMigration = read('supabase', 'migrations', '202608190002_match_teacher_students_by_class_and_subject.sql');
   assert.ok(teacherStudentMigration.includes('join public.student_subjects ss'), 'teacher student visibility must depend on student subject enrolment');
   assert.ok(teacherStudentMigration.includes('ts.class_id = s.class_id'), 'teacher student visibility must depend on matching classes');
+  const expandedTeacherStudentMigration = read('supabase', 'migrations', '202608190007_match_teacher_students_by_assigned_class_or_subject.sql');
+  assert.ok(expandedTeacherStudentMigration.includes('or exists'), 'teacher student visibility should also include students offering an assigned subject');
+  assert.ok(expandedTeacherStudentMigration.includes('ts.class_id = s.class_id'), 'teacher student visibility should include students in an assigned class');
   console.log('live classes Google Meet regression test passed');
 })();
