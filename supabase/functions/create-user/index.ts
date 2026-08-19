@@ -385,6 +385,47 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return jsonResponse({ success: true, message: "User profile and login deleted successfully.", function_version: FUNCTION_VERSION });
     }
 
+    // Profile edits also update Auth so the email and trusted role claim stay
+    // aligned with public.profiles. This endpoint is reached only after the
+    // Admin/CEO check above and never exposes Auth Admin credentials.
+    if (String(body.operation || "").trim().toLowerCase() === "update-profile") {
+      const targetId = String(body.profile_id || "").trim();
+      const email = String(body.email || "").trim().toLowerCase();
+      const firstName = normalizeName(body.first_name);
+      const lastName = normalizeName(body.last_name);
+      const phone = String(body.phone || "").trim() || null;
+      const role = normalizeRole(body.role);
+      const status = String(body.status || "").trim().toLowerCase();
+
+      if (!targetId || !email || !firstName || !lastName || !role || !status) {
+        return jsonResponse({ error: "First name, last name, email, role, and status are required.", function_version: FUNCTION_VERSION }, 400);
+      }
+      if (!ALLOWED_ROLES.has(role)) {
+        return jsonResponse({ error: "Select a valid role.", function_version: FUNCTION_VERSION }, 400);
+      }
+
+      const { data: targetProfile, error: targetError } = await supabaseAdmin
+        .from("profiles").select("id").eq("id", targetId).maybeSingle();
+      if (targetError || !targetProfile) return jsonResponse({ error: "Profile was not found.", function_version: FUNCTION_VERSION }, 404);
+
+      const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(targetId, {
+        email,
+        app_metadata: { role },
+        user_metadata: { first_name: firstName, last_name: lastName, phone }
+      });
+      if (authUpdateError) return jsonResponse({ error: `Unable to update the login account: ${authUpdateError.message}`, function_version: FUNCTION_VERSION }, 400);
+
+      const { data: profile, error: profileUpdateError } = await supabaseAdmin
+        .from("profiles")
+        .update({ first_name: firstName, last_name: lastName, email, phone, role, status, updated_at: new Date().toISOString() })
+        .eq("id", targetId)
+        .select("id,first_name,last_name,email,phone,role,status")
+        .single();
+      if (profileUpdateError) return jsonResponse({ error: profileUpdateError.message, function_version: FUNCTION_VERSION }, 400);
+
+      return jsonResponse({ success: true, profile, message: "User profile updated successfully.", function_version: FUNCTION_VERSION });
+    }
+
     /* ======================================================
        BASIC USER DATA
     ====================================================== */

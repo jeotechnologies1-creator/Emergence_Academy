@@ -1128,6 +1128,10 @@ class OfficeModuleEngine {
         }
       );
 
+    if (typeof moduleClass.config.transformRows === "function") {
+      state.rows = await moduleClass.config.transformRows(state.rows);
+    }
+
     await this.loadLookups(
       moduleClass,
       state

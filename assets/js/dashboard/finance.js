@@ -107,7 +107,7 @@ class FinanceAdminModule {
     const [studentsResult, plansResult, paymentsResult] = await Promise.all([
       API.db.from("students").select("id,student_no,admission_number,profiles:profile_id(first_name,last_name)").order("student_no"),
       API.db.from("student_payment_plans").select("id,student_id,title,amount_due,due_date,is_active").order("due_date"),
-      API.db.from("payments").select("id,student_id,amount,payment_method,payment_reference,payment_status,created_at").order("created_at", { ascending: false })
+      API.db.from("payments").select("id,student_id,amount,payment_method,payment_reference,payment_status,receipt_path,created_at").order("created_at", { ascending: false })
     ]);
     if (studentsResult.error || plansResult.error || paymentsResult.error) throw studentsResult.error || plansResult.error || paymentsResult.error;
     this.state.students = studentsResult.data || []; this.state.plans = plansResult.data || []; this.state.payments = paymentsResult.data || [];
@@ -120,6 +120,23 @@ class FinanceAdminModule {
   }
   static showError(message) { const box = this.state.container?.querySelector("#payment-plan-error"); if (box) { box.textContent = message; box.classList.remove("hidden"); } }
   static bind() {
+    const submissionSection = [...this.state.container.querySelectorAll("section")].find((section) => section.querySelector("h3")?.textContent === "Parent payment submissions");
+    const submissionTable = submissionSection?.querySelector("table");
+    if (submissionTable) {
+      submissionTable.querySelector("thead tr")?.insertAdjacentHTML("beforeend", '<th class="p-2">Receipt</th>');
+      const rows = [...submissionTable.querySelectorAll("tbody tr")];
+      if (this.state.payments.length) {
+        rows.forEach((row, index) => {
+          const payment = this.state.payments[index];
+          const cell = document.createElement("td");
+          cell.className = "p-2";
+          cell.innerHTML = payment?.receipt_path ? `<button data-finance-receipt-path="${this.safe(payment.receipt_path)}" class="text-blue-700 hover:underline">View receipt</button>` : "—";
+          row.appendChild(cell);
+        });
+      } else {
+        submissionTable.querySelector("tbody td[colspan]")?.setAttribute("colspan", "7");
+      }
+    }
     this.state.container.querySelector("#payment-plan-form")?.addEventListener("submit", async (event) => {
       event.preventDefault(); const data = new FormData(event.currentTarget); const amountDue = Number(data.get("amount_due"));
       try {
@@ -130,6 +147,11 @@ class FinanceAdminModule {
     });
     this.state.container.querySelectorAll("[data-payment-status]").forEach((button) => button.addEventListener("click", async () => {
       try { const { error } = await API.db.from("payments").update({ payment_status: button.dataset.paymentStatus }).eq("id", button.dataset.paymentId); if (error) throw error; window.Utils?.success?.("Payment status updated."); await this.render(this.state.container); } catch (error) { this.showError(error.message || "Unable to update payment."); }
+    }));
+    this.state.container.querySelectorAll("[data-finance-receipt-path]").forEach((button) => button.addEventListener("click", async () => {
+      const { data, error } = await API.db.storage.from(ParentPaymentsModule.RECEIPT_BUCKET).createSignedUrl(button.dataset.financeReceiptPath, 60);
+      if (error || !data?.signedUrl) return this.showError(error?.message || "Unable to open receipt.");
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
     }));
   }
   static async render(container) { this.state.container = container; container.innerHTML = '<div class="rounded-xl bg-white p-8 text-slate-500 shadow">Loading finance records…</div>'; try { await this.load(); container.innerHTML = this.template(); this.bind(); } catch (error) { console.error(error); container.innerHTML = `<div class="rounded-xl bg-white p-8 text-red-600 shadow">${this.safe(error.message || "Unable to load finance records.")}</div>`; } }

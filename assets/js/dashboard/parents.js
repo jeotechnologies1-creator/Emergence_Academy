@@ -4,10 +4,13 @@ const ParentsModule = window.OfficeModuleEngine.create({
   tableName: "parents",
   orderBy: "created_at",
   columns: [
-    { key: "profile_id", label: "Parent" },
+    { key: "parent_name", label: "Parent" },
+    { key: "parent_email", label: "Email" },
+    { key: "parent_phone", label: "Phone" },
     { key: "occupation", label: "Occupation" },
     { key: "relationship", label: "Relationship" },
     { key: "address", label: "Address" },
+    { key: "children", label: "Children" },
     { key: "created_at", label: "Created" }
   ],
   // Create the portal account and link it to one or more enrolled children in one step.
@@ -29,6 +32,34 @@ const ParentsModule = window.OfficeModuleEngine.create({
       table: "students",
       preferProfileName: true
     }
+  },
+  async transformRows(rows) {
+    const [profiles, links, students] = await Promise.all([
+      API.records.getAll("profiles", { orderBy: "created_at", ascending: false, select: "id,first_name,last_name,email,phone" }),
+      API.records.getAll("parent_students", { orderBy: "created_at", ascending: false, select: "parent_id,student_id" }),
+      API.records.getAll("students", { orderBy: "created_at", ascending: false, select: "id,student_no,admission_number,profile_id" })
+    ]);
+    const profileById = Object.fromEntries((profiles || []).map((profile) => [String(profile.id), profile]));
+    const studentById = Object.fromEntries((students || []).map((student) => [String(student.id), student]));
+    const childrenByParent = {};
+    (links || []).forEach((link) => {
+      const student = studentById[String(link.student_id)];
+      const childProfile = student && profileById[String(student.profile_id)];
+      if (!student) return;
+      const childName = `${childProfile?.first_name || ""} ${childProfile?.last_name || ""}`.trim() || "Student";
+      const childNumber = student.student_no || student.admission_number;
+      (childrenByParent[String(link.parent_id)] ||= []).push(childNumber ? `${childName} (${childNumber})` : childName);
+    });
+    return (rows || []).map((parent) => {
+      const profile = profileById[String(parent.profile_id)] || {};
+      return {
+        ...parent,
+        parent_name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || profile.email || "—",
+        parent_email: profile.email || "—",
+        parent_phone: profile.phone || "—",
+        children: (childrenByParent[String(parent.id)] || []).join(", ") || "—"
+      };
+    });
   },
   async createRecord(payload) {
     const studentIds = Array.isArray(payload.student_ids)
