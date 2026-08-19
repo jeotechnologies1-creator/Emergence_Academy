@@ -15,7 +15,7 @@ const ParentsModule = window.OfficeModuleEngine.create({
   ],
   // Create the portal account and link it to one or more enrolled children in one step.
   formFields: [{ key: "student_ids", label: "Children", type: "multi-select", fullWidth: true }, "first_name", "last_name", "email", "phone", "password", "occupation", "relationship", "address"],
-  editFormFields: [{ key: "student_ids", label: "Link additional children", type: "multi-select", fullWidth: true }, "occupation", "relationship", "address"],
+  editFormFields: [{ key: "student_ids", label: "Linked children", type: "multi-select", fullWidth: true }, "occupation", "relationship", "address"],
   requiredFields: ["student_ids", "first_name", "last_name", "email", "password", "relationship"],
   editRequiredFields: ["relationship"],
   multiValueFields: ["student_ids"],
@@ -58,7 +58,8 @@ const ParentsModule = window.OfficeModuleEngine.create({
         parent_name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || profile.email || "—",
         parent_email: profile.email || "—",
         parent_phone: profile.phone || "—",
-        children: (childrenByParent[String(parent.id)] || []).join(", ") || "—"
+        children: (childrenByParent[String(parent.id)] || []).join(", ") || "Not linked — edit this parent to select child(ren)",
+        student_ids: (links || []).filter((link) => String(link.parent_id) === String(parent.id)).map((link) => String(link.student_id))
       };
     });
   },
@@ -93,18 +94,23 @@ const ParentsModule = window.OfficeModuleEngine.create({
     const studentIds = Array.isArray(payload.student_ids)
       ? payload.student_ids.map((id) => String(id).trim()).filter(Boolean)
       : [];
-    const { data, error } = await API.db.functions.invoke("create-user", {
-      body: {
-        operation: "update-parent-links",
-        parent_id: parentId,
-        student_ids: studentIds,
-        occupation: String(payload.occupation || "").trim(),
-        relationship: String(payload.relationship || "").trim(),
-        address: String(payload.address || "").trim()
-      }
-    });
-    if (error || data?.error) return API.response(false, null, data?.error || error?.message || "Unable to update the parent record.");
-    return API.response(true, data?.parent, data?.message || "Parent record updated and selected children linked.");
+    const relationship = String(payload.relationship || "").trim();
+    if (!relationship) return API.response(false, null, "A parent relationship is required.");
+    const { data: parent, error: parentError } = await API.db.from("parents")
+      .update({ occupation: String(payload.occupation || "").trim() || null, relationship, address: String(payload.address || "").trim() || null })
+      .eq("id", parentId)
+      .select()
+      .single();
+    if (parentError) return API.response(false, null, parentError.message || "Unable to update the parent record.");
+    if (studentIds.length) {
+      const { error: linkError } = await API.db.from("parent_students").upsert(
+        studentIds.map((studentId) => ({ parent_id: parentId, student_id: studentId, relationship })),
+        { onConflict: "parent_id,student_id" }
+      );
+      if (linkError) return API.response(false, null, linkError.message || "Parent details were saved, but the children could not be linked.");
+    }
+    await API.db.from("parent_students").update({ relationship }).eq("parent_id", parentId);
+    return API.response(true, parent, studentIds.length ? "Parent record updated and selected children linked." : "Parent record updated successfully.");
   }
 });
 
