@@ -500,6 +500,26 @@ class API {
 
             try {
 
+                // The full profile directory is deliberately restricted to
+                // CEO/Admin accounts. Teachers instead receive profile data
+                // through the student relation, which RLS scopes with
+                // teacher_can_access_student().
+                const role = String((await Auth.profile())?.role || "").toLowerCase();
+                if (role === "teacher") {
+                    const { data, error } = await API.db
+                        .from("students")
+                        .select(`
+                            *,
+                            profiles:profile_id(id,first_name,last_name,email,phone,avatar_url),
+                            classes:class_id(id,class_name,class_code),
+                            departments:department_id(id,name)
+                        `)
+                        .order("created_at", { ascending: false });
+
+                    if (error) throw error;
+                    return data || [];
+                }
+
                 const [studentResult, profileMap] = await Promise.all([
                     API.db
                         .from("students")
