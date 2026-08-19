@@ -77,6 +77,16 @@ Deno.serve(async (req) => {
       return json({ error: "Every approved student must belong to the selected class." }, 400);
     }
 
+    const { data: subjectEnrollments, error: subjectEnrollmentError } = await admin
+      .from("student_subjects")
+      .select("student_id")
+      .eq("subject_id", subjectId)
+      .in("student_id", approvedStudentIds);
+    if (subjectEnrollmentError) throw subjectEnrollmentError;
+    if ((subjectEnrollments || []).length !== approvedStudentIds.length) {
+      return json({ error: "Every approved student must be enrolled in the selected subject." }, 400);
+    }
+
     const meet = await createGoogleMeet(title, description, startsAt.toISOString(), endsAt.toISOString());
     const { data: liveClass, error } = await admin.from("live_classes").insert({
       title, description: description || null, subject_id: subjectId, class_id: classId, teacher_id: teacherId,

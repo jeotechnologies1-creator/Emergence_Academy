@@ -42,9 +42,9 @@ class LiveClassesModule {
       const name = `${student.profiles?.first_name || ""} ${student.profiles?.last_name || ""}`.trim() || student.profiles?.email || "Student";
       const studentNumber = String(student.student_no || student.admission_number || "").trim();
       const label = studentNumber ? `${name} (${studentNumber})` : name;
-      return `<label data-approved-student data-class-id="${this.safe(student.class_id)}" class="flex items-center gap-2 rounded border p-2 text-sm opacity-50"><input disabled type="checkbox" name="approved_student_ids" value="${this.safe(student.id)}"><span>${this.safe(label)}</span></label>`;
-    }).join("") || '<p class="text-sm text-slate-500">No students are available for your assigned classes.</p>';
-    return `<section class="rounded-xl bg-white p-5 shadow"><h3 class="text-xl font-bold text-slate-800">Schedule a Google Meet class</h3>${disabled ? '<p class="mt-2 text-sm text-amber-700">You need an administrator assignment for a subject and class before scheduling.</p>' : ""}<form id="live-class-form" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2"><label><span class="text-sm">Class *</span><select required name="class_id" id="live-class-id" class="mt-1 w-full rounded-lg border p-2.5"><option value="">Select class</option>${classes.map((row) => `<option value="${this.safe(row.id)}">${this.safe(row.class_name)}</option>`).join("")}</select></label><label><span class="text-sm">Subject *</span><select required name="subject_id" id="live-subject-id" disabled class="mt-1 w-full rounded-lg border p-2.5 disabled:bg-slate-100"><option value="">Select a class first</option>${subjectOptions}</select></label><label class="md:col-span-2"><span class="text-sm">Class title *</span><input required name="title" class="mt-1 w-full rounded-lg border p-2.5" placeholder="Introduction to Algebra"></label><label class="md:col-span-2"><span class="text-sm">Description</span><textarea name="description" rows="2" class="mt-1 w-full rounded-lg border p-2.5"></textarea></label><label><span class="text-sm">Start time *</span><input required name="starts_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><label><span class="text-sm">End time *</span><input required name="ends_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><fieldset class="md:col-span-2"><legend class="text-sm font-medium">Students approved for this live class *</legend><p class="mb-2 text-xs text-slate-500">Choose one or more students from the selected class. Only they can join this session.</p><div id="approved-students" class="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">${students}</div></fieldset><div id="live-class-error" class="hidden md:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"></div><div class="md:col-span-2"><button ${disabled ? "disabled" : ""} class="rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white disabled:opacity-50">Schedule & Open Google Meet</button></div></form></section>`;
+      return `<label data-approved-student data-class-id="${this.safe(student.class_id)}" data-subject-ids="${this.safe((student.subject_ids || []).join(","))}" class="hidden items-center gap-2 rounded border p-2 text-sm"><input disabled type="checkbox" name="approved_student_ids" value="${this.safe(student.id)}"><span>${this.safe(label)}</span></label>`;
+    }).join("") || '<p class="text-sm text-slate-500">No students match your current class and subject assignments.</p>';
+    return `<section class="rounded-xl bg-white p-5 shadow"><h3 class="text-xl font-bold text-slate-800">Schedule a Google Meet class</h3>${disabled ? '<p class="mt-2 text-sm text-amber-700">You need an administrator assignment for a subject and class before scheduling.</p>' : ""}<form id="live-class-form" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2"><label><span class="text-sm">Class *</span><select required name="class_id" id="live-class-id" class="mt-1 w-full rounded-lg border p-2.5"><option value="">Select class</option>${classes.map((row) => `<option value="${this.safe(row.id)}">${this.safe(row.class_name)}</option>`).join("")}</select></label><label><span class="text-sm">Subject *</span><select required name="subject_id" id="live-subject-id" disabled class="mt-1 w-full rounded-lg border p-2.5 disabled:bg-slate-100"><option value="">Select a class first</option>${subjectOptions}</select></label><label class="md:col-span-2"><span class="text-sm">Class title *</span><input required name="title" class="mt-1 w-full rounded-lg border p-2.5" placeholder="Introduction to Algebra"></label><label class="md:col-span-2"><span class="text-sm">Description</span><textarea name="description" rows="2" class="mt-1 w-full rounded-lg border p-2.5"></textarea></label><label><span class="text-sm">Start time *</span><input required name="starts_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><label><span class="text-sm">End time *</span><input required name="ends_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><fieldset class="md:col-span-2"><legend class="text-sm font-medium">Students approved for this live class *</legend><p class="mb-2 text-xs text-slate-500">Choose students enrolled in the selected class and subject. Only they can join this session.</p><div id="approved-students" class="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">${students}</div></fieldset><div id="live-class-error" class="hidden md:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"></div><div class="md:col-span-2"><button ${disabled ? "disabled" : ""} class="rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white disabled:opacity-50">Schedule & Open Google Meet</button></div></form></section>`;
   }
   static card(session) {
     const status = String(session.status || "upcoming").toLowerCase(), teacherControls = this.canSchedule() && String(session.teacher_id) === String(this.state.teacher?.id);
@@ -63,6 +63,17 @@ class LiveClassesModule {
     const form = this.state.container.querySelector("#live-class-form");
     const classSelect = this.state.container.querySelector("#live-class-id");
     const subjectSelect = this.state.container.querySelector("#live-subject-id");
+    const updateEligibleStudents = () => {
+      const classId = String(classSelect?.value || "");
+      const subjectId = String(subjectSelect?.value || "");
+      this.state.container.querySelectorAll("[data-approved-student]").forEach((label) => {
+        const enrolledSubjects = String(label.dataset.subjectIds || "").split(",");
+        const allowed = Boolean(classId && subjectId) && String(label.dataset.classId) === classId && enrolledSubjects.includes(subjectId);
+        label.classList.toggle("hidden", !allowed);
+        label.querySelector("input").disabled = !allowed;
+        if (!allowed) label.querySelector("input").checked = false;
+      });
+    };
     classSelect?.addEventListener("change", () => {
       const classId = String(classSelect.value || "");
       subjectSelect.disabled = !classId;
@@ -73,13 +84,9 @@ class LiveClassesModule {
         if (!allowed && option.selected) subjectSelect.value = "";
       });
       subjectSelect.querySelector("option[value='']").textContent = classId ? "Select subject" : "Select a class first";
-      this.state.container.querySelectorAll("[data-approved-student]").forEach((label) => {
-        const allowed = String(label.dataset.classId) === String(classSelect.value);
-        label.classList.toggle("hidden", !allowed);
-        label.querySelector("input").disabled = !allowed;
-        if (!allowed) label.querySelector("input").checked = false;
-      });
+      updateEligibleStudents();
     });
+    subjectSelect?.addEventListener("change", updateEligibleStudents);
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const errorBox = this.state.container.querySelector("#live-class-error");

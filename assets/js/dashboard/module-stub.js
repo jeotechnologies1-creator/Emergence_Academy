@@ -3050,7 +3050,11 @@ ${
                           key
                         )
                           ? Object.entries(
-                              state.lookups[key] || {}
+                              // Lookup state carries metadata alongside the
+                              // ID-to-label map. Forms must use only that map;
+                              // iterating the wrapper renders entries such as
+                              // "classes" and "[object Object]" as options.
+                              state.lookups[key]?.map || {}
                             ).map(
                               ([value, label]) => ({ value, label })
                             )
@@ -3131,7 +3135,7 @@ ${
   )}"
   ${
     isMultiValue
-      ? "multiple"
+      ? 'multiple size="6"'
       : ""
   }
   ${
