@@ -20,15 +20,41 @@ main {
   scroll-padding-top: 6rem;
   scroll-behavior: smooth;
   touch-action: pan-y;
+  min-width: 0;
+  overflow: visible;
 }
 
 .dashboard-shell {
   min-height: 100vh;
   min-height: 100dvh;
+  /* Let the document grow with every module. A fixed-height flex shell with
+     nested scrolling can hide the end of long forms on some browsers. */
+  overflow: visible;
 }
 
 #dashboard-content {
   min-height: 0;
+  min-width: 0;
+}
+
+/* Module forms are rendered inside fixed overlays. Make the overlay the one
+   scroll container and allow its dialog to retain its natural full height.
+   This keeps every field and action reachable on short viewports. */
+[data-modal],
+#profile-action-modal,
+.student-admission-overlay {
+  align-items: flex-start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+[data-modal] > div,
+#profile-action-modal > div,
+.student-admission-dialog {
+  max-height: none;
+  overflow: visible;
 }
 
 #sidebar {
@@ -82,12 +108,10 @@ nav button[data-route].active {
 }
 
 .student-admission-dialog {
-  max-height: calc(100vh - 1.5rem);
-  max-height: calc(100dvh - 1.5rem);
-  overflow-y: auto;
-  overscroll-behavior: auto;
-  -webkit-overflow-scrolling: touch;
-  margin: auto 0;
+  /* Its parent overlay owns scrolling, so the dialog can expand fully. */
+  max-height: none;
+  overflow: visible;
+  margin: 0;
 }
 
 .student-admission-actions {
@@ -177,6 +201,17 @@ nav button[data-route].active {
     overflow-x: hidden;
   }
 
+  /* Prevent responsive grids, inputs, and long module content from being
+     constrained by a viewport-sized dashboard panel. */
+  .dashboard-shell > .flex-1,
+  main,
+  #dashboard-content,
+  #dashboard-content form {
+    min-height: auto;
+    height: auto;
+    max-height: none;
+  }
+
   table {
     display: block;
     overflow-x: auto;
@@ -186,8 +221,7 @@ nav button[data-route].active {
 
 @media (max-width: 767px) {
   .student-admission-dialog {
-    max-height: calc(100vh - 1.5rem);
-    max-height: calc(100dvh - 1.5rem);
+    max-height: none;
   }
 
   .student-admission-heading {
