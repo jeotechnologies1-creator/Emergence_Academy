@@ -304,8 +304,8 @@ Deno.serve(async (req) => {
       : [])];
     const admissionDate = String(body?.admission_date || "").trim() || null;
 
-    if (!email || !password || !firstName || !lastName || (!classId && !classLevel)) {
-      return json({ error: "First name, last name, email, password, and class are required." }, 400);
+    if (!email || !password || !firstName || !lastName || (!classId && !classLevel) || !subjectIds.length) {
+      return json({ error: "First name, last name, email, password, class, and at least one subject are required." }, 400);
     }
     if (password.length < 8) return json({ error: "Password must be at least 8 characters." }, 400);
 
@@ -353,11 +353,9 @@ Deno.serve(async (req) => {
       if (!parent?.id) return json({ error: "The selected parent or guardian record is no longer available." }, 400);
     }
 
-    if (subjectIds.length) {
-      const { data: subjects, error: subjectsError } = await admin.from("subjects").select("id").in("id", subjectIds);
-      if (subjectsError) throw subjectsError;
-      if ((subjects || []).length !== subjectIds.length) return json({ error: "One or more selected subjects are no longer available. Refresh the form and try again." }, 400);
-    }
+    const { data: subjects, error: subjectsError } = await admin.from("subjects").select("id").in("id", subjectIds);
+    if (subjectsError) throw subjectsError;
+    if ((subjects || []).length !== subjectIds.length) return json({ error: "One or more selected subjects are no longer available. Refresh the form and try again." }, 400);
 
     const publicApiKey = Deno.env.get("SUPABASE_ANON_KEY") || requestApiKey;
     const user = await createStudentAuthUser(url, publicApiKey, serviceRoleKey, {
@@ -417,15 +415,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (subjectIds.length) {
-      const { error: subjectsWriteError } = await admin.from("student_subjects").upsert(
-        subjectIds.map((subject_id) => ({ student_id: studentId, subject_id })),
-        { onConflict: "student_id,subject_id" },
-      );
-      if (subjectsWriteError) {
-        await deleteCreatedUser(admin, user.id);
-        return admissionFailure("Student subject setup failed", subjectsWriteError, "Unable to save subjects.");
-      }
+    const { error: subjectsWriteError } = await admin.from("student_subjects").upsert(
+      subjectIds.map((subject_id) => ({ student_id: studentId, subject_id })),
+      { onConflict: "student_id,subject_id" },
+    );
+    if (subjectsWriteError) {
+      await deleteCreatedUser(admin, user.id);
+      return admissionFailure("Student subject setup failed", subjectsWriteError, "Unable to save subjects.");
     }
 
     if (parentId) {

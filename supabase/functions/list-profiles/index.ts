@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
 
   const { data: profiles, error: profilesError } = await admin
     .from("profiles")
-    .select("id,first_name,last_name,email,role,phone,status,avatar_url,created_at,updated_at")
+    .select("id,first_name,last_name,email,role,phone,status,must_change_password,avatar_url,created_at,updated_at")
     .order("created_at", { ascending: false });
   if (profilesError) return json({ error: profilesError.message }, 500);
   return json({ profiles: profiles || [] });

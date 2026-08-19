@@ -289,11 +289,11 @@ class StudentsModule {
         <input name="parent_relationship" maxlength="80" placeholder="e.g. Mother, Father, Guardian" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" />
       </label>
       <label class="block md:col-span-2">
-        <span class="text-sm font-medium text-slate-700">Subjects</span>
-        <select name="subject_ids" multiple size="6" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" aria-describedby="student-subject-help">
+        <span class="text-sm font-medium text-slate-700">Subjects *</span>
+        <select required name="subject_ids" multiple size="6" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" aria-describedby="student-subject-help">
           ${this.subjectOptions()}
         </select>
-        <span id="student-subject-help" class="mt-1 block text-xs text-slate-500">Optional. Hold Ctrl (Windows) or Command (Mac) to select multiple subjects.</span>
+        <span id="student-subject-help" class="mt-1 block text-xs text-slate-500">Select every subject this student offers. Hold Ctrl (Windows) or Command (Mac) to select multiple subjects.</span>
       </label>
       <label class="block md:col-span-2">
         <span class="text-sm font-medium text-slate-700">Home Address</span>
@@ -621,8 +621,8 @@ class StudentsModule {
             payload.class_id = "";
         }
 
-        if (!payload.first_name || !payload.last_name || !payload.email || (!payload.class_id && !payload.class_level) || !payload.password) {
-            this.showFormError("First name, last name, email, class, and password are required.");
+        if (!payload.first_name || !payload.last_name || !payload.email || (!payload.class_id && !payload.class_level) || !payload.password || !payload.subject_ids.length) {
+            this.showFormError("First name, last name, email, class, at least one subject, and password are required.");
             return;
         }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {

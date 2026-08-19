@@ -723,6 +723,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // The account owner, not an administrator, must replace the temporary
+    // password after their first sign-in. Password values are never stored in
+    // public.profiles or returned by this function.
+    const { error: passwordFlagError } = await supabaseAdmin
+      .from("profiles")
+      .update({ must_change_password: role !== "student" })
+      .eq("id", userId);
+    if (passwordFlagError) {
+      await deleteCreatedUser(supabaseAdmin, userId);
+      return jsonResponse({ error: passwordFlagError.message, function_version: FUNCTION_VERSION }, 500);
+    }
+
     /* ======================================================
        CREATE LINKED ROLE RECORDS
     ====================================================== */
