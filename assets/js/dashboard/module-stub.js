@@ -2739,16 +2739,13 @@ ${
               "edit" &&
             state.modal.rowId
           ) {
-            result =
-              await API.records.update(
-                moduleClass
-                  .config
-                  .tableName,
-
-                state.modal.rowId,
-
-                parsedPayload
-              );
+            result = typeof moduleClass.config.updateRecord === "function"
+              ? await moduleClass.config.updateRecord(parsedPayload, state.modal.rowId)
+              : await API.records.update(
+                  moduleClass.config.tableName,
+                  state.modal.rowId,
+                  parsedPayload
+                );
 
           } else if (
             typeof moduleClass
@@ -2841,7 +2838,8 @@ ${
   static openModal(
     moduleClass,
     mode = "create",
-    rowId = null
+    rowId = null,
+    initialValues = null
   ) {
     const state =
       this.getState(
@@ -2851,7 +2849,8 @@ ${
     state.modal = {
       open: true,
       mode,
-      rowId
+      rowId,
+      initialValues
     };
 
     state.container.innerHTML =
@@ -2917,7 +2916,7 @@ ${
                 state.modal.rowId
               )
           ) || {}
-        : {};
+        : (state.modal.initialValues || {});
 
     const fields =
       isEdit
@@ -2925,8 +2924,9 @@ ${
         : (moduleClass.config.fields || []);
 
     const requiredFields =
-      moduleClass.config.requiredFields ||
-      [];
+      isEdit
+        ? (moduleClass.config.editRequiredFields || moduleClass.config.requiredFields || [])
+        : (moduleClass.config.requiredFields || []);
 
     const fieldTypes =
       moduleClass.config.fieldTypes ||

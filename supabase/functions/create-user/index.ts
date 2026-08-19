@@ -426,6 +426,48 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return jsonResponse({ success: true, profile, message: "User profile updated successfully.", function_version: FUNCTION_VERSION });
     }
 
+    // Add children to an existing parent account without removing its current
+    // links. This lets one guardian securely access every child assigned by
+    // an administrator.
+    if (String(body.operation || "").trim().toLowerCase() === "update-parent-links") {
+      const parentId = String(body.parent_id || "").trim();
+      const studentIds = normalizeIdList(body.student_ids);
+      const occupation = normalizeName(body.occupation) || null;
+      const relationship = normalizeName(body.relationship);
+      const address = normalizeName(body.address) || null;
+
+      if (!parentId || !relationship) {
+        return jsonResponse({ error: "Parent and relationship are required.", function_version: FUNCTION_VERSION }, 400);
+      }
+
+      const { data: parentRecord, error: parentError } = await supabaseAdmin
+        .from("parents").select("id").eq("id", parentId).maybeSingle();
+      if (parentError || !parentRecord) return jsonResponse({ error: "Parent record was not found.", function_version: FUNCTION_VERSION }, 404);
+
+      if (studentIds.length) {
+        const { data: students, error: studentsError } = await supabaseAdmin
+          .from("students").select("id").in("id", studentIds);
+        if (studentsError || (students || []).length !== studentIds.length) {
+          return jsonResponse({ error: "One or more selected children are no longer enrolled.", function_version: FUNCTION_VERSION }, 400);
+        }
+        const { error: linkError } = await supabaseAdmin.from("parent_students").upsert(
+          studentIds.map((studentId) => ({ parent_id: parentId, student_id: studentId, relationship })),
+          { onConflict: "parent_id,student_id" },
+        );
+        if (linkError) return jsonResponse({ error: linkError.message, function_version: FUNCTION_VERSION }, 400);
+      }
+
+      const { data: parent, error: updateError } = await supabaseAdmin
+        .from("parents")
+        .update({ occupation, relationship, address })
+        .eq("id", parentId)
+        .select()
+        .single();
+      if (updateError) return jsonResponse({ error: updateError.message, function_version: FUNCTION_VERSION }, 400);
+
+      return jsonResponse({ success: true, parent, message: studentIds.length ? "Parent record updated and selected children linked." : "Parent record updated successfully.", function_version: FUNCTION_VERSION });
+    }
+
     /* ======================================================
        BASIC USER DATA
     ====================================================== */

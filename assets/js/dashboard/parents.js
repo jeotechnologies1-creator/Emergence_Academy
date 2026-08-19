@@ -15,8 +15,9 @@ const ParentsModule = window.OfficeModuleEngine.create({
   ],
   // Create the portal account and link it to one or more enrolled children in one step.
   formFields: [{ key: "student_ids", label: "Children", type: "multi-select", fullWidth: true }, "first_name", "last_name", "email", "phone", "password", "occupation", "relationship", "address"],
-  editFormFields: ["occupation", "relationship", "address"],
+  editFormFields: [{ key: "student_ids", label: "Link additional children", type: "multi-select", fullWidth: true }, "occupation", "relationship", "address"],
   requiredFields: ["student_ids", "first_name", "last_name", "email", "password", "relationship"],
+  editRequiredFields: ["relationship"],
   multiValueFields: ["student_ids"],
   fieldTypes: { email: "email", password: "password" },
   permissions: {
@@ -87,7 +88,27 @@ const ParentsModule = window.OfficeModuleEngine.create({
     }
 
     return API.response(true, { id: accountResult.parent.id }, "Parent portal account created and linked to the selected children.");
+  },
+  async updateRecord(payload, parentId) {
+    const studentIds = Array.isArray(payload.student_ids)
+      ? payload.student_ids.map((id) => String(id).trim()).filter(Boolean)
+      : [];
+    const { data, error } = await API.db.functions.invoke("create-user", {
+      body: {
+        operation: "update-parent-links",
+        parent_id: parentId,
+        student_ids: studentIds,
+        occupation: String(payload.occupation || "").trim(),
+        relationship: String(payload.relationship || "").trim(),
+        address: String(payload.address || "").trim()
+      }
+    });
+    if (error || data?.error) return API.response(false, null, data?.error || error?.message || "Unable to update the parent record.");
+    return API.response(true, data?.parent, data?.message || "Parent record updated and selected children linked.");
   }
 });
 
 window.ParentsModule = ParentsModule;
+ParentsModule.openForStudent = (studentId) => {
+  window.OfficeModuleEngine.openModal(ParentsModule, "create", null, { student_ids: [String(studentId)] });
+};

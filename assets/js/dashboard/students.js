@@ -58,6 +58,10 @@ class StudentsModule {
         return this.DELETE_ROLES.includes(this.role());
     }
 
+    static canCreateParent() {
+        return ["ceo", "admin"].includes(this.role());
+    }
+
     static showMessage(text, tone = "success") {
         const fallback = String(text || "Action completed.");
 
@@ -468,6 +472,7 @@ class StudentsModule {
         <td class="px-3 py-2.5">${this.safe(student.status || "-")}</td>
         <td class="px-3 py-2.5 text-right">
           <button data-action="details" data-id="${this.safe(student.id)}" class="mr-3 text-slate-700 hover:text-slate-900">Details</button>
+          ${this.canCreateParent() ? `<button data-action="create-parent" data-id="${this.safe(student.id)}" class="mr-3 text-blue-600 hover:text-blue-700">Create Parent</button>` : ""}
           ${canEdit ? `<button data-action="edit" data-id="${this.safe(student.id)}" class="text-blue-600 hover:text-blue-700 mr-3">Edit</button>` : ""}
           ${canArchive && String(student.status || "").toLowerCase() !== "inactive" ? `<button data-action="archive" data-id="${this.safe(student.id)}" class="text-red-600 hover:text-red-700">Archive</button>` : ""}
           ${canDelete ? `<button data-action="delete" data-id="${this.safe(student.id)}" class="ml-3 text-red-700 hover:text-red-900">Delete</button>` : ""}
@@ -714,6 +719,15 @@ class StudentsModule {
 
         container.querySelectorAll("[data-action='details']").forEach((button) => {
             button.addEventListener("click", () => this.openDetails(button.getAttribute("data-id")));
+        });
+
+        container.querySelectorAll("[data-action='create-parent']").forEach((button) => {
+            button.addEventListener("click", async () => {
+                const studentId = button.getAttribute("data-id");
+                if (!studentId || !window.Router || !window.ParentsModule?.openForStudent) return;
+                await Router.navigate("parents");
+                window.ParentsModule.openForStudent(studentId);
+            });
         });
 
         container.querySelectorAll("[data-action='archive']").forEach((button) => {
