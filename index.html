@@ -5,10 +5,1381 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Emergence Academy</title>
     <script>
-        window.location.replace('login.html');
+        // window.location.replace('login.html');
     </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergence Academy - World-Class Virtual Education | Learn Anywhere. Grow Everywhere.</title>
+    <meta name="description" content="Emergence Academy delivers premium virtual education with live interactive classes, qualified teachers, and a safe digital environment. Enroll your child today for world-class online learning.">
+    <meta name="keywords" content="virtual academy, online school, distance learning, live classes, interactive education, STEM education, digital learning platform">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="Emergence Academy - World-Class Virtual Education">
+    <meta property="og:description" content="Premium virtual academy delivering quality education through innovative online learning. Learn Anywhere. Grow Everywhere.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://emergenceacademy.edu">
+    <meta property="og:image" content="https://emergenceacademy.edu/assets/og-image.jpg">
+    
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Emergence Academy - World-Class Virtual Education">
+    <meta name="twitter:description" content="Premium virtual academy delivering quality education through innovative online learning.">
+    <meta name="twitter:image" content="https://emergenceacademy.edu/assets/twitter-image.jpg">
+    <link rel="stylesheet" href="assets/css/components.css?v=2.0.1">
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "EducationalOrganization",
+        "name": "Emergence Academy",
+        "alternateName": "Emergence Virtual Academy",
+        "description": "A premium virtual academy delivering world-class education through innovative online learning platform.",
+        "url": "https://emergenceacademy.edu",
+        "logo": "https://emergenceacademy.edu/assets/logo.png",
+        "slogan": "Learn Anywhere. Grow Everywhere.",
+        "address": {
+            "@type": "PostalAddress",
+            "addressCountry": "NG"
+        },
+        "contactPoint": {
+            "@type": "ContactPoint",
+            "telephone": "+234-800-EMERGENCE",
+            "contactType": "admissions",
+            "availableLanguage": ["English"]
+        },
+        "sameAs": [
+            "https://facebook.com/emergenceacademy",
+            "https://instagram.com/emergenceacademy",
+            "https://youtube.com/emergenceacademy"
+        ]
+    }
+    </script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
 </head>
 <body>
+    <!-- Announcement Bar -->
+    <div class="announcement-bar">
+        <div class="container">
+            <div class="announcement-content">
+                <span class="announcement-text">
+                    <i class="fas fa-bullhorn"></i>
+                    Admissions Now Open for the New Academic Session — Learn From Anywhere in the World
+                </span>
+                <a href="#admission" class="announcement-btn">Apply Now</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <div class="logo-icon">
+                    <!-- <i class="fas fa-graduation-cap"></i> -->
+                    <img src="assets/images/logo.png?v=2.0.1" alt="Emergence Academy Logo" class="logo-image">
+                </div>
+                <span>Emergence Academy</span>
+            </a>
+            
+            <ul class="nav-links">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#programs">Programs</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#student-life">Student Life</a></li>
+                <li><a href="#testimonials">Testimonials</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+            
+            <div class="nav-actions">
+                <a href="login.html" class="btn btn-navy ripple">Login</a>
+                <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu" id="mobileMenu">
+        <button class="mobile-menu-close" onclick="toggleMobileMenu()">
+            <i class="fas fa-times"></i>
+        </button>
+        <a href="#home" onclick="toggleMobileMenu()">Home</a>
+        <a href="#about" onclick="toggleMobileMenu()">About</a>
+        <a href="#programs" onclick="toggleMobileMenu()">Programs</a>
+        <a href="#how-it-works" onclick="toggleMobileMenu()">How It Works</a>
+        <a href="#student-life" onclick="toggleMobileMenu()">Student Life</a>
+        <a href="#testimonials" onclick="toggleMobileMenu()">Testimonials</a>
+        <a href="#contact" onclick="toggleMobileMenu()">Contact</a>
+        <a href="login.html" class="btn btn-primary" onclick="toggleMobileMenu()">Login to Portal</a>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <div class="hero-bg-shapes">
+            <div class="hero-shape hero-shape-1"></div>
+            <div class="hero-shape hero-shape-2"></div>
+            <div class="hero-shape hero-shape-3"></div>
+        </div>
+        
+        <div class="container section-padding">
+            <div class="hero-grid">
+                <div class="hero-content reveal">
+                    <div class="hero-badge">
+                        <i class="fas fa-graduation-cap"></i>
+                        Premium Virtual Education
+                    </div>
+                    
+                    <h1 class="hero-title">
+                        World-Class <span class="highlight">Virtual Education</span> for the Next Generation
+                    </h1>
+                    
+                    <p class="hero-description">
+                        Emergence Academy brings the future of learning to your home. With live virtual classrooms, 
+                        expert teachers, and an interactive digital platform, your child receives personalized, 
+                        world-class education from anywhere in the world. Safe, engaging, and designed for success.
+                    </p>
+                    
+                    <div class="hero-features">
+                        <span class="hero-feature"><i class="fas fa-check-circle"></i> Learn from anywhere</span>
+                        <span class="hero-feature"><i class="fas fa-check-circle"></i> Live virtual classrooms</span>
+                        <span class="hero-feature"><i class="fas fa-check-circle"></i> Expert teachers</span>
+                        <span class="hero-feature"><i class="fas fa-check-circle"></i> Interactive learning</span>
+                        <span class="hero-feature"><i class="fas fa-check-circle"></i> Safe online environment</span>
+                        <span class="hero-feature"><i class="fas fa-check-circle"></i> Personalized education</span>
+                        <span class="hero-feature"><i class="fas fa-check-circle"></i> Future-ready skills</span>
+                    </div>
+                    
+                    <div class="hero-buttons">
+                        <a href="#admission" class="btn btn-primary ripple animate-pulse-glow">
+                            <i class="fas fa-user-plus"></i>
+                            Enroll Your Child
+                        </a>
+                        <a href="#contact" class="btn btn-outline">
+                            <i class="fas fa-calendar-check"></i>
+                            Book a Free Consultation
+                        </a>
+                    </div>
+                    
+                    <div class="trust-badges">
+                        <div class="trust-badge">
+                            <div class="trust-badge-icon">
+                                <i class="fas fa-video"></i>
+                            </div>
+                            <div class="trust-badge-text">
+                                <span class="title">Live Virtual Classes</span>
+                                <span class="subtitle">Real-time interactive lessons</span>
+                            </div>
+                        </div>
+                        <div class="trust-badge">
+                            <div class="trust-badge-icon">
+                                <i class="fas fa-chalkboard-teacher"></i>
+                            </div>
+                            <div class="trust-badge-text">
+                                <span class="title">Qualified Educators</span>
+                                <span class="subtitle">Passionate, certified teachers</span>
+                            </div>
+                        </div>
+                        <div class="trust-badge">
+                            <div class="trust-badge-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div class="trust-badge-text">
+                                <span class="title">Secure Platform</span>
+                                <span class="subtitle">Safe digital environment</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="hero-visual reveal-right">
+                      <div class="hero-image-main">
+                          <img src="./assets/images/hero image 2.jpeg" alt="African girl student watching video course, distance e-learning, studying with online teacher">
+                      </div>
+                      
+                      <div class="hero-image-float hero-image-float-1">
+                          <img src="./assets/images/floating image.jpeg" alt="Female teacher conducting online lesson with students via video conference">
+                      </div>
+                      
+                      <div class="hero-image-float hero-image-float-2">
+                          <img src="./assets/images/floating image 2.jpeg" alt="Distance learning, knowledge acquisition, online education with kids and teacher on laptop">
+                      </div>
+                      
+                      <div class="hero-stats-float">
+                          <div class="number">2,000+</div>
+                          <div class="label">Students Learning Online</div>
+                      </div>
+                  </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Why Choose Section -->
+    <section class="why-choose section-padding" id="why-choose">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">
+                    <i class="fas fa-gem"></i>
+                    Why Choose Us
+                </div>
+                <h2 class="section-title">The Emergence Academy Advantage</h2>
+                <p class="section-subtitle">
+                    We combine academic excellence with cutting-edge technology to deliver an unparalleled 
+                    virtual learning experience for every student.
+                </p>
+            </div>
+            
+            <div class="features-grid">
+                <div class="feature-card reveal stagger-1">
+                    <div class="feature-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <h3 class="feature-title">Learn From Anywhere</h3>
+                    <p class="feature-description">
+                        Students can attend classes from home, on vacation, or anywhere in the world. 
+                        All they need is an internet connection and a device. True flexibility without compromising quality.
+                    </p>
+                </div>
+                
+                <div class="feature-card reveal stagger-2">
+                    <div class="feature-icon">
+                        <i class="fas fa-video"></i>
+                    </div>
+                    <h3 class="feature-title">Live Interactive Classes</h3>
+                    <p class="feature-description">
+                        Real-time lessons with experienced teachers who engage every student. 
+                        No pre-recorded boredom — just dynamic, two-way learning that keeps children excited.
+                    </p>
+                </div>
+                
+                <div class="feature-card reveal stagger-3">
+                    <div class="feature-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h3 class="feature-title">AI-Powered Learning</h3>
+                    <p class="feature-description">
+                        Our intelligent learning system adapts to each student's pace, strengths, and areas for growth. 
+                        Personalized support ensures no child is left behind.
+                    </p>
+                </div>
+                
+                <div class="feature-card reveal stagger-4">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3 class="feature-title">Safe Digital Environment</h3>
+                    <p class="feature-description">
+                        A secure platform designed specifically for students and parents. 
+                        Monitored interactions, privacy protection, and a focus on digital wellbeing.
+                    </p>
+                </div>
+                
+                <div class="feature-card reveal stagger-5">
+                    <div class="feature-icon">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <h3 class="feature-title">Qualified Teachers</h3>
+                    <p class="feature-description">
+                        Professional educators passionate about student success. 
+                        Each teacher is carefully selected, trained in virtual instruction, and dedicated to nurturing potential.
+                    </p>
+                </div>
+                
+                <div class="feature-card reveal stagger-6">
+                    <div class="feature-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3 class="feature-title">Parent Involvement</h3>
+                    <p class="feature-description">
+                        Parents stay connected through dedicated digital tools. 
+                        Track progress, communicate with teachers, and actively participate in your child's educational journey.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="about section-padding" id="about">
+        <div class="container">
+            <div class="about-grid">
+                <div class="about-images reveal-left">
+                    <div class="about-image-main">
+                        <img src="./assets/images/hero image.jpeg" alt="Female teacher working at home, online lesson with group of teenage students">
+                    </div>
+                    
+                    <div class="about-image-float about-image-float-1">
+                        <img src="./assets/images/hero image 2.jpeg" alt="African student using laptop working at home, studying online">
+                    </div>
+                    
+                    <div class="about-image-float about-image-float-2">
+                        <img src="https://images.openai.com/static-rsc-4/UNP18KQH5mEPCyr-lSYWsE_LdNdjXLjWIQXZn7nnR3MJbaDLVeeMvqvJg1zM6qGBef9Ek8PVT1yYT7La60mDDkkw-n_MOsUyQJZBxJgDMkgvoYuib4DypJ2rJvgZM5nM5EOXjwPwg6CP-X2WcYdJGFWDwWvpKtAGGbxGFp7psvY?purpose=inline" alt="Online Education platform">
+                    </div>
+                </div>
+                
+                <div class="about-content reveal-right">
+                    <div class="section-label">
+                        <i class="fas fa-school"></i>
+                        About Us
+                    </div>
+                    <h2 class="section-title">More Than an Online School</h2>
+                    
+                    <p class="about-text">
+                        Emergence Academy was founded with a bold vision: to make world-class education accessible to every child, 
+                        regardless of geography. We believe that where you live should never limit how far you can grow.
+                    </p>
+                    
+                    <p class="about-text">
+                        Our holistic approach goes beyond academics. We nurture character, develop leadership skills, 
+                        build digital literacy, and open global opportunities — all through a flexible, personalized 
+                        learning experience that adapts to each student's unique needs.
+                    </p>
+                    
+                    <div class="about-highlights">
+                        <div class="about-highlight">
+                            <i class="fas fa-medal"></i>
+                            <span>Academic Excellence</span>
+                        </div>
+                        <div class="about-highlight">
+                            <i class="fas fa-heart"></i>
+                            <span>Character Development</span>
+                        </div>
+                        <div class="about-highlight">
+                            <i class="fas fa-crown"></i>
+                            <span>Leadership Skills</span>
+                        </div>
+                        <div class="about-highlight">
+                            <i class="fas fa-laptop-code"></i>
+                            <span>Digital Literacy</span>
+                        </div>
+                        <div class="about-highlight">
+                            <i class="fas fa-globe-americas"></i>
+                            <span>Global Opportunities</span>
+                        </div>
+                        <div class="about-highlight">
+                            <i class="fas fa-clock"></i>
+                            <span>Flexible Learning</span>
+                        </div>
+                    </div>
+                    
+                    <a href="#programs" class="btn btn-primary ripple">
+                        Explore Our Programs
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Programs Section -->
+    <section class="programs section-padding" id="programs">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">
+                    <i class="fas fa-book-open"></i>
+                    Academic Programs
+                </div>
+                <h2 class="section-title">Programs for Every Stage</h2>
+                <p class="section-subtitle">
+                    From early years through senior secondary, we provide comprehensive virtual education 
+                    that prepares students for a successful future.
+                </p>
+            </div>
+            
+            <div class="programs-grid">
+                <div class="program-card reveal stagger-1">
+                    <div class="program-image">
+                        <img src="https://images.openai.com/static-rsc-4/OWhuWlJMC0tH-DQfaN5D5jBIW6tFDiNWYwBm6-zx4Tnnkj4WC0jjzeWXbaSn9JM0ANj80n1vxbkr0lyP1y8cybNLPnAi-V9paGO6475TnVampAdU2xTkMpj3h6bqYJ5E6GxvuPSJHXh7kpv1iiBvk8UYZZv6Oi--aDB20LvSVgc?purpose=inline" alt="A Guide of Online Classes for Young Childrens">
+                        <span class="program-badge">Ages 3-5</span>
+                    </div>
+                    <div class="program-content">
+                        <h3 class="program-title">Early Years</h3>
+                        <p class="program-description">
+                            Interactive learning for young learners. Play-based virtual activities that build 
+                            foundational skills in literacy, numeracy, and social development.
+                        </p>
+                        <div class="program-meta">
+                            <span class="program-meta-item"><i class="fas fa-clock"></i> 3 hrs/day</span>
+                            <span class="program-meta-item"><i class="fas fa-users"></i> Small Groups</span>
+                        </div>
+                        <a href="#contact" class="btn btn-outline" style="width: 100%; justify-content: center;">Learn More</a>
+                    </div>
+                </div>
+                
+                <div class="program-card reveal stagger-2">
+                    <div class="program-image">
+                        <img src="https://images.openai.com/static-rsc-4/tHfJbSOLRS_-iY5UnrYuehJTlA5O7B-CqUHBtv5c7YOBs017834PGrltAocmJfLL565jI-ZDRq8oW-3K63wI82RhHaO9YNI_oHLqsJmhPN2ThTbMf0g4F4BM3AG62ApjgfHplqNDnEbCSwwAdX_zfObUx0sD5NtOGeJoIiHfA88Dt_9xsn37wmKol5bRskZR?purpose=inline" alt="Cool online school. Kid studying online at home using a laptop">
+                        <span class="program-badge">Ages 6-11</span>
+                    </div>
+                    <div class="program-content">
+                        <h3 class="program-title">Primary School</h3>
+                        <p class="program-description">
+                            Strong foundations through engaging virtual lessons. Core subjects come alive 
+                            with interactive content, projects, and collaborative activities.
+                        </p>
+                        <div class="program-meta">
+                            <span class="program-meta-item"><i class="fas fa-clock"></i> 4 hrs/day</span>
+                            <span class="program-meta-item"><i class="fas fa-users"></i> Live Classes</span>
+                        </div>
+                        <a href="#contact" class="btn btn-outline" style="width: 100%; justify-content: center;">Learn More</a>
+                    </div>
+                </div>
+                
+                <div class="program-card reveal stagger-3">
+                    <div class="program-image">
+                        <img src="https://images.openai.com/static-rsc-4/g-2gKkNoes0whYBLJYuCItRLPQ0hIesyEOix7ME-OE828cM19iP9LYfVE3AYZp2pNRISn9UBQ05F2Lb0KOzBYMZ7al5aLaG2QgsaeYD5QW9ceI1ZDa8pwU8ScXV-4Veir_DEWM90IN_aYk2sdsGm6GP0SNtyIiRzjGCb-PbldOE?purpose=inline" alt="Pearson Edexcel Online: Science Qualifications">
+                        <span class="program-badge">Ages 12-14</span>
+                    </div>
+                    <div class="program-content">
+                        <h3 class="program-title">Junior Secondary</h3>
+                        <p class="program-description">
+                            Critical thinking, STEM exploration, and collaborative projects. Students develop 
+                            independence and deeper subject understanding through inquiry-based learning.
+                        </p>
+                        <div class="program-meta">
+                            <span class="program-meta-item"><i class="fas fa-clock"></i> 5 hrs/day</span>
+                            <span class="program-meta-item"><i class="fas fa-flask"></i> STEM Focus</span>
+                        </div>
+                        <a href="#contact" class="btn btn-outline" style="width: 100%; justify-content: center;">Learn More</a>
+                    </div>
+                </div>
+                
+                <div class="program-card reveal stagger-4">
+                    <div class="program-image">
+                        <img src="https://images.openai.com/static-rsc-4/2wh014R3SJdV-AAptp-ArL6pm8pkxnZ_60bh8Y7VUBl0TPLo-M0TyJ3UcC4MQ1MCDaCffL2CPDIgZ5x7jITjUPVvLr5JT1PwpQj6M5UydkXbsxqNLoNJNRVVh0hX-n9iSmdGndO__YbX7wZpIgXoAWm3D05n7wpL6rgERxh5C5M?purpose=inline" alt="Senior secondary students preparing for exams">
+                        <span class="program-badge">Ages 15-17</span>
+                    </div>
+                    <div class="program-content">
+                        <h3 class="program-title">Senior Secondary</h3>
+                        <p class="program-description">
+                            Exam preparation and university readiness. Intensive subject mastery, career guidance, 
+                            and mentorship to secure admission into top universities worldwide.
+                        </p>
+                        <div class="program-meta">
+                            <span class="program-meta-item"><i class="fas fa-clock"></i> 6 hrs/day</span>
+                            <span class="program-meta-item"><i class="fas fa-university"></i> Exam Prep</span>
+                        </div>
+                        <a href="#contact" class="btn btn-outline" style="width: 100%; justify-content: center;">Learn More</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works section-padding" id="how-it-works">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">
+                    <i class="fas fa-compass"></i>
+                    Your Journey
+                </div>
+                <h2 class="section-title">How Virtual Learning Works</h2>
+                <p class="section-subtitle" style="color: rgba(255,255,255,0.7);">
+                    Getting started is simple. Four steps to transform your child's education.
+                </p>
+            </div>
+            
+            <div class="steps-grid">
+                <div class="step-card reveal stagger-1">
+                    <div class="step-number">1</div>
+                    <h3 class="step-title">Enroll Online</h3>
+                    <p class="step-description">
+                        Complete our simple online application. Share your child's details, academic history, 
+                        and learning goals. Our admissions team guides you every step of the way.
+                    </p>
+                </div>
+                
+                <div class="step-card reveal stagger-2">
+                    <div class="step-number">2</div>
+                    <h3 class="step-title">Attend Live Classes</h3>
+                    <p class="step-description">
+                        Join scheduled live virtual classrooms with qualified teachers. Interactive lessons, 
+                        real-time discussions, and engaging multimedia content keep students motivated.
+                    </p>
+                </div>
+                
+                <div class="step-card reveal stagger-3">
+                    <div class="step-number">3</div>
+                    <h3 class="step-title">Complete Assignments</h3>
+                    <p class="step-description">
+                        Access digital assignments, projects, and quizzes through our learning platform. 
+                        AI-powered feedback helps students learn from mistakes and improve continuously.
+                    </p>
+                </div>
+                
+                <div class="step-card reveal stagger-4">
+                    <div class="step-number">4</div>
+                    <h3 class="step-title">Track Progress</h3>
+                    <p class="step-description">
+                        Monitor academic growth through detailed progress reports. Parents and students 
+                        can view grades, attendance, and skill development in real-time.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Platform Section -->
+    <section class="platform section-padding" id="platform">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">
+                    <i class="fas fa-laptop"></i>
+                    Digital Platform
+                </div>
+                <h2 class="section-title">Powerful Learning Technology</h2>
+                <p class="section-subtitle">
+                    Our integrated digital ecosystem connects students, parents, and teachers 
+                    in one seamless experience.
+                </p>
+            </div>
+            
+            <div class="platform-showcase">
+                <div class="platform-visual reveal-left">
+                    <div class="platform-mockup">
+                        <div class="mockup-header">
+                            <div class="mockup-dots">
+                                <div class="mockup-dot mockup-dot-1"></div>
+                                <div class="mockup-dot mockup-dot-2"></div>
+                                <div class="mockup-dot mockup-dot-3"></div>
+                            </div>
+                            <span class="mockup-title">Student Dashboard</span>
+                        </div>
+                        <div class="mockup-body">
+                            <div class="mockup-sidebar">
+                                <div class="mockup-nav-item active">Dashboard</div>
+                                <div class="mockup-nav-item">Classes</div>
+                                <div class="mockup-nav-item">Assignments</div>
+                            </div>
+                            <div class="mockup-content">
+                                <div class="mockup-card">
+                                    <div class="mockup-card-icon"><i class="fas fa-video"></i></div>
+                                    <div class="mockup-card-title">Live Class</div>
+                                </div>
+                                <div class="mockup-card">
+                                    <div class="mockup-card-icon"><i class="fas fa-file-alt"></i></div>
+                                    <div class="mockup-card-title">Assignments</div>
+                                </div>
+                                <div class="mockup-card">
+                                    <div class="mockup-card-icon"><i class="fas fa-chart-line"></i></div>
+                                    <div class="mockup-card-title">Progress</div>
+                                </div>
+                                <div class="mockup-card">
+                                    <div class="mockup-card-icon"><i class="fas fa-robot"></i></div>
+                                    <div class="mockup-card-title">AI Tutor</div>
+                                </div>
+                                <div class="mockup-card">
+                                    <div class="mockup-card-icon"><i class="fas fa-trophy"></i></div>
+                                    <div class="mockup-card-title">Achievements</div>
+                                </div>
+                                <div class="mockup-card">
+                                    <div class="mockup-card-icon"><i class="fas fa-book"></i></div>
+                                    <div class="mockup-card-title">Library</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="platform-features reveal-right">
+                    <div class="platform-feature">
+                        <div class="platform-feature-icon"><i class="fas fa-video"></i></div>
+                        <div class="platform-feature-text">
+                            <h4>Live Classes</h4>
+                            <p>Real-time interactive virtual classrooms with HD video and collaborative tools.</p>
+                        </div>
+                    </div>
+                    <div class="platform-feature">
+                        <div class="platform-feature-icon"><i class="fas fa-play-circle"></i></div>
+                        <div class="platform-feature-text">
+                            <h4>Recorded Lessons</h4>
+                            <p>All classes recorded for revision, catching up, or flexible scheduling.</p>
+                        </div>
+                    </div>
+                    <div class="platform-feature">
+                        <div class="platform-feature-icon"><i class="fas fa-robot"></i></div>
+                        <div class="platform-feature-text">
+                            <h4>AI Learning Assistant</h4>
+                            <p>24/7 AI tutor provides personalized help, explanations, and practice.</p>
+                        </div>
+                    </div>
+                    <div class="platform-feature">
+                        <div class="platform-feature-icon"><i class="fas fa-tasks"></i></div>
+                        <div class="platform-feature-text">
+                            <h4>Digital Assignments</h4>
+                            <p>Submit work online with rich feedback, annotations, and grading rubrics.</p>
+                        </div>
+                    </div>
+                    <div class="platform-feature">
+                        <div class="platform-feature-icon"><i class="fas fa-clipboard-check"></i></div>
+                        <div class="platform-feature-text">
+                            <h4>Online Quizzes</h4>
+                            <p>Auto-graded assessments with instant results and detailed analytics.</p>
+                        </div>
+                    </div>
+                    <div class="platform-feature">
+                        <div class="platform-feature-icon"><i class="fas fa-chart-bar"></i></div>
+                        <div class="platform-feature-text">
+                            <h4>Progress Reports</h4>
+                            <p>Comprehensive dashboards tracking academic and skill development.</p>
+                        </div>
+                    </div>
+                    <div class="platform-feature">
+                        <div class="platform-feature-icon"><i class="fas fa-user-friends"></i></div>
+                        <div class="platform-feature-text">
+                            <h4>Parent Dashboard</h4>
+                            <p>Full visibility into attendance, grades, and teacher communications.</p>
+                        </div>
+                    </div>
+                    <div class="platform-feature">
+                        <div class="platform-feature-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                        <div class="platform-feature-text">
+                            <h4>Teacher Tools</h4>
+                            <p>Advanced grading, lesson planning, and student management systems.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Portal Preview Section -->
+    <section class="portal-preview section-padding">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">
+                    <i class="fas fa-th-large"></i>
+                    Portal Preview
+                </div>
+                <h2 class="section-title">Four Powerful Dashboards</h2>
+                <p class="section-subtitle">
+                    Every stakeholder has a tailored experience designed for their needs.
+                </p>
+            </div>
+            
+            <div class="portal-grid">
+                <div class="portal-card reveal stagger-1">
+                    <div class="portal-header">
+                        <div class="portal-header-icon"><i class="fas fa-user-graduate"></i></div>
+                        <div>
+                            <h3>Student Dashboard</h3>
+                            <p>Learning & Growth</p>
+                        </div>
+                    </div>
+                    <div class="portal-body">
+                        <ul class="portal-mock-list">
+                            <li><i class="fas fa-check"></i> Live class schedule & join links</li>
+                            <li><i class="fas fa-check"></i> Assignment submission portal</li>
+                            <li><i class="fas fa-check"></i> AI tutor & study assistant</li>
+                            <li><i class="fas fa-check"></i> Progress tracking & grades</li>
+                            <li><i class="fas fa-check"></i> Learning resources library</li>
+                        </ul>
+                    </div>
+                    <div class="portal-footer">
+                        <button><a href="login.html" class="portal-btn"><i class="fas fa-user-graduate"></i> Login Below</a></button>
+                    </div>
+                </div>
+                
+                <div class="portal-card reveal stagger-2">
+                    <div class="portal-header">
+                        <div class="portal-header-icon"><i class="fas fa-user-friends"></i></div>
+                        <div>
+                            <h3>Parent Dashboard</h3>
+                            <p>Monitor & Connect</p>
+                        </div>
+                    </div>
+                    <div class="portal-body">
+                        <ul class="portal-mock-list">
+                            <li><i class="fas fa-check"></i> Real-time attendance tracking</li>
+                            <li><i class="fas fa-check"></i> Academic reports & analytics</li>
+                            <li><i class="fas fa-check"></i> Direct teacher messaging</li>
+                            <li><i class="fas fa-check"></i> Fee management & payments</li>
+                            <li><i class="fas fa-check"></i> School announcements</li>
+                        </ul>
+                    </div>
+                    <div class="portal-footer">
+                        <button><a href="login.html" class="portal-btn"><i class="fas fa-user-friends"></i> Login Below</a></button>
+                    </div>
+                </div>
+                
+                <div class="portal-card reveal stagger-3">
+                    <div class="portal-header">
+                        <div class="portal-header-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                        <div>
+                            <h3>Teacher Dashboard</h3>
+                            <p>Teach & Manage</p>
+                        </div>
+                    </div>
+                    <div class="portal-body">
+                        <ul class="portal-mock-list">
+                            <li><i class="fas fa-check"></i> Class rosters & scheduling</li>
+                            <li><i class="fas fa-check"></i> Digital grading & feedback</li>
+                            <li><i class="fas fa-check"></i> Lesson plan builder</li>
+                            <li><i class="fas fa-check"></i> Student performance analytics</li>
+                            <li><i class="fas fa-check"></i> Resource sharing</li>
+                        </ul>
+                    </div>
+                    <div class="portal-footer">
+                        <button><a href="login.html" class="portal-btn"><i class="fas fa-chalkboard-teacher"></i> Login Below</a></button>
+                    </div>
+                </div>
+                
+                <div class="portal-card reveal stagger-4">
+                    <div class="portal-header">
+                        <div class="portal-header-icon"><i class="fas fa-cog"></i></div>
+                        <div>
+                            <h3>Admin Dashboard</h3>
+                            <p>Manage & Grow</p>
+                        </div>
+                    </div>
+                    <div class="portal-body">
+                        <ul class="portal-mock-list">
+                            <li><i class="fas fa-check"></i> Admissions management</li>
+                            <li><i class="fas fa-check"></i> Finance & fee collection</li>
+                            <li><i class="fas fa-check"></i> Staff & teacher management</li>
+                            <li><i class="fas fa-check"></i> Academy analytics & reports</li>
+                            <li><i class="fas fa-check"></i> Communication tools</li>
+                        </ul>
+                    </div>
+                    <div class="portal-footer">
+                        <button><a href="login.html" class="portal-btn"><i class="fas fa-cog"></i> Login Below</a></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Student Life Section -->
+    <section class="student-life section-padding" id="student-life">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">
+                    <i class="fas fa-smile"></i>
+                    Community
+                </div>
+                <h2 class="section-title">Student Life Beyond the Classroom</h2>
+                <p class="section-subtitle">
+                    Even in a virtual environment, we build real friendships, skills, and memories.
+                </p>
+            </div>
+            
+            <div class="life-grid">
+                <div class="life-card reveal stagger-1">
+                    <img src="https://images.openai.com/static-rsc-4/zSjJF4aQZSvcM50DDF5R5Efm7ulMFEW2uDQpUeg_afUaBxpX-fCdv1eUwR8obn4d2z16EtqVlaGLetevDsHKLgoH8Eeo3iL3RDHzf5YtKY74KA9c7sPNpLZlHIsMsgDlMMh-5pjCHIAHdZVOVIDoNPdjPUguOmUgZJUfO6UFq7U?purpose=inline" alt="Effective Online Teaching Strategies to Boost Student Engagement">
+                    <div class="life-overlay">
+                        <div class="life-icon"><i class="fas fa-code"></i></div>
+                        <h3 class="life-title">Virtual Coding Club</h3>
+                        <p class="life-description">Build games, apps, and websites with peers.</p>
+                    </div>
+                </div>
+                
+                <div class="life-card reveal stagger-2">
+                    <img src="https://images.openai.com/static-rsc-4/JBYE-r6OB3y369ffOOypCj_XEfjsYqvrYfgCnKk0RYeeDKpY2bDm6d22o9lXzGUJKUPvSoOqBdOzq_MbEDTpUpCWGOkYPjqvXFa3JTl-TdZndJdZ4lCetJj0FKimnlod9faW87SnJrm3DuVOoOAwJIAOqFlYp1ssQhpaFTgyd3c?purpose=inline" alt="STEM Academy worksheets and activities">
+                    <div class="life-overlay">
+                        <div class="life-icon"><i class="fas fa-comments"></i></div>
+                        <h3 class="life-title">Debate Competitions</h3>
+                        <p class="life-description">Develop critical thinking and public speaking.</p>
+                    </div>
+                </div>
+                
+                <div class="life-card reveal stagger-3">
+                                            <img src="https://images.openai.com/static-rsc-4/iSKCdNWEoamhSnmrKAojkZLoajLNNMlziEYNglLHuUELDXqvuIsZgZW_fP8wXfvAXBljObWE6W9oZ3vzJ0xOnm7jW4M92LtLgAAAQl_3J2iKYmcYSobGKOO4DCKMQINXQSRc6ekvR4vCUssPvKoJ9wLR-uR3UOFSIFNMkVAYhaE?purpose=inline" alt="Junior girls achieve top performance at Qatar Preparatory School Debate League">
+                    <div class="life-overlay">
+                        <div class="life-icon"><i class="fas fa-music"></i></div>
+                        <h3 class="life-title">Online Talent Shows</h3>
+                        <p class="life-description">Showcase creativity and celebrate diversity.</p>
+                    </div>
+                </div>
+                
+                <div class="life-card reveal stagger-4">
+                    <img src="https://images.openai.com/static-rsc-4/zSjJF4aQZSvcM50DDF5R5Efm7ulMFEW2uDQpUeg_afUaBxpX-fCdv1eUwR8obn4d2z16EtqVlaGLetevDsHKLgoH8Eeo3iL3RDHzf5YtKY74KA9c7sPNpLZlHIsMsgDlMMh-5pjCHIAHdZVOVIDoNPdjPUguOmUgZJUfO6UFq7U?purpose=inline" alt="Student leadership programs">
+                    <div class="life-overlay">
+                        <div class="life-icon"><i class="fas fa-crown"></i></div>
+                        <h3 class="life-title">Leadership Programs</h3>
+                        <p class="life-description">Build confidence and organizational skills.</p>
+                    </div>
+                </div>
+                
+                <div class="life-card reveal stagger-5">
+                    <img src="https://images.openai.com/static-rsc-4/JBYE-r6OB3y369ffOOypCj_XEfjsYqvrYfgCnKk0RYeeDKpY2bDm6d22o9lXzGUJKUPvSoOqBdOzq_MbEDTpUpCWGOkYPjqvXFa3JTl-TdZndJdZ4lCetJj0FKimnlod9faW87SnJrm3DuVOoOAwJIAOqFlYp1ssQhpaFTgyd3c?purpose=inline" alt="Digital STEM challenges">
+                    <div class="life-overlay">
+                        <div class="life-icon"><i class="fas fa-flask"></i></div>
+                        <h3 class="life-title">Digital STEM Challenges</h3>
+                        <p class="life-description">Compete in science, tech, and math events.</p>
+                    </div>
+                </div>
+                
+                <div class="life-card reveal stagger-6">
+                    <img src="https://images.openai.com/static-rsc-4/iSKCdNWEoamhSnmrKAojkZLoajLNNMlziEYNglLHuUELDXqvuIsZgZW_fP8wXfvAXBljObWE6W9oZ3vzJ0xOnm7jW4M92LtLgAAAQl_3J2iKYmcYSobGKOO4DCKMQINXQSRc6ekvR4vCUssPvKoJ9wLR-uR3UOFSIFNMkVAYhaE?purpose=inline" alt="Creative arts workshops">
+                    <div class="life-overlay">
+                        <div class="life-icon"><i class="fas fa-palette"></i></div>
+                        <h3 class="life-title">Creative Arts Workshops</h3>
+                        <p class="life-description">Express through digital and traditional media.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Statistics Section -->
+    <section class="statistics section-padding">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item reveal stagger-1">
+                    <div class="stat-number" data-target="2000">0</div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-label">Students Learning Online</div>
+                </div>
+                <div class="stat-item reveal stagger-2">
+                    <div class="stat-number" data-target="10000">0</div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-label">Live Classes Delivered</div>
+                </div>
+                <div class="stat-item reveal stagger-3">
+                    <div class="stat-number" data-target="100">0</div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-label">Qualified Teachers</div>
+                </div>
+                <div class="stat-item reveal stagger-4">
+                    <div class="stat-number" data-target="99">0</div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-label">% Parent Satisfaction</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials section-padding" id="testimonials">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">
+                    <i class="fas fa-heart"></i>
+                    Testimonials
+                </div>
+                <h2 class="section-title">What Parents Say</h2>
+                <p class="section-subtitle">
+                    Real stories from families whose children have transformed through Emergence Academy.
+                </p>
+            </div>
+            
+            <div class="testimonials-grid">
+                <div class="testimonial-card reveal stagger-1">
+                    <div class="testimonial-quote">"</div>
+                    <div class="testimonial-stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">
+                        "Emergence Academy transformed how my child learns. The live classes keep her engaged, 
+                        and the teachers genuinely care. I've seen remarkable improvement in her confidence 
+                        and academic performance in just one term."
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">
+                            <img src="https://images.openai.com/static-rsc-4/PNKsWw1gaWj1B3XMUMqPX3F7lXaeQVKd3vijAf1wsJO-qnQUneiSvoW0gUYL-u234m3iPJqgCLEG7tNK9hWM-mIxsuDA7wsZ4Cmwphq3Nqzd0XdHXWGf1l_kWw8y3gxztjFnGUKujOhdmYKOf7r9y8k7T1UKA1FysLkQ2g5UEVhwuF7ahQBQCZgwayf5AYuB?purpose=inline" alt="Young mother and daughter">
+                        </div>
+                        <div class="testimonial-info">
+                            <h4>Amara Okafor</h4>
+                            <p>Parent of Primary Student, Lagos</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="testimonial-card reveal stagger-2">
+                    <div class="testimonial-quote">"</div>
+                    <div class="testimonial-stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">
+                        "The flexibility and quality exceeded our expectations. My son can travel with me for work 
+                        and never miss a class. The parent dashboard gives me complete visibility. It's the best 
+                        educational decision we've made."
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">
+                            <img src="https://images.openai.com/static-rsc-4/m9puvTBmIfOh_nM2CXzeO4WGYwxC2dT_syk_n-MbHX1nE5EQkRMRLXhPtGtCuqzy3re6QbmPiknv89JInv_H4XP4IPTIHPae1gZrDDBHI7nOVp4Kd-9evANOwRqr6edD3N3ATDYFL_PYiOPOJM7vXHakWzPuW0x3yVHMt3zwfg7_YBZAGRvnLlYO9Ty8-RJE?purpose=inline" alt="Father with his son">
+                        </div>
+                        <div class="testimonial-info">
+                            <h4>David Mensah</h4>
+                            <p>Parent of Junior Secondary Student, Accra</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="testimonial-card reveal stagger-3">
+                    <div class="testimonial-quote">"</div>
+                    <div class="testimonial-stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">
+                        "As a parent living abroad, I wanted my children to have quality Nigerian education. 
+                        Emergence Academy made that possible. The curriculum is rigorous, the teachers are excellent, 
+                        and my kids love the coding club!"
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">
+                            <img src="https://images.openai.com/static-rsc-4/Cue-xmb8AycEY3_aUMEEKW4MjG8r2tQVQSodFW5mH-bt2vV2YTlszljqZNbfEZQ2K2KEfHk19rVMr76BkXZmzTdp9UfhmtIOg278KhB860ft9Eh7M-enQ8UlMu9ml3t0Z0m0xW0mKIJ1RYij6dbtjUYF9-lkJPPvkaSV39Fgvtped0q59hFRxxBDrFnuHQmn?purpose=inline" alt="Happy carefree family using computer at home">
+                        </div>
+                        <div class="testimonial-info">
+                            <h4>Fatima Ibrahim</h4>
+                            <p>Parent of Early Years & Primary, London</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Admission Process -->
+    <section class="admission section-padding" id="admission">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">
+                    <i class="fas fa-clipboard-list"></i>
+                    Admissions
+                </div>
+                <h2 class="section-title">Your Admission Journey</h2>
+                <p class="section-subtitle">
+                    Five simple steps to join Emergence Academy. Our team supports you throughout.
+                </p>
+            </div>
+            
+            <div class="timeline">
+                <div class="timeline-item reveal stagger-1">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-number">1</div>
+                        <h3 class="timeline-title">Submit Application</h3>
+                        <p class="timeline-description">
+                            Fill out our online application form with your child's details and academic history.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="timeline-item reveal stagger-2">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-number">2</div>
+                        <h3 class="timeline-title">Book Consultation</h3>
+                        <p class="timeline-description">
+                            Schedule a free call with our admissions team to discuss your child's needs and goals.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="timeline-item reveal stagger-3">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-number">3</div>
+                        <h3 class="timeline-title">Student Assessment</h3>
+                        <p class="timeline-description">
+                            A friendly online assessment helps us understand your child's level and place them correctly.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="timeline-item reveal stagger-4">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-number">4</div>
+                        <h3 class="timeline-title">Complete Enrollment</h3>
+                        <p class="timeline-description">
+                            Receive acceptance letter, complete registration, and set up your learning portal access.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="timeline-item reveal stagger-5">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-number">5</div>
+                        <h3 class="timeline-title">Start Learning Online</h3>
+                        <p class="timeline-description">
+                            Join orientation, meet teachers and classmates, and begin your transformative journey.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 3rem;">
+                <a href="#contact" class="btn btn-primary ripple animate-pulse-glow" style="padding: 1rem 3rem; font-size: 1.1rem;">
+                    <i class="fas fa-user-plus"></i>
+                    Apply Now
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- School Portal Section
+    <section class="school-portal section-padding" id="portal">
+        <div class="container">
+            <div class="portal-container">
+                <div class="portal-glass reveal-scale">
+                    <h2 class="portal-title">Emergence Academy School Portal</h2>
+                    <p class="portal-subtitle">Secure access for Students, Parents, Teachers, and Staff.</p>
+                    
+                    <div class="role-selector">
+                        <div class="role-option active" onclick="selectRole(this)">
+                            <i class="fas fa-user-graduate"></i>
+                            Student
+                        </div>
+                        <div class="role-option" onclick="selectRole(this)">
+                            <i class="fas fa-user-friends"></i>
+                            Parent
+                        </div>
+                        <div class="role-option" onclick="selectRole(this)">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                            Teacher
+                        </div>
+                        <div class="role-option" onclick="selectRole(this)">
+                            <i class="fas fa-cog"></i>
+                            Staff
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" class="form-input" placeholder="Enter your email">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-input" placeholder="Enter your password">
+                    </div>
+                    
+                    <div class="form-options">
+                        <label class="remember-me">
+                            <input type="checkbox">
+                            Remember Me
+                        </label>
+                        <a href="#" class="forgot-password">Forgot Password?</a>
+                    </div>
+                    
+                    <button class="portal-submit ripple" onclick="handleLogin()">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Login to Portal
+                    </button>
+                    
+                    <p class="portal-note">
+                        This is a visual placeholder. No backend connection.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section> -->
+
+    <!-- Final CTA Section -->
+    <section class="final-cta section-padding">
+        <div class="cta-bg">
+                                    <img src="https://images.openai.com/static-rsc-4/CvU7I9meZC6GLenOUiTPG6rP_l9ffAKIsRFoV_K79asOg23r0bPiGZRMsadDMPN1Ho3umOQtxzfQE2ii7al-GAhESFaiI2LLBEvQ8M0bhl8Q8NStvzTKQiMRt-Yr7MrDpqdn2_ZjyiQ3l0zWfeQX5At0bqZsRNa5LqfQj1yhi6-1RP9wRjYctoeXEVbKpmr_?purpose=inline" alt="Happy family on the couch together using laptop">
+        </div>
+        <div class="cta-overlay"></div>
+        <div class="container">
+            <div class="cta-content reveal">
+                <h2 class="cta-title">Your Child's Future Begins Today</h2>
+                <p class="cta-description">
+                    Join thousands of families who have discovered the power of quality virtual education. 
+                    With world-class teachers, interactive learning, and a safe digital environment, 
+                    Emergence Academy prepares your child for success — from anywhere in the world.
+                </p>
+                <div class="cta-buttons">
+                    <a href="#admission" class="btn btn-primary ripple animate-pulse-glow" style="padding: 1rem 2.5rem;">
+                        <i class="fas fa-user-plus"></i>
+                        Enroll Now
+                    </a>
+                    <a href="#contact" class="btn btn-white ripple">
+                        <i class="fas fa-calendar-check"></i>
+                        Book a Free Consultation
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="contact section-padding" id="contact">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">
+                    <i class="fas fa-envelope"></i>
+                    Contact Us
+                </div>
+                <h2 class="section-title">Get in Touch</h2>
+                <p class="section-subtitle">
+                    Ready to learn more? Our admissions team is here to answer your questions.
+                </p>
+            </div>
+            
+            <div class="contact-grid">
+                <div class="contact-info reveal-left">
+                    <h3>Contact Information</h3>
+                    <p>Reach out through any of these channels. We typically respond within 24 hours.</p>
+                    
+                    <div class="contact-methods">
+                        <div class="contact-method">
+                            <div class="contact-method-icon"><i class="fas fa-phone"></i></div>
+                            <div class="contact-method-text">
+                                <h4>Phone</h4>
+                                <p>+234 800-EMERGENCE</p>
+                            </div>
+                        </div>
+                        
+                        <div class="contact-method">
+                            <div class="contact-method-icon"><i class="fas fa-envelope"></i></div>
+                            <div class="contact-method-text">
+                                <h4>Email</h4>
+                                <p>admissions@emergenceacademy.edu</p>
+                            </div>
+                        </div>
+                        
+                        <div class="contact-method">
+                            <div class="contact-method-icon"><i class="fab fa-whatsapp"></i></div>
+                            <div class="contact-method-text">
+                                <h4>WhatsApp</h4>
+                                <p>+234 800-EMERGENCE</p>
+                            </div>
+                        </div>
+                        
+                        <div class="contact-method">
+                            <div class="contact-method-icon"><i class="fas fa-map-marker-alt"></i></div>
+                            <div class="contact-method-text">
+                                <h4>Headquarters</h4>
+                                <p>Lagos, Nigeria (Serving Students Globally)</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="social-links">
+                        <a href="#" class="social-link" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-link" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+                        <a href="#" class="social-link" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-link" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+                
+                <div class="contact-map reveal-right">
+                    <div class="map-placeholder">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <p>Google Maps Integration<br>Interactive Map Placeholder</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="footer-logo">
+                        <div class="footer-logo-icon">
+                            <!-- <i class="fas fa-graduation-cap"></i> -->
+                             <img src="./assets/images/logo.jpeg" alt="" srcset="">
+                        </div>
+                        <span>Emergence Academy</span>
+                    </div>
+                    <p class="footer-description">
+                        Premium virtual academy delivering world-class education through innovative 
+                        online learning. Learn Anywhere. Grow Everywhere.
+                    </p>
+                </div>
+                
+                <div class="footer-column">
+                    <h4>About</h4>
+                    <ul class="footer-links">
+                        <li><a href="#about">Our Story</a></li>
+                        <li><a href="#why-choose">Why Choose Us</a></li>
+                        <li><a href="#testimonials">Testimonials</a></li>
+                        <li><a href="#">Careers</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-column">
+                    <h4>Programs</h4>
+                    <ul class="footer-links">
+                        <li><a href="#programs">Early Years</a></li>
+                        <li><a href="#programs">Primary School</a></li>
+                        <li><a href="#programs">Junior Secondary</a></li>
+                        <li><a href="#programs">Senior Secondary</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-column">
+                    <h4>Admissions</h4>
+                    <ul class="footer-links">
+                        <li><a href="#admission">How to Apply</a></li>
+                        <li><a href="#admission">Fees & Scholarships</a></li>
+                        <li><a href="#contact">Book Consultation</a></li>
+                        <li><a href="login.html">School Portal</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-column">
+                    <h4>Contact</h4>
+                    <ul class="footer-links">
+                        <li><a href="#contact">General Inquiries</a></li>
+                        <li><a href="#contact">Admissions</a></li>
+                        <li><a href="#contact">Support</a></li>
+                        <li><a href="#contact">Media</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p class="footer-copyright">
+                    &copy; 2026 Emergence Academy. All rights reserved.
+                </p>
+                <div class="footer-legal">
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms of Service</a>
+                    <a href="#">Cookie Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        // Mobile Menu Toggle
+        function toggleMobileMenu() {
+            document.getElementById('mobileMenu').classList.toggle('active');
+        }
+
+        // Scroll to Portal
+        function scrollToPortal() {
+            document.getElementById('portal').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Role Selection
+        function selectRole(element) {
+            document.querySelectorAll('.role-option').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+        }
+
+        // Login Handler (Visual Only)
+        function handleLogin() {
+            const btn = document.querySelector('.portal-submit');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-check"></i> Demo Login Successful';
+                btn.style.background = '#2563EB';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.style.background = '';
+                    btn.disabled = false;
+                }, 2000);
+            }, 1500);
+        }
+
+        // Navbar Scroll Effect
+        window.addEventListener('scroll', () => {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+
+        // Intersection Observer for Animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                    
+                    // Trigger counter animation if it's a stat number
+                    const statNumber = entry.target.querySelector('.stat-number');
+                    if (statNumber && !statNumber.classList.contains('counted')) {
+                        animateCounter(statNumber);
+                        statNumber.classList.add('counted');
+                    }
+                }
+            });
+        }, observerOptions);
+
+        // Observe all reveal elements
+        document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Also observe stat items specifically for counter animation
+        document.querySelectorAll('.stat-item').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Counter Animation
+        function animateCounter(element) {
+            const target = parseInt(element.getAttribute('data-target'));
+            const duration = 2000;
+            const step = target / (duration / 16);
+            let current = 0;
+            
+            const timer = setInterval(() => {
+                current += step;
+                if (current >= target) {
+                    element.textContent = target.toLocaleString() + (target === 99 ? '%' : '+');
+                    clearInterval(timer);
+                } else {
+                    element.textContent = Math.floor(current).toLocaleString();
+                }
+            }, 16);
+        }
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Parallax effect for hero shapes
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const shapes = document.querySelectorAll('.hero-shape');
+            shapes.forEach((shape, index) => {
+                const speed = 0.5 + (index * 0.2);
+                shape.style.transform = `translateY(${scrolled * speed}px)`;
+            });
+        });
+    </script>
+
     <p>Redirecting to <a href="login.html">login</a>...</p>
 </body>
 </html>
