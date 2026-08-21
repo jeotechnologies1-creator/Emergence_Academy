@@ -28,16 +28,16 @@
     <div class="min-h-screen flex items-center justify-center px-4 py-8">
 
         <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8">
+            <div>
+                <a href="index.html"><button type="button" class="text-sm text-white font-bold bg-indigo-200 w-50px p-1 hover:bg-indigo-700 rounded-lg"> Back
+                        to Home</button></a>
+            </div>
 
             <!-- Logo -->
             <div class="text-center">
 
-                <img
-                    id="school-logo"
-                    src="assets/images/logo.png?v=2.0.1"
-                    alt="Emergence Academy Logo"
-                    class="mx-auto h-20 w-20 object-contain mb-4"
-                    onerror="this.style.display='none'">
+                <img id="school-logo" src="assets/images/logo.png?v=2.0.1" alt="Emergence Academy Logo"
+                    class="mx-auto h-20 w-20 object-contain mb-4" onerror="this.style.display='none'">
 
                 <h1 class="text-2xl font-bold text-slate-900">
                     Emergence Academy
@@ -57,26 +57,23 @@
 
                 <div>
 
-                    <label
-                        for="loginRole"
-                        class="block text-sm font-medium text-slate-700 mb-2">
+                    <label for="loginRole" class="block text-sm font-medium text-slate-700 mb-2">
 
                         Office / Role
 
                     </label>
 
-                    <select
-                        id="loginRole"
+                    <select id="loginRole"
                         class="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
 
                         <option value="admin">Administrator</option>
                         <option value="ceo">CEO</option>
                         <option value="executive">Executive</option>
-                        <option value="finance">Finance</option>
-                        <option value="hr">HR</option>
-                        <option value="admission">Admission</option>
-                        <option value="exam">Exam</option>
-                        <option value="library">Library</option>
+                        <!-- <option value="finance">Finance</option> -->
+                        <!-- <option value="hr">HR</option> -->
+                        <!-- <option value="admission">Admission</option> -->
+                        <!-- <option value="exam">Exam</option> -->
+                        <!-- <option value="library">Library</option> -->
                         <option value="teacher">Teacher</option>
                         <option value="student">Student</option>
                         <option value="parent">Parent</option>
@@ -89,19 +86,13 @@
 
                 <div>
 
-                    <label
-                        for="loginEmail"
-                        class="block text-sm font-medium text-slate-700 mb-2">
+                    <label for="loginEmail" class="block text-sm font-medium text-slate-700 mb-2">
 
                         Email Address
 
                     </label>
 
-                    <input
-                        id="loginEmail"
-                        type="email"
-                        autocomplete="username"
-                        placeholder="Enter your email"
+                    <input id="loginEmail" type="email" autocomplete="username" placeholder="Enter your email"
                         class="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
 
                 </div>
@@ -110,9 +101,7 @@
 
                 <div>
 
-                    <label
-                        for="loginPassword"
-                        class="block text-sm font-medium text-slate-700 mb-2">
+                    <label for="loginPassword" class="block text-sm font-medium text-slate-700 mb-2">
 
                         Password
 
@@ -120,16 +109,11 @@
 
                     <div class="relative">
 
-                        <input
-                            id="loginPassword"
-                            type="password"
-                            autocomplete="current-password"
+                        <input id="loginPassword" type="password" autocomplete="current-password"
                             placeholder="Enter your password"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-14 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
 
-                        <button
-                            type="button"
-                            id="togglePassword"
+                        <button type="button" id="togglePassword"
                             class="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500 hover:text-indigo-600">
 
                             Show
@@ -142,8 +126,7 @@
 
                 <!-- Status -->
 
-                <div
-                    id="loginStatus"
+                <div id="loginStatus"
                     class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
 
                     Ready...
@@ -152,15 +135,13 @@
 
                 <!-- Error -->
 
-                <div
-                    id="loginError"
+                <div id="loginError"
                     class="hidden rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
                 </div>
 
                 <!-- Button -->
 
-                <button
-                    type="submit"
+                <button type="submit"
                     class="w-full rounded-lg bg-indigo-600 py-3 text-white font-semibold hover:bg-indigo-700 transition">
 
                     Sign In
@@ -171,9 +152,7 @@
 
             <div class="mt-6 text-center">
 
-                <a
-                    href="register.html"
-                    class="text-sm text-indigo-600 hover:text-indigo-700">
+                <a href="register.html" class="text-sm text-indigo-300 hover:text-indigo-700">
 
                     Administrator: Create Office Credentials
 
