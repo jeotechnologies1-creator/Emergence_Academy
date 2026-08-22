@@ -5,7 +5,7 @@ const path = require("path");
 (() => {
   const root = path.join(__dirname, "..");
   const read = (...parts) => fs.readFileSync(path.join(root, ...parts), "utf8");
-  const studentAccess = read("supabase", "migrations", "202608190010_match_teacher_students_by_assigned_class.sql");
+  const studentAccess = read("supabase", "migrations", "202608190011_match_teacher_students_by_assigned_class.sql");
   const recordAccess = studentAccess;
   const scheduling = read("supabase", "functions", "schedule-live-class", "index.ts");
 

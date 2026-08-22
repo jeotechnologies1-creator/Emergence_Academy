@@ -15,6 +15,9 @@ Deno.serve(async (req) => {
     ]);
     if (error || !liveClass) return json({ error: "Live class was not found." }, 404);
     const role = normalizedRole(profile?.role);
+    // School administrators may observe any active teacher session. Their
+    // access is deliberately independent of the class roster or teacher.
+    const hasUniversalLiveClassAccess = ["admin", "ceo", "executive"].includes(role);
     if (role === "student") {
       const { data: student } = await admin.from("students").select("id").eq("profile_id", user.id).maybeSingle();
       const { data: enrolled, error: enrollmentError } = student
@@ -32,7 +35,7 @@ Deno.serve(async (req) => {
     } else if (role === "teacher") {
       const { data: teacher } = await admin.from("teachers").select("id").eq("profile_id", user.id).maybeSingle();
       if (String(teacher?.id) !== String(liveClass.teacher_id)) return json({ error: "You cannot join another teacher's class." }, 403);
-    } else if (!["admin", "ceo", "executive"].includes(role)) return json({ error: "You do not have access to this live class." }, 403);
+    } else if (!hasUniversalLiveClassAccess) return json({ error: "You do not have access to this live class." }, 403);
     const status = statusFor(liveClass.starts_at, liveClass.ends_at, liveClass.status);
     if (status === "upcoming") return json({ error: "This class has not started yet." }, 409);
     if (status === "ended" || status === "cancelled") return json({ error: status === "ended" ? "This live class has ended." : "This live class was cancelled." }, 409);
