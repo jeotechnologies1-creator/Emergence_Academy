@@ -56,8 +56,8 @@ All current tests pass after the latest stabilization pass.
 
 ## Google Meet live classes
 
-Apply the Supabase migrations, then deploy `schedule-live-class` and
-`join-live-class`. Configure these Edge Function secrets in Supabase (never in
+Apply the Supabase migrations, then deploy `live-class-options`,
+`schedule-live-class`, and `join-live-class`. Configure these Edge Function secrets in Supabase (never in
 browser JavaScript): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and
 `GOOGLE_REFRESH_TOKEN`. The refresh token must belong to the Google Calendar
 account that should host the Meet events and have Calendar event/conference

@@ -24,6 +24,7 @@ const path = require('path');
   assert.ok(!options.includes('student_subjects'), 'scheduling options must not depend on student subject enrolments');
   assert.ok(options.includes('const students = studentsResult.data || []'), 'scheduling options must return every student in an assigned class');
   assert.ok(moduleCode.includes('approved_student_ids'), 'teacher form must submit approved students');
+  assert.ok(moduleCode.includes('await API.functionErrorMessage'), 'the scheduling form must display the Edge Function error body');
   assert.ok(migration.includes("public.current_user_role() in ('ceo', 'admin', 'executive')"), 'administrators must be able to see every live class in the portal');
   assert.ok(moduleCode.includes('String(label.dataset.classId) === classId'), 'student picker must filter by the selected class');
   assert.ok(!moduleCode.includes('enrolledSubjects.includes(subjectId)'), 'student picker must not filter learners by subject enrolment');

@@ -98,7 +98,13 @@ class LiveClassesModule {
         const endsAt = new Date(String(data.get("ends_at") || ""));
         if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) throw new Error("Enter valid start and end times.");
         const result = await API.db.functions.invoke("schedule-live-class", { body: { ...Object.fromEntries(data), starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), approved_student_ids: approvedStudentIds } });
-        if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message);
+        if (result.error || result.data?.error) {
+          const message = result.data?.error || await API.functionErrorMessage(
+            result.error,
+            "Unable to schedule the Google Meet class."
+          );
+          throw new Error(message);
+        }
         if (!result.data?.meeting_url) throw new Error("Google Meet was created but no meeting link was returned.");
         if (meetingWindow) meetingWindow.location.href = result.data.meeting_url;
         else window.open(result.data.meeting_url, "_blank", "noopener,noreferrer");
