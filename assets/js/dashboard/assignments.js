@@ -1,40 +1,65 @@
-const AssignmentModule = window.OfficeModuleEngine.create({
-  moduleKey: "assignments",
-  title: "Assignments",
-  tableName: "assignments",
-  orderBy: "due_date",
-  columns: [
-    { key: "title", label: "Title" },
-    { key: "subject_id", label: "Subject" },
-    { key: "class_id", label: "Class" },
-    { key: "due_date", label: "Due Date" },
-    { key: "status", label: "Status" }
-  ],
-  formFields: ["title", "description", "subject_id", "teacher_id", "class_id", "due_date", "status"],
-  requiredFields: ["title", "subject_id", "teacher_id", "class_id", "due_date", "status"],
-  fieldTypes: {
-    due_date: "date"
-  },
-  fieldRules: {
-    due_date: { notPast: true }
-  },
-  permissions: {
-    create: ["ceo", "admin", "executive", "teacher", "exam"],
-    edit: ["ceo", "admin", "executive", "teacher", "exam"],
-    delete: ["ceo", "admin", "executive"]
-  },
-  softDelete: true,
-  softDeleteField: "status",
-  softDeleteValue: "archived",
-  softRestoreValue: "draft",
-  fieldOptions: {
-    status: ["draft", "published", "closed", "archived"]
-  },
-  lookups: {
-    subject_id: { table: "subjects" },
-    teacher_id: { table: "teachers", preferProfileName: true },
-    class_id: { table: "classes" }
-  }
-});
+/* Assignment workspace for teacher questions and student responses. */
+class AssignmentModule {
+  static state = { container: null, profile: null, teacherId: null, student: null, pairs: [], assignments: [], submissions: [], classes: [], subjects: [] };
+  static BUCKET = "assignment-images";
+  static safe(v) { return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
+  static role() { return String(this.state.profile?.role || "").toLowerCase(); }
+  static teacher() { return this.role() === "teacher"; }
+  static studentRole() { return this.role() === "student"; }
+  static due(v) { return new Date(`${v}T23:59:59`) < new Date(); }
+  static format(v) { const date = new Date(`${v}T23:59:59`); return Number.isNaN(date) ? "—" : date.toLocaleDateString(); }
+  static studentName(row) { return `${row?.profiles?.first_name || ""} ${row?.profiles?.last_name || ""}`.trim() || row?.student_no || "Student"; }
 
+  static async load() {
+    this.state.profile = await Auth.profile(true);
+    if (!this.state.profile?.id) throw new Error("Please sign in again.");
+    if (this.teacher()) return this.loadTeacher();
+    if (this.studentRole()) return this.loadStudent();
+    throw new Error("Assignments are available to teachers and students.");
+  }
+  static async loadTeacher() {
+    const { data: pairs, error } = await API.db.from("teacher_subjects").select("teacher_id,class_id,subject_id");
+    if (error) throw error;
+    this.state.pairs = pairs || []; this.state.teacherId = this.state.pairs[0]?.teacher_id;
+    const [a, s, c, sub] = await Promise.all([
+      API.db.from("assignments").select("id,title,description,questions,subject_id,class_id,due_date,status,subjects:subject_id(subject_name),classes:class_id(class_name)").order("due_date"),
+      API.db.from("assignment_submissions").select("id,assignment_id,answer_text,answer_image_paths,submitted_at,students:student_id(student_no,profiles:profile_id(first_name,last_name))").order("submitted_at", { ascending: false }),
+      API.db.from("classes").select("id,class_name").order("class_name"), API.db.from("subjects").select("id,subject_name").order("subject_name")
+    ]);
+    if (a.error || s.error || c.error || sub.error) throw a.error || s.error || c.error || sub.error;
+    const classIds = new Set(this.state.pairs.map(x => String(x.class_id))), subjectIds = new Set(this.state.pairs.map(x => String(x.subject_id)));
+    this.state.assignments = a.data || []; this.state.submissions = s.data || [];
+    this.state.classes = (c.data || []).filter(x => classIds.has(String(x.id))); this.state.subjects = (sub.data || []).filter(x => subjectIds.has(String(x.id)));
+  }
+  static async loadStudent() {
+    const { data: student, error } = await API.db.from("students").select("id,class_id").eq("profile_id", this.state.profile.id).single();
+    if (error) throw error;
+    this.state.student = student;
+    const [a, s] = await Promise.all([
+      API.db.from("assignments").select("id,title,description,questions,due_date,status,subjects:subject_id(subject_name),classes:class_id(class_name)").order("due_date"),
+      API.db.from("assignment_submissions").select("id,assignment_id,answer_text,answer_image_paths,submitted_at").eq("student_id", student.id)
+    ]);
+    if (a.error || s.error) throw a.error || s.error;
+    this.state.assignments = a.data || []; this.state.submissions = s.data || [];
+  }
+  static questionField() { return `<div data-question class="rounded-lg border p-4"><div class="flex justify-between gap-3"><label class="block flex-1"><span class="text-sm font-medium">Question *</span><textarea required name="question_text" rows="6" maxlength="5000" class="mt-1 w-full rounded border p-3" placeholder="Type a question for students…"></textarea></label><button type="button" data-remove-question class="h-10 rounded border px-3 text-red-700">Remove</button></div><label class="mt-3 block text-sm">Question image (optional)<input name="question_image" type="file" accept="image/jpeg,image/png,image/webp" class="mt-1 block w-full"></label></div>`; }
+  static questions(list) { return (Array.isArray(list) ? list : []).map((q, i) => `<div class="rounded border p-3"><p class="whitespace-pre-wrap font-medium">${i + 1}. ${this.safe(q?.text || q)}</p>${(q?.image_paths || []).map(path => `<button type="button" data-assignment-image="${this.safe(path)}" class="mt-2 block text-sm text-blue-700 underline">View question image</button>`).join("")}</div>`).join("") || '<p class="text-sm text-slate-500">No questions were added.</p>'; }
+  static teacherForm() {
+    const classes = this.state.classes.map(x => `<option value="${this.safe(x.id)}">${this.safe(x.class_name)}</option>`).join("");
+    const subjects = this.state.subjects.map(x => `<option value="${this.safe(x.id)}">${this.safe(x.subject_name)}</option>`).join("");
+    return `<section class="rounded-xl bg-white p-5 shadow"><h3 class="text-xl font-bold">Create an assignment</h3><form id="assignment-form" class="mt-4 grid gap-4 md:grid-cols-2"><label>Class *<select required name="class_id" class="mt-1 w-full rounded border p-2.5"><option value="">Select class</option>${classes}</select></label><label>Subject *<select required name="subject_id" class="mt-1 w-full rounded border p-2.5"><option value="">Select subject</option>${subjects}</select></label><label class="md:col-span-2">Title *<input required name="title" maxlength="160" class="mt-1 w-full rounded border p-2.5" placeholder="Week 3 practice"></label><label class="md:col-span-2">Instructions<textarea name="description" rows="4" class="mt-1 w-full rounded border p-3" placeholder="Explain how students should answer."></textarea></label><label>Due date *<input required type="date" name="due_date" class="mt-1 w-full rounded border p-2.5"></label><div class="flex items-end text-sm text-slate-500">Students can submit text and image answers before this date.</div><fieldset class="md:col-span-2"><div class="flex justify-between"><legend class="font-medium">Questions *</legend><button type="button" id="add-question" class="rounded border px-3 py-1 text-sm">Add question</button></div><div id="question-list" class="mt-3 space-y-3">${this.questionField()}</div></fieldset><p id="assignment-error" class="hidden md:col-span-2 rounded bg-red-50 p-3 text-sm text-red-700"></p><div class="md:col-span-2"><button class="rounded bg-indigo-600 px-4 py-2.5 font-medium text-white">Publish assignment</button></div></form></section>`;
+  }
+  static teacherCards() { return this.state.assignments.map(a => { const answers = this.state.submissions.filter(s => String(s.assignment_id) === String(a.id)); return `<article class="rounded-xl bg-white p-5 shadow"><div class="flex justify-between gap-3"><div><h3 class="text-lg font-bold">${this.safe(a.title)}</h3><p class="text-sm text-slate-500">${this.safe(a.subjects?.subject_name)} · ${this.safe(a.classes?.class_name)} · Due ${this.safe(this.format(a.due_date))}</p></div><span class="text-sm text-indigo-700">${answers.length} submitted</span></div>${a.description ? `<p class="mt-3 whitespace-pre-wrap text-sm">${this.safe(a.description)}</p>` : ""}<div class="mt-4 space-y-2">${this.questions(a.questions)}</div><details class="mt-4"><summary class="cursor-pointer font-medium">View student answers</summary><div class="mt-3 space-y-3">${answers.map(s => `<div class="rounded border p-3"><b>${this.safe(this.studentName(s.students))}</b><p class="mt-2 whitespace-pre-wrap">${this.safe(s.answer_text || "Image answer")}</p>${(s.answer_image_paths || []).map(path => `<button type="button" data-assignment-image="${this.safe(path)}" class="mt-2 block text-sm text-blue-700 underline">View answer image</button>`).join("")}</div>`).join("") || '<p class="text-sm text-slate-500">No answers yet.</p>'}</div></details></article>`; }).join("") || '<p class="rounded-xl border border-dashed p-8 text-center text-slate-500">No assignments published yet.</p>'; }
+  static studentCards() { return this.state.assignments.map(a => { const sub = this.state.submissions.find(s => String(s.assignment_id) === String(a.id)), closed = this.due(a.due_date) || String(a.status) !== "published"; return `<article class="rounded-xl bg-white p-5 shadow"><h3 class="text-lg font-bold">${this.safe(a.title)}</h3><p class="text-sm text-slate-500">${this.safe(a.subjects?.subject_name)} · Due ${this.safe(this.format(a.due_date))}</p>${a.description ? `<p class="mt-3 whitespace-pre-wrap text-sm">${this.safe(a.description)}</p>` : ""}<div class="mt-4 space-y-2">${this.questions(a.questions)}</div><form data-answer-form="${this.safe(a.id)}" class="mt-5 rounded bg-slate-50 p-4"><label class="block font-medium">Your answers *<textarea required name="answer_text" rows="12" maxlength="10000" ${closed ? "disabled" : ""} class="mt-1 w-full rounded border p-3" placeholder="Write answers to all questions here…">${this.safe(sub?.answer_text || "")}</textarea></label><label class="mt-3 block text-sm">Answer images (optional)<input name="answer_images" multiple type="file" accept="image/jpeg,image/png,image/webp" ${closed ? "disabled" : ""} class="mt-1 block w-full"></label>${(sub?.answer_image_paths || []).map(path => `<button type="button" data-assignment-image="${this.safe(path)}" class="mt-2 block text-sm text-blue-700 underline">View submitted image</button>`).join("")}<button ${closed ? "disabled" : ""} class="mt-4 rounded bg-indigo-600 px-4 py-2.5 font-medium text-white disabled:opacity-50">${sub ? "Update answer" : "Submit answer"}</button><span class="ml-3 text-sm ${closed ? "text-red-600" : "text-slate-500"}">${closed ? "Submission closed" : "Submit before the due date."}</span></form></article>`; }).join("") || '<p class="rounded-xl border border-dashed p-8 text-center text-slate-500">No assignments are available for your class.</p>'; }
+  static template() { return `<div class="space-y-6"><header class="rounded-2xl bg-gradient-to-r from-indigo-700 to-blue-600 p-6 text-white"><h2 class="text-3xl font-bold">Assignments</h2><p class="mt-2 text-indigo-100">${this.teacher() ? "Create questions, add images, and review student work." : "Complete questions and send your answers to your teacher."}</p></header>${this.teacher() ? this.teacherForm() : ""}<section class="space-y-4">${this.teacher() ? this.teacherCards() : this.studentCards()}</section></div>`; }
+  static async upload(files, folder) { const paths = []; for (const file of [...files].filter(Boolean)) { if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 10485760) throw new Error("Use JPEG, PNG, or WebP images up to 10 MB."); const ext = file.name.split(".").pop() || "png", path = `${this.state.profile.id}/${folder}/${crypto.randomUUID()}.${ext}`; const { error } = await API.db.storage.from(this.BUCKET).upload(path, file, { contentType: file.type }); if (error) throw error; paths.push(path); } return paths; }
+  static async openImage(path) { const { data, error } = await API.db.storage.from(this.BUCKET).createSignedUrl(path, 3600); if (error) throw error; window.open(data.signedUrl, "_blank", "noopener,noreferrer"); }
+  static bind() {
+    const root = this.state.container;
+    root.querySelectorAll("[data-assignment-image]").forEach(b => b.addEventListener("click", () => this.openImage(b.dataset.assignmentImage).catch(e => window.Utils?.error?.(e.message))));
+    if (this.teacher()) { const form = root.querySelector("#assignment-form"), list = root.querySelector("#question-list"); root.querySelector("#add-question")?.addEventListener("click", () => list.insertAdjacentHTML("beforeend", this.questionField())); list?.addEventListener("click", e => { const remove = e.target.closest("[data-remove-question]"); if (remove && list.children.length > 1) remove.closest("[data-question]").remove(); }); form?.addEventListener("submit", async e => { e.preventDefault(); const errorBox = root.querySelector("#assignment-error"); try { const data = new FormData(form), nodes = [...list.querySelectorAll("[data-question]")], questions = nodes.map(n => ({ text: n.querySelector("[name=question_text]").value.trim(), image_paths: [] })); if (!this.state.teacherId || questions.some(q => !q.text)) throw new Error("Add a valid teaching assignment and enter every question."); const classId = data.get("class_id"), subjectId = data.get("subject_id"); if (!this.state.pairs.some(p => String(p.class_id) === String(classId) && String(p.subject_id) === String(subjectId))) throw new Error("You may only publish to a class and subject assigned to you."); const { data: a, error } = await API.db.from("assignments").insert({ title: String(data.get("title")).trim(), description: String(data.get("description") || "").trim() || null, class_id: classId, subject_id: subjectId, teacher_id: this.state.teacherId, due_date: data.get("due_date"), status: "published", questions }).select().single(); if (error) throw error; for (let i = 0; i < nodes.length; i += 1) questions[i].image_paths = await this.upload(nodes[i].querySelector("[name=question_image]").files, `questions/${a.id}`); const { error: updateError } = await API.db.from("assignments").update({ questions }).eq("id", a.id); if (updateError) throw updateError; window.Utils?.success?.("Assignment published."); await this.render(root); } catch (error) { errorBox.textContent = error.message || "Unable to publish assignment."; errorBox.classList.remove("hidden"); } }); }
+    else root.querySelectorAll("[data-answer-form]").forEach(form => form.addEventListener("submit", async e => { e.preventDefault(); try { const data = new FormData(form), text = String(data.get("answer_text") || "").trim(); if (!text) throw new Error("Write your answer before submitting."); const { data: sub, error } = await API.db.from("assignment_submissions").upsert({ assignment_id: form.dataset.answerForm, student_id: this.state.student.id, answer_text: text, submitted_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: "assignment_id,student_id" }).select().single(); if (error) throw error; const newPaths = await this.upload(data.getAll("answer_images"), `answers/${sub.id}`); if (newPaths.length) { const { error: updateError } = await API.db.from("assignment_submissions").update({ answer_image_paths: [...(sub.answer_image_paths || []), ...newPaths], updated_at: new Date().toISOString() }).eq("id", sub.id); if (updateError) throw updateError; } window.Utils?.success?.("Answer sent to your teacher."); await this.render(root); } catch (error) { window.Utils?.error?.(error.message || "Unable to submit answer."); } }));
+  }
+  static async render(container) { this.state.container = container; container.innerHTML = '<div class="rounded-xl bg-white p-8 text-slate-500 shadow">Loading assignments…</div>'; try { await this.load(); container.innerHTML = this.template(); this.bind(); } catch (e) { console.error(e); container.innerHTML = `<div class="rounded-xl bg-white p-8 text-red-600 shadow">${this.safe(e.message || "Unable to load assignments.")}</div>`; } }
+}
 window.AssignmentModule = AssignmentModule;
