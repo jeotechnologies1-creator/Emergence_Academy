@@ -1,63 +1,34 @@
-/* ==========================================================
-   EMERGENCE ACADEMY — CURRICULUM SUBJECT DIRECTORY
-========================================================== */
-
+/* Curriculum subject directory and administrator class-subject manager. */
 class SubjectsModule {
-    static async render(container) {
-        container.innerHTML = '<div class="rounded-xl bg-white p-6 shadow">Loading subjects…</div>';
-
-        const { data, error } = await API.db
-            .from("subjects")
-            .select("id,subject_name,subject_code,curriculum_band,curriculum_level,curriculum_track")
-            .order("curriculum_band")
-            .order("curriculum_level")
-            .order("curriculum_track")
-            .order("subject_name");
-
-        if (error) throw error;
-        const subjects = Array.isArray(data) ? data : [];
-        const groups = subjects.reduce((all, subject) => {
-            const band = subject.curriculum_band || "Other";
-            const level = subject.curriculum_level || "General";
-            const track = subject.curriculum_track || "Core";
-            const key = `${band}|${level}|${track}`;
-            (all[key] ||= { band, level, track, subjects: [] }).subjects.push(subject);
-            return all;
-        }, {});
-
-        container.innerHTML = `
-            <section class="space-y-6">
-                <div class="rounded-2xl bg-gradient-to-r from-blue-700 to-indigo-700 p-6 text-white shadow">
-                    <h2 class="text-3xl font-bold">Subject Directory</h2>
-                    <p class="mt-2 text-blue-100">Primary 3–6, JSS 1–3, and SSS 1–3 curriculum and trade options.</p>
-                </div>
-                <div class="rounded-xl bg-white p-5 shadow">
-                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                        <p class="font-semibold text-slate-800">${subjects.length} subjects available</p>
-                        <input id="subject-directory-search" type="search" placeholder="Search subjects…" class="w-full rounded-lg border border-slate-300 px-3 py-2 sm:w-72">
-                    </div>
-                    <div id="subject-directory-groups" class="grid gap-4 lg:grid-cols-2">
-                        ${Object.values(groups).map((group) => this.groupTemplate(group)).join("") || '<p class="text-slate-500">No subjects have been configured yet.</p>'}
-                    </div>
-                </div>
-            </section>`;
-
-        document.getElementById("subject-directory-search")?.addEventListener("input", (event) => {
-            const query = String(event.target.value || "").trim().toLowerCase();
-            document.querySelectorAll("[data-subject-entry]").forEach((entry) => {
-                entry.classList.toggle("hidden", Boolean(query) && !entry.textContent.toLowerCase().includes(query));
-            });
-        });
-    }
-
-    static groupTemplate(group) {
-        const title = [group.band, group.level, group.track === "Core" ? "" : group.track].filter(Boolean).join(" · ");
-        return `<article class="rounded-xl border border-slate-200 p-4"><h3 class="font-bold text-slate-800">${this.safe(title)}</h3><ul class="mt-3 space-y-2 text-sm text-slate-600">${group.subjects.map((subject) => `<li data-subject-entry class="rounded bg-slate-50 px-3 py-2">${this.safe(subject.subject_name)}${subject.subject_code ? `<span class="ml-2 text-xs text-slate-400">${this.safe(subject.subject_code)}</span>` : ""}</li>`).join("")}</ul></article>`;
-    }
-
-    static safe(value) {
-        return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-    }
+  static state = { container: null, profile: null, subjects: [], classes: [], classSubjects: [] };
+  static safe(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
+  static admin() { return ["ceo", "admin", "executive"].includes(String(this.state.profile?.role || "").toLowerCase()); }
+  static async load() {
+    this.state.profile = await Auth.profile(true);
+    const [subjects, classes, classSubjects] = await Promise.all([
+      API.db.from("subjects").select("id,subject_name,subject_code,curriculum_band,curriculum_level,curriculum_track").order("subject_name"),
+      API.db.from("classes").select("id,class_name,class_code").order("class_name"),
+      API.db.from("class_subjects").select("id,class_id,subject_id")
+    ]);
+    if (subjects.error || classes.error || classSubjects.error) throw subjects.error || classes.error || classSubjects.error;
+    this.state.subjects = subjects.data || []; this.state.classes = classes.data || []; this.state.classSubjects = classSubjects.data || [];
+  }
+  static directory() {
+    const groups = this.state.subjects.reduce((all, subject) => { const title = [subject.curriculum_band || "Other", subject.curriculum_level || "General", subject.curriculum_track === "Core" ? "" : subject.curriculum_track || ""].filter(Boolean).join(" · "); (all[title] ||= []).push(subject); return all; }, {});
+    return `<section class="rounded-xl bg-white p-5 shadow"><div class="mb-4 flex flex-wrap justify-between gap-3"><p class="font-semibold">${this.state.subjects.length} subjects available</p><input id="subject-directory-search" type="search" placeholder="Search subjects…" class="w-full rounded-lg border px-3 py-2 sm:w-72"></div><div class="grid gap-4 lg:grid-cols-2">${Object.entries(groups).map(([title, rows]) => `<article class="rounded-xl border p-4"><h3 class="font-bold">${this.safe(title)}</h3><ul class="mt-3 space-y-2 text-sm">${rows.map(row => `<li data-subject-entry class="rounded bg-slate-50 px-3 py-2">${this.safe(row.subject_name)}${row.subject_code ? `<span class="ml-2 text-xs text-slate-400">${this.safe(row.subject_code)}</span>` : ""}</li>`).join("")}</ul></article>`).join("")}</div></section>`;
+  }
+  static classManager() {
+    const options = this.state.subjects.map(subject => `<option value="${this.safe(subject.id)}">${this.safe(subject.subject_name)}</option>`).join("");
+    const rows = this.state.classes.map(classRow => { const assigned = this.state.classSubjects.filter(link => String(link.class_id) === String(classRow.id)); return `<article class="rounded-xl border border-indigo-100 p-4"><div class="flex flex-wrap items-center justify-between gap-3"><h3 class="font-bold text-slate-800">${this.safe(classRow.class_name || classRow.class_code)}</h3><form data-class-subject-form="${this.safe(classRow.id)}" class="flex flex-1 gap-2 sm:max-w-lg"><select required name="subject_id" class="min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm"><option value="">Add a subject…</option>${options}</select><button class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white">Add subject</button></form></div><div class="mt-3 flex flex-wrap gap-2">${assigned.length ? assigned.map(link => { const subject = this.state.subjects.find(row => String(row.id) === String(link.subject_id)); return `<span class="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-sm text-indigo-800">${this.safe(subject?.subject_name || "Subject")}<button type="button" data-remove-class-subject="${this.safe(link.id)}" class="font-bold text-indigo-700" aria-label="Remove ${this.safe(subject?.subject_name || "subject")}">×</button></span>`; }).join("") : '<span class="text-sm text-slate-500">No subjects assigned yet.</span>'}</div></article>`; }).join("");
+    return `<section class="rounded-xl bg-white p-5 shadow"><h2 class="text-xl font-bold text-slate-800">Subjects by class</h2><p class="mt-1 text-sm text-slate-500">Add the subjects each class offers. Teacher allocations remain managed separately.</p><div class="mt-5 grid gap-4 lg:grid-cols-2">${rows}</div><p id="class-subject-error" class="hidden mt-4 rounded bg-red-50 p-3 text-sm text-red-700"></p></section>`;
+  }
+  static template() { return `<div class="space-y-6"><div class="rounded-2xl bg-gradient-to-r from-blue-700 to-indigo-700 p-6 text-white shadow"><h2 class="text-3xl font-bold">Subject Directory</h2><p class="mt-2 text-blue-100">Primary 3–6, JSS 1–3, and SSS 1–3 curriculum and trade options.</p></div>${this.admin() ? this.classManager() : ""}${this.directory()}</div>`; }
+  static showError(message) { const box = this.state.container?.querySelector("#class-subject-error"); if (box) { box.textContent = message; box.classList.remove("hidden"); } }
+  static bind() {
+    this.state.container.querySelector("#subject-directory-search")?.addEventListener("input", event => { const query = String(event.target.value || "").toLowerCase(); this.state.container.querySelectorAll("[data-subject-entry]").forEach(item => item.classList.toggle("hidden", Boolean(query) && !item.textContent.toLowerCase().includes(query))); });
+    this.state.container.querySelectorAll("[data-class-subject-form]").forEach(form => form.addEventListener("submit", async event => { event.preventDefault(); try { const subjectId = String(new FormData(form).get("subject_id") || ""); if (!subjectId) throw new Error("Select a subject to add."); const { error } = await API.db.from("class_subjects").insert({ class_id: form.dataset.classSubjectForm, subject_id: subjectId, created_by: this.state.profile.id }); if (error) throw error; window.Utils?.success?.("Subject added to class."); await this.render(this.state.container); } catch (error) { this.showError(error.code === "23505" ? "That subject is already assigned to this class." : error.message || "Unable to add subject."); } }));
+    this.state.container.querySelectorAll("[data-remove-class-subject]").forEach(button => button.addEventListener("click", async () => { try { const { error } = await API.db.from("class_subjects").delete().eq("id", button.dataset.removeClassSubject); if (error) throw error; window.Utils?.success?.("Subject removed from class."); await this.render(this.state.container); } catch (error) { this.showError(error.message || "Unable to remove subject."); } }));
+  }
+  static async render(container) { this.state.container = container; container.innerHTML = '<div class="rounded-xl bg-white p-6 shadow">Loading subjects…</div>'; try { await this.load(); container.innerHTML = this.template(); this.bind(); } catch (error) { console.error(error); container.innerHTML = `<div class="rounded-xl bg-white p-6 text-red-600 shadow">${this.safe(error.message || "Unable to load subjects.")}</div>`; } }
 }
-
 window.SubjectsModule = SubjectsModule;
