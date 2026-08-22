@@ -12,7 +12,10 @@ async function createGoogleMeet(title: string, description: string, startsAt: st
     body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: "refresh_token" }),
   });
   const token = await tokenResponse.json();
-  if (!tokenResponse.ok || !token.access_token) throw new Error("Unable to authorize Google Calendar.");
+  if (!tokenResponse.ok || !token.access_token) {
+    const detail = String(token?.error_description || token?.error || "Google rejected the saved OAuth credentials.");
+    throw new Error(`Unable to authorize Google Calendar: ${detail}`);
+  }
 
   const eventResponse = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1", {
     method: "POST",

@@ -13,6 +13,7 @@ const path = require('path');
   const classAndTeacherMigration = read('supabase', 'migrations', '202608110004_seed_standard_classes_and_teacher_ids.sql');
 
   assert.ok(schedule.includes('oauth2.googleapis.com/token'), 'scheduling must exchange a server-side refresh token');
+  assert.ok(schedule.includes('token?.error_description'), 'scheduling must return Google OAuth failure details safely');
   assert.ok(schedule.includes('conferenceDataVersion=1'), 'scheduling must request a Google Meet conference');
   assert.ok(schedule.includes('teacher_subjects'), 'server must verify teacher assignment');
   assert.ok(join.includes('student_can_access_live_class'), 'server must verify student enrollment before returning a link');
