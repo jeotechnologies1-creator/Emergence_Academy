@@ -120,6 +120,8 @@
 
                                         <th class="p-3 text-left">Status</th>
 
+                                        <th class="p-3 text-left">Password</th>
+
                                         <th class="p-3 text-left">Actions</th>
 
                                     </tr>
@@ -235,6 +237,10 @@
 
                         </td>
 
+                        <td class="p-3 text-xs text-slate-500">
+                            ${profile.must_change_password ? "Temporary — change required" : "Protected"}
+                        </td>
+
                         <td class="p-3 flex gap-2">
 
                             <button
@@ -256,6 +262,13 @@
                                 data-id="${this.safe(profile.id)}"
                             >
                                 Delete
+                            </button>
+
+                            <button
+                                class="reset-password-btn text-amber-700"
+                                data-id="${this.safe(profile.id)}"
+                            >
+                                Reset password
                             </button>
 
                         </td>
@@ -292,6 +305,25 @@
 
         static closeModal() {
             document.getElementById("profile-action-modal")?.remove();
+        }
+
+        static openPasswordReset(profile) {
+            const modal = document.createElement("div");
+            modal.id = "profile-action-modal";
+            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4";
+            modal.innerHTML = `<form class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><h3 class="text-xl font-bold">Set temporary password</h3><p class="mt-2 text-sm text-slate-600">For ${this.safe(profile.email)}. Share it securely; it is never stored or shown again.</p><label class="mt-4 block">Temporary password<input name="password" type="password" minlength="8" required class="mt-1 w-full rounded border px-3 py-2" /></label><p data-reset-error class="hidden mt-3 text-sm text-red-600"></p><div class="mt-5 flex justify-end gap-2"><button type="button" data-profile-close class="rounded border px-4 py-2">Cancel</button><button class="rounded bg-amber-600 px-4 py-2 text-white">Set password</button></div></form>`;
+            document.body.appendChild(modal);
+            modal.querySelector("[data-profile-close]")?.addEventListener("click", () => this.closeModal());
+            modal.querySelector("form")?.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const password = String(new FormData(event.currentTarget).get("password") || "");
+                const errorBox = modal.querySelector("[data-reset-error]");
+                const { data, error } = await API.db.functions.invoke("create-user", { body: { operation: "reset-profile-password", profile_id: profile.id, password } });
+                if (error || data?.error) { errorBox.textContent = data?.error || error?.message || "Unable to reset password."; errorBox.classList.remove("hidden"); return; }
+                this.closeModal();
+                await this.loadProfiles();
+                this.notify("Temporary password set. Share it with the user securely.");
+            });
         }
 
         static openModal(mode, profile = null) {
@@ -377,6 +409,7 @@
                 if (!profile) return;
                 if (button.classList.contains("view-btn")) return this.openModal("view", profile);
                 if (button.classList.contains("edit-btn")) return this.openModal("edit", profile);
+                if (button.classList.contains("reset-password-btn")) return this.openPasswordReset(profile);
                 if (button.classList.contains("delete-btn")) {
                     if (!window.confirm(`Permanently delete ${profile.email}? This removes the login and cannot be undone.`)) return;
                     try {

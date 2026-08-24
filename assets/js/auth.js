@@ -540,6 +540,77 @@ class Auth {
         }
     }
 
+    static async changeInitialOfficePassword(password) {
+        const value = String(password || "").trim();
+        if (value.length < 8) {
+            return this.error("Use at least 8 characters for your new password.");
+        }
+        try {
+            const { data, error } = await this.client.functions.invoke("create-user", {
+                body: { operation: "change-initial-password", password: value }
+            });
+            if (error) {
+                let message = error.message || "Unable to change password.";
+                try {
+                    const raw = await error.context?.clone()?.text();
+                    message = JSON.parse(raw || "{}")?.error || message;
+                } catch (_) { /* use the function error message */ }
+                return this.error(message);
+            }
+            if (data?.error) return this.error(data.error);
+            this.currentProfile = { ...(this.currentProfile || {}), must_change_password: false };
+            this.storageSession.setItem("profile", JSON.stringify(this.currentProfile));
+            return this.success(data || {});
+        } catch (error) {
+            console.error(error);
+            return this.error(error.message || "Unable to change password.");
+        }
+    }
+
+    static async enforceInitialOfficePasswordChange(profile) {
+        if (!profile?.must_change_password || document.getElementById("initial-password-modal")) return;
+        const modal = document.createElement("div");
+        modal.id = "initial-password-modal";
+        modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4";
+        modal.innerHTML = `
+          <form class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" id="initial-password-form">
+            <h2 class="text-xl font-bold text-slate-900">Create your personal password</h2>
+            <p class="mt-2 text-sm text-slate-600">Your administrator issued a temporary password. Replace it now to continue to the dashboard.</p>
+            <label class="mt-5 block text-sm font-medium text-slate-700">New password
+              <input name="password" type="password" minlength="8" required autocomplete="new-password" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
+            </label>
+            <label class="mt-4 block text-sm font-medium text-slate-700">Confirm new password
+              <input name="confirm_password" type="password" minlength="8" required autocomplete="new-password" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
+            </label>
+            <p data-password-error class="hidden mt-3 rounded bg-red-50 p-3 text-sm text-red-700"></p>
+            <button class="mt-5 w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white hover:bg-indigo-700">Save password and continue</button>
+          </form>`;
+        document.body.appendChild(modal);
+        const form = modal.querySelector("form");
+        form?.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const values = new FormData(form);
+            const password = String(values.get("password") || "");
+            const errorBox = form.querySelector("[data-password-error]");
+            if (password !== String(values.get("confirm_password") || "")) {
+                errorBox.textContent = "The passwords do not match.";
+                errorBox.classList.remove("hidden");
+                return;
+            }
+            const submit = form.querySelector("button");
+            submit.disabled = true;
+            const result = await this.changeInitialOfficePassword(password);
+            if (!result.success) {
+                errorBox.textContent = result.message;
+                errorBox.classList.remove("hidden");
+                submit.disabled = false;
+                return;
+            }
+            modal.remove();
+            window.Utils?.success?.("Your password has been updated.");
+        });
+    }
+
     static async log(action, description = "") {
         try {
             const user = await this.user();

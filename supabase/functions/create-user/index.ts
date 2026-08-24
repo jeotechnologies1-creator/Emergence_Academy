@@ -35,6 +35,13 @@ const ALLOWED_ROLES = new Set([
   "library",
 ]);
 
+// These are accounts created for school offices. Learners, parents, and
+// teachers use their normal account flows and are not forced through the
+// office-password hand-off.
+const OFFICE_ROLES = new Set([
+  "ceo", "admin", "executive", "finance", "hr", "admission", "exam", "library",
+]);
+
 const ROLE_ALIASES: Record<string, string> = {
   "administrator": "admin",
   "super admin": "admin",
@@ -323,13 +330,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const callerRole = normalizeRole(callerProfile.role);
 
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "Request body must contain valid JSON.", function_version: FUNCTION_VERSION }, 400);
+    }
+
+    const operation = String(body.operation || "").trim().toLowerCase();
+
     /* ======================================================
        ONLY ADMIN / CEO CAN CREATE USERS
     ====================================================== */
 
     if (
       callerRole !== "admin" &&
-      callerRole !== "ceo"
+      callerRole !== "ceo" &&
+      operation !== "change-initial-password"
     ) {
       return jsonResponse(
         {
@@ -344,21 +361,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     /* ======================================================
        REQUEST BODY
     ====================================================== */
-
-    let body: Record<string, unknown>;
-
-    try {
-      body = await req.json();
-    } catch {
-      return jsonResponse(
-        {
-          error:
-            "Request body must contain valid JSON.",
-          function_version: FUNCTION_VERSION,
-        },
-        400,
-      );
-    }
 
     // Profile deletion must be performed server-side so a browser never gets
     // access to Auth Admin credentials. It is intentionally limited to the
@@ -424,6 +426,47 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (profileUpdateError) return jsonResponse({ error: profileUpdateError.message, function_version: FUNCTION_VERSION }, 400);
 
       return jsonResponse({ success: true, profile, message: "User profile updated successfully.", function_version: FUNCTION_VERSION });
+    }
+
+    if (operation === "reset-profile-password") {
+      const targetId = String(body.profile_id || "").trim();
+      const password = String(body.password || "").trim();
+      if (!targetId || password.length < 8) return jsonResponse({ error: "A profile and a password of at least 8 characters are required.", function_version: FUNCTION_VERSION }, 400);
+      const { data: target, error: targetError } = await supabaseAdmin.from("profiles")
+        .select("id, role").eq("id", targetId).maybeSingle();
+      if (targetError || !target) return jsonResponse({ error: "Profile was not found.", function_version: FUNCTION_VERSION }, 404);
+      const { error: resetError } = await supabaseAdmin.auth.admin.updateUserById(targetId, { password });
+      if (resetError) return jsonResponse({ error: `Unable to reset password: ${resetError.message}`, function_version: FUNCTION_VERSION }, 400);
+      const { error: flagError } = await supabaseAdmin.from("profiles")
+        .update({ must_change_password: OFFICE_ROLES.has(String(target.role || "").toLowerCase()), updated_at: new Date().toISOString() })
+        .eq("id", targetId);
+      if (flagError) return jsonResponse({ error: flagError.message, function_version: FUNCTION_VERSION }, 500);
+      return jsonResponse({ success: true, message: "Temporary password set. Give it to the user securely.", function_version: FUNCTION_VERSION });
+    }
+
+    // An office account may replace the administrator-issued password exactly
+    // once. This is intentionally server-side so the browser cannot clear the
+    // requirement by editing public.profiles directly.
+    if (operation === "change-initial-password") {
+      const password = String(body.password || "").trim();
+      if (password.length < 8) return jsonResponse({ error: "Password must be at least 8 characters.", function_version: FUNCTION_VERSION }, 400);
+
+      const { data: officeProfile, error: officeProfileError } = await supabaseAdmin
+        .from("profiles")
+        .select("id, role, must_change_password")
+        .eq("id", callerId)
+        .maybeSingle();
+      if (officeProfileError || !officeProfile) return jsonResponse({ error: "Your profile could not be found.", function_version: FUNCTION_VERSION }, 404);
+      if (!OFFICE_ROLES.has(String(officeProfile.role || "").toLowerCase())) return jsonResponse({ error: "Only office accounts are required to use this password change.", function_version: FUNCTION_VERSION }, 403);
+      if (!officeProfile.must_change_password) return jsonResponse({ error: "Your initial password has already been changed.", function_version: FUNCTION_VERSION }, 400);
+
+      const { error: authPasswordError } = await supabaseAdmin.auth.admin.updateUserById(callerId, { password });
+      if (authPasswordError) return jsonResponse({ error: `Unable to change password: ${authPasswordError.message}`, function_version: FUNCTION_VERSION }, 400);
+      const { error: clearFlagError } = await supabaseAdmin.from("profiles")
+        .update({ must_change_password: false, updated_at: new Date().toISOString() })
+        .eq("id", callerId);
+      if (clearFlagError) return jsonResponse({ error: clearFlagError.message, function_version: FUNCTION_VERSION }, 500);
+      return jsonResponse({ success: true, message: "Password changed successfully.", function_version: FUNCTION_VERSION });
     }
 
     // Add children to an existing parent account without removing its current
@@ -728,7 +771,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // public.profiles or returned by this function.
     const { error: passwordFlagError } = await supabaseAdmin
       .from("profiles")
-      .update({ must_change_password: role !== "student" })
+      .update({ must_change_password: OFFICE_ROLES.has(role) })
       .eq("id", userId);
     if (passwordFlagError) {
       await deleteCreatedUser(supabaseAdmin, userId);

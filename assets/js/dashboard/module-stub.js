@@ -1128,14 +1128,19 @@ class OfficeModuleEngine {
         }
       );
 
-    if (typeof moduleClass.config.transformRows === "function") {
-      state.rows = await moduleClass.config.transformRows(state.rows);
-    }
-
-    await this.loadLookups(
-      moduleClass,
-      state
-    );
+    // The row transformer (parents join linked children, for example) and
+    // form lookup loading are independent network work. Running them together
+    // prevents one slow request from making a module feel different to the
+    // rest of the dashboard.
+    const rawRows = state.rows;
+    const transformedRows = typeof moduleClass.config.transformRows === "function"
+      ? moduleClass.config.transformRows(rawRows)
+      : Promise.resolve(rawRows);
+    const [, transformed] = await Promise.all([
+      this.loadLookups(moduleClass, state),
+      transformedRows
+    ]);
+    state.rows = transformed;
 
     state.columns =
       this.buildColumns(

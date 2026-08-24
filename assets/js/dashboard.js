@@ -88,6 +88,10 @@
 
                     }
 
+                    // Office accounts can enter only after replacing the
+                    // administrator-issued temporary password.
+                    await Auth.enforceInitialOfficePasswordChange(profile);
+
                     // Profile.load() can finish after the initial DOM-ready
                     // header paint. Refresh the shared header once its data
                     // is available so every dashboard view reflects the user.
