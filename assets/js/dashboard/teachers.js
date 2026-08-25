@@ -36,6 +36,46 @@ function generateTeacherPassword() {
     return password;
 }
 
+/**
+ * The Edge Function is the primary account-creation path. This idempotent
+ * client-side confirmation protects the admin workflow if an older deployed
+ * function version creates the teacher record but has not yet persisted its
+ * class/subject rows.
+ */
+async function confirmTeacherAssignments(teacherId, classIds, subjectIds) {
+    const normalizedClassIds = [...new Set((classIds || []).map(String).filter(Boolean))];
+    const normalizedSubjectIds = [...new Set((subjectIds || []).map(String).filter(Boolean))];
+
+    if (!teacherId || !normalizedClassIds.length || !normalizedSubjectIds.length) {
+        throw new Error("The teacher record and at least one class and subject are required.");
+    }
+
+    const assignments = normalizedClassIds.flatMap((classId) =>
+        normalizedSubjectIds.map((subjectId) => ({
+            teacher_id: teacherId,
+            class_id: classId,
+            subject_id: subjectId
+        }))
+    );
+
+    const { error } = await API.db
+        .from("teacher_subjects")
+        .upsert(assignments, { onConflict: "teacher_id,class_id,subject_id" });
+
+    if (error) throw error;
+
+    const { data: savedAssignments, error: verificationError } = await API.db
+        .from("teacher_subjects")
+        .select("class_id,subject_id")
+        .eq("teacher_id", teacherId);
+
+    if (verificationError) throw verificationError;
+
+    const savedKeys = new Set((savedAssignments || []).map((row) => `${row.class_id}:${row.subject_id}`));
+    const missing = assignments.some((row) => !savedKeys.has(`${row.class_id}:${row.subject_id}`));
+    if (missing) throw new Error("The selected teaching assignments could not be verified. Please try again.");
+}
+
 
 /* ==========================================================
    VERIFY MODULE ENGINE
@@ -543,6 +583,30 @@ if (
                                 "Unable to create teacher."
                             );
                         }
+
+                        const teacherId = String(result.data?.id || "").trim();
+
+                        if (!teacherId) {
+                            throw new Error("Teacher account was created but its teacher record could not be confirmed.");
+                        }
+
+                        // Keep the selected department and assignments in the
+                        // same source-of-truth tables used by the admin table
+                        // and teacher portal. `upsert` makes this safe when
+                        // the current Edge Function has already saved them.
+                        const departmentResult = await window.API.teachers.update(
+                            teacherId,
+                            { department_id: payload.department_id || null }
+                        );
+                        if (!departmentResult?.success) {
+                            throw new Error(departmentResult?.message || "Unable to save the teacher department.");
+                        }
+
+                        await confirmTeacherAssignments(
+                            teacherId,
+                            payload.class_ids,
+                            payload.subject_ids
+                        );
 
 
                         /* ======================================

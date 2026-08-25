@@ -55,6 +55,7 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(createUser.includes('parentData'), 'parent accounts should receive their selected child links in the trusted creation workflow');
   assert.ok(createUser.includes('parent_students'), 'parent creation should persist child links server-side');
   assert.ok(createUser.includes('teacher_subjects'), 'teacher creation should persist selected class and subject assignments');
+  assert.ok(teachers.includes('confirmTeacherAssignments'), 'admin teacher creation must verify that selected class/subject assignments were saved');
   assert.ok(teachers.includes('class_ids'), 'teacher enrollment should collect assigned classes');
   assert.ok(teachers.includes('subject_ids'), 'teacher enrollment should collect assigned subjects');
   assert.ok(read('assets', 'js', 'dashboard', 'parents.js').includes('student_ids'), 'parent enrollment should allow selecting linked children');
