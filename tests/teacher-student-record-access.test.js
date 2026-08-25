@@ -23,6 +23,7 @@ const path = require("path");
   assert.ok(assignmentScope.includes("drop policy if exists staff_read_teacher_subjects"), "the broad teacher-subject policy must be replaced");
   assert.ok(!assignmentScope.includes("'teacher'"), "teachers must not be granted access to every teacher's assignments");
   assert.ok(teachersModule.includes("transformTeacherRows"), "admin teacher rows must include assignment data from teacher_subjects");
+  assert.ok(teachersModule.includes("assigned_student_count"), "admin teacher rows must show the students connected through assigned classes");
   assert.ok(teachersModule.includes("updateTeacherRecord"), "admin edits must update teacher_subjects as well as the teacher record");
 
   console.log("teacher student record access regression test passed");

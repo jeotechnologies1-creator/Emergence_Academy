@@ -100,6 +100,11 @@ if (
                 },
 
                 {
+                    key: "assigned_student_count",
+                    label: "Students in Assigned Classes"
+                },
+
+                {
                     key: "qualification",
                     label: "Qualification"
                 },
@@ -311,16 +316,21 @@ if (
             // admin rows so the table and edit form always reflect the source
             // of truth used by teacher portals.
             transformRows: async function transformTeacherRows(rows) {
-                const { data, error } = await API.db
-                    .from("teacher_subjects")
-                    .select("teacher_id,class_id,subject_id");
+                const [assignmentsResult, studentsResult] = await Promise.all([
+                    API.db
+                        .from("teacher_subjects")
+                        .select("teacher_id,class_id,subject_id"),
+                    API.db
+                        .from("students")
+                        .select("id,class_id")
+                ]);
 
-                if (error) {
-                    throw error;
+                if (assignmentsResult.error || studentsResult.error) {
+                    throw assignmentsResult.error || studentsResult.error;
                 }
 
                 const assignmentsByTeacher = new Map();
-                (data || []).forEach((assignment) => {
+                (assignmentsResult.data || []).forEach((assignment) => {
                     const teacherId = String(assignment.teacher_id);
                     const current = assignmentsByTeacher.get(teacherId) || {
                         classIds: new Set(),
@@ -333,10 +343,15 @@ if (
 
                 return (rows || []).map((teacher) => {
                     const assignments = assignmentsByTeacher.get(String(teacher.id));
+                    const assignedClassIds = assignments ? assignments.classIds : new Set();
+                    const assignedStudentCount = (studentsResult.data || []).filter((student) =>
+                        assignedClassIds.has(String(student.class_id))
+                    ).length;
                     return {
                         ...teacher,
-                        class_ids: assignments ? [...assignments.classIds] : [],
-                        subject_ids: assignments ? [...assignments.subjectIds] : []
+                        class_ids: [...assignedClassIds],
+                        subject_ids: assignments ? [...assignments.subjectIds] : [],
+                        assigned_student_count: assignedStudentCount
                     };
                 });
             },
