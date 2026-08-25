@@ -268,3 +268,95 @@ nav button[data-route].active {
     display: none !important;
   }
 }
+
+/* Dashboard visual refresh: preserves the academy blue/indigo palette while
+   giving every existing module a calmer, more consistent surface system. */
+#dashboard-content {
+  animation: dashboard-content-in 260ms ease-out;
+}
+
+@keyframes dashboard-content-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+#sidebar {
+  background: linear-gradient(180deg, #193d8c 0%, #17377f 52%, #112c6a 100%);
+  border-right: 1px solid rgba(191, 219, 254, 0.16);
+  box-shadow: 14px 0 34px rgba(15, 23, 42, 0.08);
+}
+
+#sidebar nav::-webkit-scrollbar { width: 5px; }
+#sidebar nav::-webkit-scrollbar-thumb { background: rgba(191, 219, 254, 0.35); border-radius: 99px; }
+
+nav button[data-route] {
+  margin: 2px 10px;
+  width: calc(100% - 20px);
+  border-radius: 12px;
+}
+
+nav button[data-route].active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.58), rgba(79, 70, 229, 0.52));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13), 0 8px 18px rgba(6, 24, 67, 0.23);
+}
+
+main {
+  background:
+    radial-gradient(circle at 90% 0%, rgba(99, 102, 241, 0.09), transparent 26rem),
+    linear-gradient(145deg, #f8fbff 0%, #f3f6ff 48%, #f8fafc 100%);
+}
+
+#dashboard-content > .space-y-6 > section,
+#dashboard-content > .space-y-6 > div.rounded-xl,
+#dashboard-content .bg-white.rounded-xl,
+#dashboard-content .bg-white.rounded-2xl {
+  border: 1px solid rgba(203, 213, 225, 0.7);
+  box-shadow: 0 10px 28px rgba(30, 64, 175, 0.07);
+}
+
+#dashboard-content .bg-white.rounded-xl:hover,
+#dashboard-content .bg-white.rounded-2xl:hover {
+  box-shadow: 0 14px 34px rgba(30, 64, 175, 0.1);
+}
+
+#dashboard-content input:not([type="checkbox"]):not([type="radio"]),
+#dashboard-content select,
+#dashboard-content textarea {
+  border-color: #cbd5e1;
+  background-color: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
+}
+
+#dashboard-content input:focus,
+#dashboard-content select:focus,
+#dashboard-content textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+  outline: none;
+}
+
+#dashboard-content button:not([disabled]) {
+  letter-spacing: 0.005em;
+}
+
+#dashboard-content table thead {
+  background: linear-gradient(90deg, #f1f5ff, #f8faff);
+}
+
+#dashboard-content table th {
+  color: #334155;
+  font-weight: 700;
+}
+
+#dashboard-content table tbody tr {
+  transition: background-color 160ms ease;
+}
+
+#dashboard-content table tbody tr:hover {
+  background-color: #f8faff;
+}
+
+@media (max-width: 767px) {
+  nav button[data-route] { margin-left: 6px; margin-right: 6px; width: calc(100% - 12px); }
+  #dashboard-content .rounded-xl, #dashboard-content .rounded-2xl { border-radius: 14px; }
+}
