@@ -6,7 +6,7 @@ class AssignmentModule {
   static role() { return String(this.state.profile?.role || "").toLowerCase(); }
   static teacher() { return this.role() === "teacher"; }
   static studentRole() { return this.role() === "student"; }
-  static admin() { return ["ceo", "admin", "executive"].includes(this.role()); }
+  static admin() { return ["ceo", "admin"].includes(this.role()); }
   static due(v) { return new Date(`${v}T23:59:59`) < new Date(); }
   static format(v) { const date = new Date(`${v}T23:59:59`); return Number.isNaN(date) ? "—" : date.toLocaleDateString(); }
   static studentName(row) { return `${row?.profiles?.first_name || ""} ${row?.profiles?.last_name || ""}`.trim() || row?.student_no || "Student"; }
