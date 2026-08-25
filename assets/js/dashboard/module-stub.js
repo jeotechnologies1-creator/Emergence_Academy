@@ -118,6 +118,14 @@ class OfficeModuleEngine {
   }
 
   static tableFromForeignKey(key) {
+    // `employee_id` is an identifier stored directly on public.teachers, not
+    // a foreign key to an `employees` table.  Treating every *_id column as a
+    // relationship made the Teachers module request a table that does not
+    // exist and interrupted its lookup loading.
+    if (key === "employee_id") {
+      return null;
+    }
+
     const mappings = {
       student_id: "students",
       teacher_id: "teachers",
