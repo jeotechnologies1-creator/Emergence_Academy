@@ -359,7 +359,8 @@ main {
 }
 
 /* Parent records contain contact, relationship, child, and date fields. Keep
-   the sidebar stable and scroll the data table itself on narrower displays. */
+   the table inside the desktop content panel by wrapping long values; smaller
+   screens retain a local horizontal scroll rather than widening the page. */
 .parent-records-scroll {
   scrollbar-gutter: stable;
   overscroll-behavior-inline: contain;
@@ -367,7 +368,33 @@ main {
 }
 
 .parent-records-table {
-  min-width: 1100px;
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.parent-records-table th,
+.parent-records-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+/* Parent, email, address, and child names receive the most room. Keeping
+   these widths explicit prevents one long value from pushing the dashboard
+   beyond the desktop viewport. */
+.parent-records-table th:nth-child(1), .parent-records-table td:nth-child(1) { width: 12%; }
+.parent-records-table th:nth-child(2), .parent-records-table td:nth-child(2) { width: 16%; }
+.parent-records-table th:nth-child(3), .parent-records-table td:nth-child(3) { width: 10%; }
+.parent-records-table th:nth-child(4), .parent-records-table td:nth-child(4) { width: 10%; }
+.parent-records-table th:nth-child(5), .parent-records-table td:nth-child(5) { width: 9%; }
+.parent-records-table th:nth-child(6), .parent-records-table td:nth-child(6) { width: 13%; }
+.parent-records-table th:nth-child(7), .parent-records-table td:nth-child(7) { width: 15%; }
+.parent-records-table th:nth-child(8), .parent-records-table td:nth-child(8) { width: 8%; }
+.parent-records-table th:last-child, .parent-records-table td:last-child { width: 7%; }
+
+.parent-records-table td:last-child {
+  white-space: nowrap;
 }
 
 .parent-records-scroll:focus {
