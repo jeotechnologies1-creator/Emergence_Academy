@@ -7,6 +7,8 @@ const path = require("path");
   const read = (...parts) => fs.readFileSync(path.join(root, ...parts), "utf8");
   const studentAccess = read("supabase", "migrations", "202608190011_match_teacher_students_by_assigned_class.sql");
   const assignedClassRepair = read("supabase", "migrations", "202608250003_show_assigned_class_students_to_teachers.sql");
+  const assignmentScope = read("supabase", "migrations", "202608250007_restrict_teacher_subject_assignments.sql");
+  const teachersModule = read("assets", "js", "dashboard", "teachers.js");
   const recordAccess = studentAccess;
   const scheduling = read("supabase", "functions", "schedule-live-class", "index.ts");
 
@@ -18,6 +20,10 @@ const path = require("path");
   assert.ok(scheduling.includes("approved_student_ids"), "Teachers should be able to approve eligible students for live classes.");
   assert.ok(assignedClassRepair.includes("join public.teacher_subjects ts on ts.class_id = s.class_id"), "new teacher assignments must immediately expose students in the assigned class");
   assert.ok(assignedClassRepair.includes("teacher_read_assigned_student_profiles"), "teachers must receive the linked student profiles in their dashboard list");
+  assert.ok(assignmentScope.includes("drop policy if exists staff_read_teacher_subjects"), "the broad teacher-subject policy must be replaced");
+  assert.ok(!assignmentScope.includes("'teacher'"), "teachers must not be granted access to every teacher's assignments");
+  assert.ok(teachersModule.includes("transformTeacherRows"), "admin teacher rows must include assignment data from teacher_subjects");
+  assert.ok(teachersModule.includes("updateTeacherRecord"), "admin edits must update teacher_subjects as well as the teacher record");
 
   console.log("teacher student record access regression test passed");
 })();

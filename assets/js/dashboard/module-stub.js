@@ -499,6 +499,12 @@ class OfficeModuleEngine {
       typeof value !==
         "undefined"
     ) {
+      if (Array.isArray(value)) {
+        return value
+          .map((item) => lookupMap[String(item)] || String(item))
+          .join(", ");
+      }
+
       const resolved =
         lookupMap[
           String(value)
