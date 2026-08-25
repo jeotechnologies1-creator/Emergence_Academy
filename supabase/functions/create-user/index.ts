@@ -362,6 +362,54 @@ Deno.serve(async (req: Request): Promise<Response> => {
        REQUEST BODY
     ====================================================== */
 
+    if (operation === "delete-teacher") {
+      const teacherId = String(body.teacher_id || "").trim();
+      const profileId = String(body.profile_id || "").trim();
+
+      if (!teacherId || !profileId) {
+        return jsonResponse({ error: "Teacher and profile IDs are required.", function_version: FUNCTION_VERSION }, 400);
+      }
+      if (profileId === callerId) {
+        return jsonResponse({ error: "You cannot delete your own signed-in account.", function_version: FUNCTION_VERSION }, 400);
+      }
+
+      const { data: teacher, error: teacherError } = await supabaseAdmin
+        .from("teachers")
+        .select("id, profile_id")
+        .eq("id", teacherId)
+        .eq("profile_id", profileId)
+        .maybeSingle();
+      if (teacherError || !teacher) {
+        return jsonResponse({ error: "Teacher account was not found.", function_version: FUNCTION_VERSION }, 404);
+      }
+
+      // teacher_subjects is removed by its foreign-key cascade. If the teacher
+      // owns live classes or other protected history, preserve it and return
+      // the database constraint error instead of partially deleting the login.
+      const { error: teacherDeleteError } = await supabaseAdmin
+        .from("teachers")
+        .delete()
+        .eq("id", teacher.id);
+      if (teacherDeleteError) {
+        return jsonResponse({ error: `Cannot delete this teacher: ${teacherDeleteError.message}`, function_version: FUNCTION_VERSION }, 409);
+      }
+
+      const { error: profileDeleteError } = await supabaseAdmin
+        .from("profiles")
+        .delete()
+        .eq("id", profileId);
+      if (profileDeleteError) {
+        return jsonResponse({ error: `Teacher record was removed, but the account profile could not be deleted: ${profileDeleteError.message}`, function_version: FUNCTION_VERSION }, 409);
+      }
+
+      const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(profileId);
+      if (authDeleteError) {
+        return jsonResponse({ error: `Teacher record was removed, but the login could not be deleted: ${authDeleteError.message}`, function_version: FUNCTION_VERSION }, 500);
+      }
+
+      return jsonResponse({ success: true, message: "Teacher account deleted successfully.", function_version: FUNCTION_VERSION });
+    }
+
     // Profile deletion must be performed server-side so a browser never gets
     // access to Auth Admin credentials. It is intentionally limited to the
     // same CEO/Admin roles already verified above.

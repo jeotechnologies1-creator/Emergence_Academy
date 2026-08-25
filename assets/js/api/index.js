@@ -1579,6 +1579,53 @@ specialization.ilike.%${keyword}%`
 
         },
 
+        async deleteAccount(teacher) {
+
+            try {
+                const teacherId = String(teacher?.id || "").trim();
+                const profileId = String(teacher?.profile_id || "").trim();
+
+                if (!teacherId || !profileId) {
+                    throw new Error("The selected teacher account is incomplete.");
+                }
+
+                const accessToken = await window.Auth?.accessToken?.();
+                if (!accessToken) {
+                    throw new Error("Your session has expired. Please sign in again and retry.");
+                }
+
+                const { data, error } = await API.db.functions.invoke(
+                    "create-user",
+                    {
+                        body: {
+                            operation: "delete-teacher",
+                            teacher_id: teacherId,
+                            profile_id: profileId
+                        },
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`
+                        }
+                    }
+                );
+
+                if (error) throw error;
+                if (data?.error) throw new Error(data.error);
+
+                return API.response(true, data, data?.message || "Teacher account deleted successfully.");
+
+            } catch (error) {
+
+                console.error(error);
+                const message = await API.functionErrorMessage(
+                    error,
+                    "Unable to delete teacher account."
+                );
+                return API.response(false, null, message);
+
+            }
+
+        },
+
         /* ==============================================
            UPDATE TEACHER
         ============================================== */

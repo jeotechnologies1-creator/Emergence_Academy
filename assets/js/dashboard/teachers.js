@@ -224,8 +224,7 @@ if (
 
                 delete: [
                     "ceo",
-                    "admin",
-                    "executive"
+                    "admin"
                 ]
             },
 
@@ -234,13 +233,11 @@ if (
                SOFT DELETE
                ================================================== */
 
-            softDelete: true,
+            softDelete: false,
 
-            softDeleteField: "status",
-
-            softDeleteValue: "inactive",
-
-            softRestoreValue: "active",
+            deleteRecord: async function deleteTeacherAccount(teacher) {
+                return window.API.teachers.deleteAccount(teacher);
+            },
 
 
             /* ==================================================
