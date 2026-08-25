@@ -101,6 +101,11 @@ async function createStudentAuthUser(
         phone: input.phone,
         role: "student",
       },
+      // RLS relies on this trusted claim.  Keeping it in app_metadata makes
+      // newly admitted learners behave the same as accounts created through
+      // the teacher/office workflow and avoids a stale role blocking their
+      // linked class records after sign-in.
+      app_metadata: { role: "student" },
     }),
   });
 

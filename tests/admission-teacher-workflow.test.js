@@ -26,6 +26,7 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(admissionFunction.includes('legacyServiceRoleKey'), 'admission should use the service-role JWT for Auth Admin account creation');
   assert.ok(admissionFunction.includes('/auth/v1/admin/users'), 'admission should call the Auth Admin endpoint with explicit key headers');
   assert.ok(admissionFunction.includes('headers.delete("authorization")'), 'admission must send its server secret only on the apikey header');
+  assert.ok(admissionFunction.includes('app_metadata: { role: "student" }'), 'admission must give new students the trusted RLS role claim');
   assert.ok(admissionFunction.includes('Student ID: ${generatedStudentId}'), 'admission should return the database-generated student ID');
   assert.ok(!admissionFunction.includes('withSupabase'), 'edge function should use the current Supabase Edge Runtime pattern');
 
@@ -65,6 +66,10 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
     admissionFunction.indexOf('const callerUser =') < admissionFunction.indexOf('.eq("id", callerUser.id)'),
     'admission must authenticate the caller before looking up that caller profile',
   );
+  const visibilityRepair = read('supabase', 'migrations', '202608250001_repair_student_dashboard_and_teacher_visibility.sql');
+  assert.ok(visibilityRepair.includes("when 'administrator' then 'admin'"), 'legacy administrator roles must retain dashboard access');
+  assert.ok(visibilityRepair.includes('public.teacher_can_access_student(id)'), 'teacher student visibility must use the assigned-class helper');
+  assert.ok(visibilityRepair.includes('public.ensure_student_enrollment'), 'existing students must be backfilled into the current session');
 
   console.log('admission and teacher workflow regression test passed');
 })();
