@@ -15,6 +15,10 @@ const CLASS_LEVELS = new Set([
   "Primary 3", "Primary 4", "Primary 5", "Primary 6",
   "JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3",
 ]);
+const NO_DEPARTMENT_CLASS_LEVELS = new Set([
+  "Primary 3", "Primary 4", "Primary 5", "Primary 6",
+  "JSS 1", "JSS 2", "JSS 3",
+]);
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -280,11 +284,20 @@ Deno.serve(async (req) => {
       const firstName = String(profile.first_name || "").trim();
       const lastName = String(profile.last_name || "").trim();
       if (!email || !firstName || !lastName) return json({ error: "First name, last name, and email are required." }, 400);
+      const classId = String(body.class_id || "").trim();
+      const departmentId = String(body.department_id || "").trim();
+      const { data: selectedClass, error: selectedClassError } = await admin
+        .from("classes").select("id,class_name").eq("id", classId).maybeSingle();
+      if (selectedClassError) return admissionFailure("Class validation failed", selectedClassError, "Unable to validate the selected class.");
+      if (!selectedClass?.id) return json({ error: "Select a valid class." }, 400);
+      if (!departmentId && !NO_DEPARTMENT_CLASS_LEVELS.has(String(selectedClass.class_name || "").trim())) {
+        return json({ error: "Select a department for SSS students." }, 400);
+      }
       const { error: authUpdateError } = await admin.auth.admin.updateUserById(existing.profile_id, { email });
       if (authUpdateError) return admissionFailure("Student login update failed", authUpdateError, "Unable to update the student email.");
       const { error: profileUpdateError } = await admin.from("profiles").update({ first_name: firstName, last_name: lastName, email, phone: String(profile.phone || "").trim() || null }).eq("id", existing.profile_id);
       if (profileUpdateError) return admissionFailure("Student profile update failed", profileUpdateError, "Unable to update the student profile.");
-      const { error: studentUpdateError } = await admin.from("students").update({ class_id: String(body.class_id || "").trim() || null, department_id: String(body.department_id || "").trim() || null, status: String(body.status || "active").trim(), admission_date: String(body.admission_date || "").trim() || null }).eq("id", studentId);
+      const { error: studentUpdateError } = await admin.from("students").update({ class_id: classId, department_id: departmentId || null, status: String(body.status || "active").trim(), admission_date: String(body.admission_date || "").trim() || null }).eq("id", studentId);
       if (studentUpdateError) return admissionFailure("Student update failed", studentUpdateError, "Unable to update the student record.");
       return json({ success: true, message: "Student profile updated successfully." });
     }
@@ -340,11 +353,15 @@ Deno.serve(async (req) => {
 
     const { data: selectedClass, error: selectedClassError } = await admin
       .from("classes")
-      .select("id")
+      .select("id,class_name")
       .eq("id", classId)
       .maybeSingle();
     if (selectedClassError) throw selectedClassError;
     if (!selectedClass?.id) return json({ error: "The selected class is no longer available. Refresh the form and choose a class again." }, 400);
+
+    if (!departmentId && !NO_DEPARTMENT_CLASS_LEVELS.has(String(selectedClass.class_name || "").trim())) {
+      return json({ error: "Select a department for SSS students." }, 400);
+    }
 
     if (departmentId) {
       const { data: department, error: departmentError } = await admin.from("departments").select("id").eq("id", departmentId).maybeSingle();

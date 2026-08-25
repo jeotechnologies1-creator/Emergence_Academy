@@ -125,7 +125,12 @@ if (
                 "email",
                 "phone",
                 "password",
-                "department_name",
+                {
+                    key: "department_id",
+                    label: "Department",
+                    type: "select",
+                    emptyOptionLabel: "No department"
+                },
                 "qualification",
                 "specialization",
                 "employment_date",
@@ -151,7 +156,12 @@ if (
 
             editFormFields: [
                 "employee_id",
-                "department_id",
+                {
+                    key: "department_id",
+                    label: "Department",
+                    type: "select",
+                    emptyOptionLabel: "No department"
+                },
                 "qualification",
                 "specialization",
                 "employment_date",

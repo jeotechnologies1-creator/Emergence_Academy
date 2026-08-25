@@ -228,8 +228,27 @@ class StudentsModule {
         return `${storedOptions}${standardOptions}`;
     }
 
-    static departmentOptions(selectedValue = "") {
-        return this.state.departments.map((department) => `<option value="${this.safe(department.id)}" ${String(department.id) === String(selectedValue) ? "selected" : ""}>${this.safe(department.name || department.id)}</option>`).join("");
+    static NO_DEPARTMENT_LEVELS = new Set([
+        "Primary 3", "Primary 4", "Primary 5", "Primary 6",
+        "JSS 1", "JSS 2", "JSS 3"
+    ]);
+
+    static classLevel(classId) {
+        const value = String(classId || "").trim();
+        if (value.startsWith("level:")) return value.slice("level:".length);
+        const selectedClass = this.state.classes.find((item) => String(item.id) === value);
+        return String(selectedClass?.class_name || selectedClass?.class_code || "").trim();
+    }
+
+    static allowsNoDepartment(classId) {
+        return this.NO_DEPARTMENT_LEVELS.has(this.classLevel(classId));
+    }
+
+    static departmentOptions(selectedValue = "", allowNoDepartment = false) {
+        const emptyLabel = allowNoDepartment ? "No department" : "Select a department";
+        const emptyOption = `<option value="" ${!selectedValue ? "selected" : ""}>${emptyLabel}</option>`;
+        const departments = this.state.departments.map((department) => `<option value="${this.safe(department.id)}" ${String(department.id) === String(selectedValue) ? "selected" : ""}>${this.safe(department.name || department.id)}</option>`).join("");
+        return `${emptyOption}${departments}`;
     }
 
     static subjectOptions(selectedValues = []) {
@@ -291,8 +310,7 @@ class StudentsModule {
       </label>
       <label class="block">
         <span class="text-sm font-medium text-slate-700">Department</span>
-        <select name="department_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
-          <option value="">No department</option>
+        <select name="department_id" data-student-department class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
           ${this.departmentOptions()}
         </select>
       </label>
@@ -392,9 +410,8 @@ class StudentsModule {
       </label>
       <label class="block">
         <span class="text-sm text-slate-700">Department of Enrollment</span>
-        <select name="department_id" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
-          <option value="">No department</option>
-          ${this.departmentOptions(student?.department_id || "")}
+        <select name="department_id" data-student-department class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" ${this.allowsNoDepartment(student?.class_id) ? "" : "required"}>
+          ${this.departmentOptions(student?.department_id || "", this.allowsNoDepartment(student?.class_id))}
         </select>
       </label>
       <label class="block">
@@ -803,6 +820,17 @@ class StudentsModule {
         }
 
         const form = container.querySelector("#student-form");
+        const classSelect = form?.querySelector("[name='class_id']");
+        const departmentSelect = form?.querySelector("[data-student-department]");
+        const syncDepartmentOption = () => {
+            if (!classSelect || !departmentSelect) return;
+            const allowNoDepartment = this.allowsNoDepartment(classSelect.value);
+            const emptyOption = departmentSelect.querySelector("option[value='']");
+            if (emptyOption) emptyOption.textContent = allowNoDepartment ? "No department" : "Select a department";
+            departmentSelect.required = Boolean(classSelect.value) && !allowNoDepartment;
+        };
+        classSelect?.addEventListener("change", syncDepartmentOption);
+        syncDepartmentOption();
         container.querySelectorAll("[data-password-toggle]").forEach((button) => {
             button.addEventListener("click", () => {
                 const input = button.parentElement?.querySelector('input[type="password"], input[type="text"]');

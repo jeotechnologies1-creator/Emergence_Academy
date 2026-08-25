@@ -18,6 +18,8 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   });
 
   assert.ok(students.includes('class_level'), 'student admission should send an unmapped class level safely');
+  assert.ok(students.includes('NO_DEPARTMENT_LEVELS'), 'only primary and JSS students should receive the No department option');
+  assert.ok(admissionFunction.includes('NO_DEPARTMENT_CLASS_LEVELS'), 'the admission service must enforce the department rule server-side');
   assert.ok(students.includes('Database-connected admission'), 'admission form should clearly identify its live Supabase data connection');
   assert.ok(students.includes('admissionSubmitting'), 'admission form should prevent duplicate submissions while Supabase is processing a request');
   assert.ok(admissionFunction.includes('CLASS_LEVELS'), 'edge function should validate class levels');
@@ -31,6 +33,7 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   assert.ok(!admissionFunction.includes('withSupabase'), 'edge function should use the current Supabase Edge Runtime pattern');
 
   assert.ok(teachers.includes('"full_name"'), 'teacher creation should collect a name');
+  assert.ok(teachers.includes('emptyOptionLabel: "No department"'), 'teacher department dropdown should allow no department');
   assert.ok(teachers.includes('createAccount(payload)'), 'teacher creation should use the account workflow');
   assert.ok(api.includes('async createAccount(teacherData)'), 'API should implement teacher account creation');
   assert.ok(!teachers.includes('"employee_id",\n                "department_name"'), 'teacher creation form should not require a browser-entered employee ID');

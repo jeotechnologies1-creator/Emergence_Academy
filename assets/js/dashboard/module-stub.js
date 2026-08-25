@@ -3126,10 +3126,16 @@ ${
 
                     const fullWidth =
                       typeof field ===
-                        "object" &&
+                      "object" &&
                       Boolean(
                         field.fullWidth
                       );
+
+                    const emptyOptionLabel =
+                      typeof field === "object" &&
+                      field.emptyOptionLabel
+                        ? field.emptyOptionLabel
+                        : `Select ${label}`;
 
                     return `
 <div
@@ -3190,7 +3196,7 @@ ${
   ${
     isMultiValue
       ? ""
-      : `<option value="">\n    Select ${this.safe(label)}\n  </option>`
+      : `<option value="">\n    ${this.safe(emptyOptionLabel)}\n  </option>`
   }
 
   ${options
