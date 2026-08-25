@@ -42,7 +42,7 @@ function generateTeacherPassword() {
  * function version creates the teacher record but has not yet persisted its
  * class/subject rows.
  */
-async function confirmTeacherAssignments(teacherId, classIds, subjectIds) {
+async function saveTeacherProfileAssignments(teacherId, departmentId, classIds, subjectIds) {
     const normalizedClassIds = [...new Set((classIds || []).map(String).filter(Boolean))];
     const normalizedSubjectIds = [...new Set((subjectIds || []).map(String).filter(Boolean))];
 
@@ -50,30 +50,21 @@ async function confirmTeacherAssignments(teacherId, classIds, subjectIds) {
         throw new Error("The teacher record and at least one class and subject are required.");
     }
 
-    const assignments = normalizedClassIds.flatMap((classId) =>
-        normalizedSubjectIds.map((subjectId) => ({
-            teacher_id: teacherId,
-            class_id: classId,
-            subject_id: subjectId
-        }))
+    const { data: savedCount, error } = await API.db.rpc(
+        "save_teacher_profile_assignments",
+        {
+            p_teacher_id: teacherId,
+            p_department_id: departmentId || null,
+            p_class_ids: normalizedClassIds,
+            p_subject_ids: normalizedSubjectIds
+        }
     );
 
-    const { error } = await API.db
-        .from("teacher_subjects")
-        .upsert(assignments, { onConflict: "teacher_id,class_id,subject_id" });
-
+    const expectedCount = normalizedClassIds.length * normalizedSubjectIds.length;
     if (error) throw error;
-
-    const { data: savedAssignments, error: verificationError } = await API.db
-        .from("teacher_subjects")
-        .select("class_id,subject_id")
-        .eq("teacher_id", teacherId);
-
-    if (verificationError) throw verificationError;
-
-    const savedKeys = new Set((savedAssignments || []).map((row) => `${row.class_id}:${row.subject_id}`));
-    const missing = assignments.some((row) => !savedKeys.has(`${row.class_id}:${row.subject_id}`));
-    if (missing) throw new Error("The selected teaching assignments could not be verified. Please try again.");
+    if (Number(savedCount) !== expectedCount) {
+        throw new Error("The selected teaching assignments could not be verified. Please try again.");
+    }
 }
 
 
@@ -399,60 +390,30 @@ if (
             updateRecord: async function updateTeacherRecord(payload, teacherId) {
                 const classIds = [...new Set((payload.class_ids || []).map(String).filter(Boolean))];
                 const subjectIds = [...new Set((payload.subject_ids || []).map(String).filter(Boolean))];
-                const { class_ids: ignoredClassIds, subject_ids: ignoredSubjectIds, ...teacherUpdates } = payload;
-
+                const {
+                    class_ids: ignoredClassIds,
+                    subject_ids: ignoredSubjectIds,
+                    department_id: departmentId,
+                    ...teacherUpdates
+                } = payload;
                 if (!classIds.length || !subjectIds.length) {
                     return API.response(false, null, "Assign at least one class and one subject to the teacher.");
                 }
 
-                const teacherResult = await API.teachers.update(teacherId, teacherUpdates);
-                if (!teacherResult?.success) {
-                    return teacherResult;
+                try {
+                    const teacherResult = await API.teachers.update(teacherId, teacherUpdates);
+                    if (!teacherResult?.success) return teacherResult;
+
+                    await saveTeacherProfileAssignments(
+                        teacherId,
+                        departmentId,
+                        classIds,
+                        subjectIds
+                    );
+                    return API.response(true, teacherResult.data, "Teacher assignments updated successfully.");
+                } catch (error) {
+                    return API.response(false, null, error.message || "Unable to save teacher assignments.");
                 }
-
-                const desiredAssignments = classIds.flatMap((classId) =>
-                    subjectIds.map((subjectId) => ({
-                        teacher_id: teacherId,
-                        class_id: classId,
-                        subject_id: subjectId
-                    }))
-                );
-
-                const { data: existingAssignments, error: existingError } = await API.db
-                    .from("teacher_subjects")
-                    .select("id,class_id,subject_id")
-                    .eq("teacher_id", teacherId);
-
-                if (existingError) {
-                    return API.response(false, null, existingError.message);
-                }
-
-                // Insert the new rows before removing stale rows so a failed
-                // save never leaves a teacher without portal access.
-                const { error: upsertError } = await API.db
-                    .from("teacher_subjects")
-                    .upsert(desiredAssignments, { onConflict: "teacher_id,class_id,subject_id" });
-
-                if (upsertError) {
-                    return API.response(false, null, upsertError.message);
-                }
-
-                const desiredKeys = new Set(desiredAssignments.map((row) => `${row.class_id}:${row.subject_id}`));
-                const staleIds = (existingAssignments || [])
-                    .filter((row) => !desiredKeys.has(`${row.class_id}:${row.subject_id}`))
-                    .map((row) => row.id);
-
-                if (staleIds.length) {
-                    const { error: deleteError } = await API.db
-                        .from("teacher_subjects")
-                        .delete()
-                        .in("id", staleIds);
-                    if (deleteError) {
-                        return API.response(false, null, deleteError.message);
-                    }
-                }
-
-                return API.response(true, teacherResult.data, "Teacher assignments updated successfully.");
             },
 
 
@@ -594,16 +555,9 @@ if (
                         // same source-of-truth tables used by the admin table
                         // and teacher portal. `upsert` makes this safe when
                         // the current Edge Function has already saved them.
-                        const departmentResult = await window.API.teachers.update(
+                        await saveTeacherProfileAssignments(
                             teacherId,
-                            { department_id: payload.department_id || null }
-                        );
-                        if (!departmentResult?.success) {
-                            throw new Error(departmentResult?.message || "Unable to save the teacher department.");
-                        }
-
-                        await confirmTeacherAssignments(
-                            teacherId,
+                            payload.department_id,
                             payload.class_ids,
                             payload.subject_ids
                         );
