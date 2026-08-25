@@ -281,6 +281,8 @@ nav button[data-route].active {
 }
 
 #sidebar {
+  flex: 0 0 16rem;
+  min-width: 16rem;
   background: linear-gradient(180deg, #193d8c 0%, #17377f 52%, #112c6a 100%);
   border-right: 1px solid rgba(191, 219, 254, 0.16);
   box-shadow: 14px 0 34px rgba(15, 23, 42, 0.08);
@@ -356,7 +358,29 @@ main {
   background-color: #f8faff;
 }
 
+/* Parent records contain contact, relationship, child, and date fields. Keep
+   the sidebar stable and scroll the data table itself on narrower displays. */
+.parent-records-scroll {
+  scrollbar-gutter: stable;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.parent-records-table {
+  min-width: 1100px;
+}
+
+.parent-records-scroll:focus {
+  outline: 3px solid rgba(59, 130, 246, 0.28);
+  outline-offset: -3px;
+}
+
+.parent-records-scroll::-webkit-scrollbar { height: 10px; }
+.parent-records-scroll::-webkit-scrollbar-track { background: #eef2ff; }
+.parent-records-scroll::-webkit-scrollbar-thumb { background: #93c5fd; border: 2px solid #eef2ff; border-radius: 99px; }
+
 @media (max-width: 767px) {
   nav button[data-route] { margin-left: 6px; margin-right: 6px; width: calc(100% - 12px); }
   #dashboard-content .rounded-xl, #dashboard-content .rounded-2xl { border-radius: 14px; }
+  .parent-records-table { min-width: 980px; }
 }

@@ -1830,9 +1830,9 @@ class OfficeModuleEngine {
 
   <div class="bg-white rounded-xl shadow overflow-hidden">
 
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto ${moduleClass.config.moduleKey === "parents" ? "parent-records-scroll" : ""}" ${moduleClass.config.moduleKey === "parents" ? 'tabindex="0" aria-label="Parent records table. Scroll horizontally to view all columns."' : ""}>
 
-      <table class="min-w-full">
+      <table class="min-w-full ${moduleClass.config.moduleKey === "parents" ? "parent-records-table" : ""}">
 
         <thead class="bg-slate-50">
 
