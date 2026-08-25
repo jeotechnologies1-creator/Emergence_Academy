@@ -126,13 +126,32 @@ class StudentsModule {
     }
 
     static async load() {
-        const [students, classes, subjectsResult, departmentsResult, parents, profile] = await Promise.all([
+        const profile = await Auth.profile();
+
+        // Teachers only need the RLS-scoped student roster. Loading office-only
+        // reference data here can otherwise prevent that roster from rendering.
+        if (String(profile?.role || "").trim().toLowerCase() === "teacher") {
+            const students = await API.students.getAll();
+
+            this.state.students = Array.isArray(students) ? students : [];
+            this.state.classes = [];
+            this.state.subjects = [];
+            this.state.departments = [];
+            this.state.parents = [];
+            this.state.profile = profile || null;
+
+            if (window.DashboardService?.updateStudentBadge) {
+                await window.DashboardService.updateStudentBadge();
+            }
+            return;
+        }
+
+        const [students, classes, subjectsResult, departmentsResult, parents] = await Promise.all([
             API.students.getAll(),
             API.classes.getAll(),
             API.db.from("subjects").select("id,subject_name,subject_code").order("subject_name"),
             API.db.from("departments").select("id,name").order("name"),
-            API.parents.getAll(),
-            Auth.profile()
+            API.parents.getAll()
         ]);
 
         if (subjectsResult.error) throw subjectsResult.error;
@@ -449,7 +468,7 @@ class StudentsModule {
 
         if (!rows.length) {
             return `<div class="text-center py-8 text-slate-500">${this.isTeacher()
-                ? "No students are enrolled in your assigned class and subject combinations yet."
+                ? "No students are enrolled in your assigned classes yet."
                 : "No students found."}</div>`;
         }
 
@@ -498,7 +517,7 @@ class StudentsModule {
     <div>
       <h2 class="text-3xl font-bold text-slate-800">Students</h2>
       <p class="text-sm text-slate-500 mt-1">${this.isTeacher()
-          ? "Students appear automatically when they are in your assigned class and enrolled in a subject you teach."
+          ? "Students appear automatically when they are enrolled in any class assigned to you."
           : "Manage student admissions, class placement, and active records."}</p>
     </div>
     <div class="flex items-center gap-2">
