@@ -605,7 +605,7 @@ class Auth {
         modal.innerHTML = `
           <form class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" id="initial-password-form">
             <h2 class="text-xl font-bold text-slate-900">Create your personal password</h2>
-            <p class="mt-2 text-sm text-slate-600">Your administrator issued a temporary password. Replace it now to continue to the dashboard.</p>
+            <p class="mt-2 text-sm text-slate-600">Your account was reset with a temporary password. Replace it now to continue to the dashboard.</p>
             <label class="mt-5 block text-sm font-medium text-slate-700">New password
               <input name="password" type="password" minlength="8" required autocomplete="new-password" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5">
             </label>

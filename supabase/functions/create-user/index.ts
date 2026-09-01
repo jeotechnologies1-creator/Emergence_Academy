@@ -20,6 +20,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.0";
    ========================================================== */
 
 const FUNCTION_VERSION = "2026-08-18-ENROLLMENT-01";
+const DEFAULT_RESET_PASSWORD = "Emergence2026!";
 
 const ALLOWED_ROLES = new Set([
   "ceo",
@@ -478,35 +479,34 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     if (operation === "reset-profile-password") {
       const targetId = String(body.profile_id || "").trim();
-      const password = String(body.password || "").trim();
-      if (!targetId || password.length < 8) return jsonResponse({ error: "A profile and a password of at least 8 characters are required.", function_version: FUNCTION_VERSION }, 400);
+      if (!targetId) return jsonResponse({ error: "A target profile is required.", function_version: FUNCTION_VERSION }, 400);
       const { data: target, error: targetError } = await supabaseAdmin.from("profiles")
         .select("id, role").eq("id", targetId).maybeSingle();
       if (targetError || !target) return jsonResponse({ error: "Profile was not found.", function_version: FUNCTION_VERSION }, 404);
-      const { error: resetError } = await supabaseAdmin.auth.admin.updateUserById(targetId, { password });
+      const { error: resetError } = await supabaseAdmin.auth.admin.updateUserById(targetId, { password: DEFAULT_RESET_PASSWORD });
       if (resetError) return jsonResponse({ error: `Unable to reset password: ${resetError.message}`, function_version: FUNCTION_VERSION }, 400);
       const { error: flagError } = await supabaseAdmin.from("profiles")
-        .update({ must_change_password: OFFICE_ROLES.has(String(target.role || "").toLowerCase()), updated_at: new Date().toISOString() })
+        .update({ must_change_password: true, updated_at: new Date().toISOString() })
         .eq("id", targetId);
       if (flagError) return jsonResponse({ error: flagError.message, function_version: FUNCTION_VERSION }, 500);
-      return jsonResponse({ success: true, message: "Temporary password set. Give it to the user securely.", function_version: FUNCTION_VERSION });
+      return jsonResponse({ success: true, default_password: DEFAULT_RESET_PASSWORD, message: "Password reset successfully. User must change password after next login.", function_version: FUNCTION_VERSION });
     }
 
-    // An office account may replace the administrator-issued password exactly
-    // once. This is intentionally server-side so the browser cannot clear the
-    // requirement by editing public.profiles directly.
+    // A user flagged with must_change_password may replace the
+    // administrator-issued temporary password exactly once. This is
+    // intentionally server-side so the browser cannot clear the requirement
+    // by editing public.profiles directly.
     if (operation === "change-initial-password") {
       const password = String(body.password || "").trim();
       if (password.length < 8) return jsonResponse({ error: "Password must be at least 8 characters.", function_version: FUNCTION_VERSION }, 400);
 
-      const { data: officeProfile, error: officeProfileError } = await supabaseAdmin
+      const { data: callerProfileRecord, error: callerProfileError } = await supabaseAdmin
         .from("profiles")
         .select("id, role, must_change_password")
         .eq("id", callerId)
         .maybeSingle();
-      if (officeProfileError || !officeProfile) return jsonResponse({ error: "Your profile could not be found.", function_version: FUNCTION_VERSION }, 404);
-      if (!OFFICE_ROLES.has(String(officeProfile.role || "").toLowerCase())) return jsonResponse({ error: "Only office accounts are required to use this password change.", function_version: FUNCTION_VERSION }, 403);
-      if (!officeProfile.must_change_password) return jsonResponse({ error: "Your initial password has already been changed.", function_version: FUNCTION_VERSION }, 400);
+      if (callerProfileError || !callerProfileRecord) return jsonResponse({ error: "Your profile could not be found.", function_version: FUNCTION_VERSION }, 404);
+      if (!callerProfileRecord.must_change_password) return jsonResponse({ error: "Your temporary password has already been changed.", function_version: FUNCTION_VERSION }, 400);
 
       const { error: authPasswordError } = await supabaseAdmin.auth.admin.updateUserById(callerId, { password });
       if (authPasswordError) return jsonResponse({ error: `Unable to change password: ${authPasswordError.message}`, function_version: FUNCTION_VERSION }, 400);
