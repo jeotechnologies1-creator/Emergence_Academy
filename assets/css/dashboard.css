@@ -74,6 +74,15 @@ main {
   overflow: visible;
 }
 
+#profile-action-modal [data-reset-submit] {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
 #sidebar {
   min-width: 0;
   width: 16rem;

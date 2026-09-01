@@ -57,9 +57,26 @@ class API {
                         message = raw;
                     }
                 }
+            } else if (response && typeof response.text === "function") {
+                const raw = await response.text();
+                if (raw) {
+                    try {
+                        const parsed = JSON.parse(raw);
+                        message = parsed?.error || parsed?.message || message;
+                    } catch {
+                        message = raw;
+                    }
+                }
             }
         } catch (parseError) {
             console.error("Unable to read Edge Function error response:", parseError);
+        }
+
+        if (message === "Edge Function returned a non-2xx status code") {
+            const details = String(error?.details || "").trim();
+            const hint = String(error?.hint || "").trim();
+            if (details) message = details;
+            else if (hint) message = hint;
         }
 
         return message;

@@ -311,14 +311,74 @@
             const modal = document.createElement("div");
             modal.id = "profile-action-modal";
             modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4";
-            modal.innerHTML = `<form class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><h3 class="text-xl font-bold">Reset user password</h3><p class="mt-2 text-sm text-slate-600">For ${this.safe(profile.email)}. This will reset the password to <strong>Emergence2026!</strong> and force the user to change it once after next login.</p><p data-reset-error class="hidden mt-3 text-sm text-red-600"></p><div class="mt-5 flex justify-end gap-2"><button type="button" data-profile-close class="rounded border px-4 py-2">Cancel</button><button class="rounded bg-amber-600 px-4 py-2 text-white">Reset to default</button></div></form>`;
+            modal.style.zIndex = "80";
+            modal.innerHTML = `<form class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><h3 class="text-xl font-bold">Reset user password</h3><p class="mt-2 text-sm text-slate-600">For ${this.safe(profile.email)}. This will reset the password to <strong>Emergence2026!</strong> and force the user to change it once after next login.</p><p data-reset-error class="hidden mt-3 text-sm text-red-600"></p><div class="mt-5 flex justify-end gap-2"><button type="button" data-profile-close class="rounded border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700">Cancel</button><button type="submit" data-reset-submit class="inline-flex items-center justify-center rounded bg-amber-600 px-4 py-2 font-semibold text-white shadow-sm hover:bg-amber-700">Reset to default</button></div></form>`;
             document.body.appendChild(modal);
             modal.querySelector("[data-profile-close]")?.addEventListener("click", () => this.closeModal());
             modal.querySelector("form")?.addEventListener("submit", async (event) => {
                 event.preventDefault();
                 const errorBox = modal.querySelector("[data-reset-error]");
-                const { data, error } = await API.db.functions.invoke("create-user", { body: { operation: "reset-profile-password", profile_id: profile.id } });
-                if (error || data?.error) { errorBox.textContent = data?.error || error?.message || "Unable to reset password."; errorBox.classList.remove("hidden"); return; }
+                const submitButton = modal.querySelector("[data-reset-submit]");
+                errorBox.classList.add("hidden");
+                errorBox.textContent = "";
+
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.textContent = "Resetting...";
+                }
+
+                const attempts = [
+                    {
+                        operation: "reset-profile-password",
+                        profile_id: profile.id,
+                        password: "Emergence2026!"
+                    },
+                    {
+                        operation: "reset-password",
+                        profile_id: profile.id,
+                        email: profile.email,
+                        password: "Emergence2026!"
+                    },
+                    {
+                        operation: "reset-user-password",
+                        profile_id: profile.id,
+                        email: profile.email,
+                        password: "Emergence2026!"
+                    }
+                ];
+
+                let lastMessage = "Unable to reset password.";
+                let success = false;
+
+                for (const payload of attempts) {
+                    const { data, error } = await API.db.functions.invoke("create-user", { body: payload });
+                    if (!error && !data?.error) {
+                        success = true;
+                        break;
+                    }
+
+                    let message = data?.error || error?.message || lastMessage;
+                    if (error && typeof API.functionErrorMessage === "function") {
+                        message = await API.functionErrorMessage(error, message);
+                    }
+                    lastMessage = message;
+
+                    const looksLikeUnsupportedOperation = /operation|unsupported|unknown|not\s+implemented/i.test(String(message || ""));
+                    if (!looksLikeUnsupportedOperation) {
+                        break;
+                    }
+                }
+
+                if (!success) {
+                    errorBox.textContent = lastMessage;
+                    errorBox.classList.remove("hidden");
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.textContent = "Reset to default";
+                    }
+                    return;
+                }
+
                 this.closeModal();
                 await this.loadProfiles();
                 this.notify("Password reset to default (Emergence2026!). User must change it after next login.");
