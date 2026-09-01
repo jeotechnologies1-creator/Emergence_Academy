@@ -499,7 +499,7 @@ class DashboardHome {
         <h3 class="text-lg font-semibold text-slate-800">Population by Office Type</h3>
         <p class="text-sm text-slate-500 mt-1">Students, teachers, parents, and other offices.</p>
         <div class="mt-5 flex flex-col sm:flex-row items-center gap-6">
-            <div class="w-44 h-44 rounded-full border border-slate-200" style="${pieStyle}"></div>
+            <div class="admin-pie-chart rounded-full border border-slate-200" style="${pieStyle}"></div>
             <div class="w-full space-y-2">
                 ${(roleDistribution.length ? roleDistribution : [
                     { label: "Students", count: 0, color: "#2563eb" },
