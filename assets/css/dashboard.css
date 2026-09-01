@@ -79,8 +79,18 @@ main {
   align-items: center;
   justify-content: center;
   min-height: 2.5rem;
+  padding: 0.7rem 1.2rem;
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border: 2px solid #991b1b !important;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px rgba(220, 38, 38, 0.24);
   opacity: 1 !important;
   visibility: visible !important;
+}
+
+#profile-action-modal [data-reset-submit]:hover {
+  background: #b91c1c !important;
 }
 
 #sidebar {

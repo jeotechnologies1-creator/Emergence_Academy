@@ -307,12 +307,61 @@
             document.getElementById("profile-action-modal")?.remove();
         }
 
+        static async invokeCreateUserDirect(payload) {
+            let { data: sessionData, error: sessionError } = await API.db.auth.getSession();
+            let session = sessionData?.session || null;
+            const expiresSoon = Number(session?.expires_at || 0) * 1000 <= Date.now() + 60_000;
+
+            if (!session || expiresSoon) {
+                const { data: refreshData, error: refreshError } = await API.db.auth.refreshSession();
+                session = refreshData?.session || null;
+                sessionError = sessionError || refreshError;
+            }
+
+            if (sessionError && !session) {
+                throw new Error("Your session is unavailable. Please sign in again.");
+            }
+
+            if (!session?.access_token) {
+                throw new Error("Your session is unavailable. Please sign in again.");
+            }
+
+            const response = await fetch(`${window.CONFIG.SUPABASE.URL}/functions/v1/create-user`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    apikey: window.CONFIG.SUPABASE.ANON_KEY,
+                    Authorization: `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const raw = await response.text();
+            let result = {};
+
+            try {
+                result = raw ? JSON.parse(raw) : {};
+            } catch {
+                result = { error: raw || "Unknown server response." };
+            }
+
+            if (!response.ok) {
+                throw new Error(result?.error || result?.message || `Password reset failed (${response.status}).`);
+            }
+
+            if (result?.error) {
+                throw new Error(result.error);
+            }
+
+            return result;
+        }
+
         static openPasswordReset(profile) {
             const modal = document.createElement("div");
             modal.id = "profile-action-modal";
             modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4";
             modal.style.zIndex = "80";
-            modal.innerHTML = `<form class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><h3 class="text-xl font-bold">Reset user password</h3><p class="mt-2 text-sm text-slate-600">For ${this.safe(profile.email)}. This will reset the password to <strong>Emergence2026!</strong> and force the user to change it once after next login.</p><p data-reset-error class="hidden mt-3 text-sm text-red-600"></p><div class="mt-5 flex justify-end gap-2"><button type="button" data-profile-close class="rounded border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700">Cancel</button><button type="submit" data-reset-submit class="inline-flex items-center justify-center rounded bg-amber-600 px-4 py-2 font-semibold text-white shadow-sm hover:bg-amber-700">Reset to default</button></div></form>`;
+            modal.innerHTML = `<form class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><h3 class="text-xl font-bold">Reset user password</h3><p class="mt-2 text-sm text-slate-600">For ${this.safe(profile.email)}. This will reset the password to <strong>Emergence2026!</strong> and force the user to change it once after next login.</p><p data-reset-error class="hidden mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700"></p><div class="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" data-profile-close class="rounded border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700">Cancel</button><button type="submit" data-reset-submit class="inline-flex min-h-11 items-center justify-center rounded-lg border-2 border-red-800 bg-red-600 px-5 py-2 font-bold text-white shadow-md ring-2 ring-red-200 hover:bg-red-700">Reset to default</button></div></form>`;
             document.body.appendChild(modal);
             modal.querySelector("[data-profile-close]")?.addEventListener("click", () => this.closeModal());
             modal.querySelector("form")?.addEventListener("submit", async (event) => {
@@ -351,21 +400,24 @@
                 let success = false;
 
                 for (const payload of attempts) {
-                    const { data, error } = await API.db.functions.invoke("create-user", { body: payload });
-                    if (!error && !data?.error) {
+                    try {
+                        await this.invokeCreateUserDirect(payload);
                         success = true;
                         break;
-                    }
+                    } catch (error) {
+                        const parsedMessage = typeof API.functionErrorMessage === "function"
+                            ? await API.functionErrorMessage(error, error?.message || lastMessage)
+                            : (error?.message || lastMessage);
+                        let message = parsedMessage;
+                        if (message === "Edge Function returned a non-2xx status code") {
+                            message = error?.message || lastMessage;
+                        }
+                        lastMessage = message;
 
-                    let message = data?.error || error?.message || lastMessage;
-                    if (error && typeof API.functionErrorMessage === "function") {
-                        message = await API.functionErrorMessage(error, message);
-                    }
-                    lastMessage = message;
-
-                    const looksLikeUnsupportedOperation = /operation|unsupported|unknown|not\s+implemented/i.test(String(message || ""));
-                    if (!looksLikeUnsupportedOperation) {
-                        break;
+                        const looksLikeUnsupportedOperation = /operation|unsupported|unknown|not\s+implemented/i.test(String(message || ""));
+                        if (!looksLikeUnsupportedOperation) {
+                            break;
+                        }
                     }
                 }
 
