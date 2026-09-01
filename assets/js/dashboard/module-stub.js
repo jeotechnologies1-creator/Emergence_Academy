@@ -1836,9 +1836,9 @@ class OfficeModuleEngine {
 
   <div class="bg-white rounded-xl shadow overflow-hidden">
 
-    <div class="overflow-x-auto ${moduleClass.config.moduleKey === "parents" ? "parent-records-scroll" : ""}" ${moduleClass.config.moduleKey === "parents" ? 'tabindex="0" aria-label="Parent records table. Scroll horizontally to view all columns."' : ""}>
+    <div class="overflow-x-auto module-table-wrap ${moduleClass.config.moduleKey === "parents" ? "parent-records-scroll" : ""}" ${moduleClass.config.moduleKey === "parents" ? 'tabindex="0" aria-label="Parent records table. Scroll horizontally to view all columns."' : ""}>
 
-      <table class="min-w-full ${moduleClass.config.moduleKey === "parents" ? "parent-records-table" : ""}">
+      <table class="min-w-full module-table ${moduleClass.config.moduleKey === "parents" ? "parent-records-table" : ""}">
 
         <thead class="bg-slate-50">
 
@@ -1889,7 +1889,7 @@ class OfficeModuleEngine {
   ${state.columns
     .map(
       (column) => `
-<td class="px-4 py-3 text-sm text-slate-700 whitespace-normal break-words align-top">
+<td class="px-4 py-3 text-sm text-slate-700 whitespace-normal break-all align-top">
   ${this.safe(
     this.getDisplayValue(
       row,
@@ -1905,7 +1905,7 @@ class OfficeModuleEngine {
   ${
     canWrite
       ? `
-<td class="px-4 py-3 text-right whitespace-nowrap">
+<td class="px-4 py-3 text-right whitespace-normal align-top">
 
   ${
     this.isActionAllowed(
@@ -1939,7 +1939,7 @@ class OfficeModuleEngine {
   data-id="${this.safe(
     row.id
   )}"
-  class="ml-1 px-2.5 py-1.5 rounded border border-red-200 bg-white hover:bg-red-50 text-red-600 text-sm"
+  class="mt-1 ml-0 sm:mt-0 sm:ml-1 px-2.5 py-1.5 rounded border border-red-200 bg-white hover:bg-red-50 text-red-600 text-sm"
 >
   Delete
 </button>
