@@ -485,9 +485,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (targetError || !target) return jsonResponse({ error: "Profile was not found.", function_version: FUNCTION_VERSION }, 404);
       const { error: resetError } = await supabaseAdmin.auth.admin.updateUserById(targetId, { password: DEFAULT_RESET_PASSWORD });
       if (resetError) return jsonResponse({ error: `Unable to reset password: ${resetError.message}`, function_version: FUNCTION_VERSION }, 400);
-      const { error: flagError } = await supabaseAdmin.from("profiles")
-        .update({ must_change_password: true, updated_at: new Date().toISOString() })
-        .eq("id", targetId);
+      const { error: flagError } = await supabaseAdmin.rpc("set_profile_password_change_flag", {
+        target_profile_id: targetId,
+        required: true,
+      });
       if (flagError) return jsonResponse({ error: flagError.message, function_version: FUNCTION_VERSION }, 500);
       return jsonResponse({ success: true, default_password: DEFAULT_RESET_PASSWORD, message: "Password reset successfully. User must change password after next login.", function_version: FUNCTION_VERSION });
     }
@@ -510,9 +511,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       const { error: authPasswordError } = await supabaseAdmin.auth.admin.updateUserById(callerId, { password });
       if (authPasswordError) return jsonResponse({ error: `Unable to change password: ${authPasswordError.message}`, function_version: FUNCTION_VERSION }, 400);
-      const { error: clearFlagError } = await supabaseAdmin.from("profiles")
-        .update({ must_change_password: false, updated_at: new Date().toISOString() })
-        .eq("id", callerId);
+      const { error: clearFlagError } = await supabaseAdmin.rpc("set_profile_password_change_flag", {
+        target_profile_id: callerId,
+        required: false,
+      });
       if (clearFlagError) return jsonResponse({ error: clearFlagError.message, function_version: FUNCTION_VERSION }, 500);
       return jsonResponse({ success: true, message: "Password changed successfully.", function_version: FUNCTION_VERSION });
     }
