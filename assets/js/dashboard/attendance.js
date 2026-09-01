@@ -7,10 +7,11 @@ const AttendanceModule = window.OfficeModuleEngine.create({
     { key: "date", label: "Date" },
     { key: "student_id", label: "Student" },
     { key: "class_id", label: "Class" },
+    { key: "subject_id", label: "Subject" },
     { key: "status", label: "Status" },
     { key: "remark", label: "Remark" }
   ],
-  formFields: ["date", "student_id", "class_id", "status", "remark"],
+  formFields: ["date", "student_id", "class_id", "subject_id", "status", "remark"],
   requiredFields: ["date", "student_id", "class_id", "status"],
   fieldTypes: {
     date: "date"
@@ -36,7 +37,8 @@ const AttendanceModule = window.OfficeModuleEngine.create({
         return `${context.profileName || "Student"}${suffix}`.trim();
       }
     },
-    class_id: { table: "classes" }
+    class_id: { table: "classes" },
+    subject_id: { table: "subjects", labelKey: "subject_name" }
   }
 });
 

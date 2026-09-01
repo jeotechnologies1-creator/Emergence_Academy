@@ -827,6 +827,17 @@ class OfficeModuleEngine {
         .fieldRules ||
       {};
 
+    const lookupFields =
+      Object.keys(
+        moduleClass.config
+          .lookups || {}
+      );
+
+    const state =
+      this.getState(
+        moduleClass
+      );
+
     for (
       const field of required
     ) {
@@ -982,6 +993,45 @@ class OfficeModuleEngine {
     }
 
     for (
+      const field of lookupFields
+    ) {
+      const value =
+        String(
+          payload[field] ??
+          ""
+        ).trim();
+
+      if (!value) {
+        continue;
+      }
+
+      const lookupMap =
+        state
+          ?.lookups
+          ?.[field]
+          ?.map ||
+        {};
+
+      if (
+        Object.keys(
+          lookupMap
+        ).length &&
+        !Object.prototype.hasOwnProperty.call(
+          lookupMap,
+          value
+        )
+      ) {
+        return {
+          field,
+          message:
+            `"${this.fieldLabel(
+              field
+            )}" must be selected from the list.`
+        };
+      }
+    }
+
+    for (
       const [
         field,
         rules
@@ -1052,7 +1102,14 @@ class OfficeModuleEngine {
   }
     static parsePayload(moduleClass, payload) {
     const fieldTypes = moduleClass.config.fieldTypes || {};
+    const lookupFields = Object.keys(moduleClass.config.lookups || {});
     const output = { ...payload };
+
+    lookupFields.forEach((field) => {
+      if (String(output[field] ?? "").trim() === "") {
+        output[field] = null;
+      }
+    });
 
     Object.entries(fieldTypes).forEach(([field, type]) => {
       const raw = String(output[field] ?? "").trim();
@@ -3097,6 +3154,12 @@ ${
                           : []
                       );
 
+                    const isLookupField =
+                      Object.prototype.hasOwnProperty.call(
+                        moduleClass.config.lookups || {},
+                        key
+                      );
+
                     const isMultiValue =
                       type === "multi-select" ||
                       multiValueFields.includes(key);
@@ -3166,7 +3229,8 @@ ${
 
 
   ${
-    options.length
+    options.length ||
+    isLookupField
       ? `
 <select
   id="${this.safe(
@@ -3196,7 +3260,7 @@ ${
   ${
     isMultiValue
       ? ""
-      : `<option value="">\n    ${this.safe(emptyOptionLabel)}\n  </option>`
+      : `<option value="">\n    ${this.safe(options.length ? emptyOptionLabel : "No options available") }\n  </option>`
   }
 
   ${options
@@ -3244,6 +3308,18 @@ ${
       }
     )
     .join("")}
+
+  ${
+    !options.length &&
+    !isMultiValue &&
+    String(current ?? "").trim()
+      ? `
+<option value="${this.safe(String(current))}" selected>
+  ${this.safe(String(current))}
+</option>
+`
+      : ""
+  }
 
 </select>
 `
