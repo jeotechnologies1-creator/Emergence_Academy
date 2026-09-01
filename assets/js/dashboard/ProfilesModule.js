@@ -380,18 +380,31 @@
                     {
                         operation: "reset-profile-password",
                         profile_id: profile.id,
+                        email: profile.email,
+                        first_name: profile.first_name,
+                        last_name: profile.last_name,
+                        phone: profile.phone,
+                        role: profile.role,
                         password: "Emergence2026!"
                     },
                     {
                         operation: "reset-password",
                         profile_id: profile.id,
                         email: profile.email,
+                        first_name: profile.first_name,
+                        last_name: profile.last_name,
+                        phone: profile.phone,
+                        role: profile.role,
                         password: "Emergence2026!"
                     },
                     {
                         operation: "reset-user-password",
                         profile_id: profile.id,
                         email: profile.email,
+                        first_name: profile.first_name,
+                        last_name: profile.last_name,
+                        phone: profile.phone,
+                        role: profile.role,
                         password: "Emergence2026!"
                     }
                 ];
