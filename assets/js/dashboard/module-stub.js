@@ -1851,7 +1851,7 @@ class OfficeModuleEngine {
   data-sort-key="${this.safe(
     column.key
   )}"
-  class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 cursor-pointer"
+  class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 cursor-pointer whitespace-normal break-words"
 >
   ${this.safe(
     column.label ||
@@ -1889,7 +1889,7 @@ class OfficeModuleEngine {
   ${state.columns
     .map(
       (column) => `
-<td class="px-4 py-3 text-sm text-slate-700">
+<td class="px-4 py-3 text-sm text-slate-700 whitespace-normal break-words align-top">
   ${this.safe(
     this.getDisplayValue(
       row,
