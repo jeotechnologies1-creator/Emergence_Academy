@@ -12,7 +12,7 @@ const OfficeGradesModule = window.OfficeModuleEngine.create({
     { key: "term_id", label: "Term" }
   ],
   formFields: ["student_id", "subject_id", "teacher_id", "term_id", "score", "grade", "remarks"],
-  requiredFields: ["student_id", "subject_id", "teacher_id", "score", "grade"],
+  requiredFields: ["student_id", "subject_id", "teacher_id", "term_id", "score", "grade"],
   fieldTypes: {
     score: "number"
   },
