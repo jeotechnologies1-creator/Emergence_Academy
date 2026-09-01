@@ -166,12 +166,21 @@ class Auth {
     }
 
     static async session() {
-        const { data, error } = await this.client.auth.getSession();
-        if (error) {
-            console.error(error);
+        try {
+            const { data, error } = await this.client.auth.getSession();
+            if (error) {
+                if (!this.isMissingSessionError(error)) {
+                    console.error(error);
+                }
+                return null;
+            }
+            return data.session;
+        } catch (error) {
+            if (!this.isMissingSessionError(error)) {
+                console.error(error);
+            }
             return null;
         }
-        return data.session;
     }
 
     static async accessToken() {
@@ -180,12 +189,33 @@ class Auth {
     }
 
     static async user() {
-        const { data, error } = await this.client.auth.getUser();
-        if (error) {
-            console.error(error);
+        try {
+            const { data, error } = await this.client.auth.getUser();
+            if (error) {
+                if (!this.isMissingSessionError(error)) {
+                    console.error(error);
+                }
+                return null;
+            }
+            return data.user;
+        } catch (error) {
+            if (!this.isMissingSessionError(error)) {
+                console.error(error);
+            }
             return null;
         }
-        return data.user;
+    }
+
+    static isMissingSessionError(error) {
+        const name = String(error?.name || "").toLowerCase();
+        const code = String(error?.code || "").toLowerCase();
+        const message = String(error?.message || "").toLowerCase();
+
+        return (
+            name.includes("authsessionmissingerror") ||
+            code.includes("auth_session_missing") ||
+            message.includes("auth session missing")
+        );
     }
 
     static async currentUser() {

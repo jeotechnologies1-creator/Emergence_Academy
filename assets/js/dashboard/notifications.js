@@ -25,4 +25,13 @@ const NotificationModule = window.OfficeModuleEngine.create({
   }
 });
 
-window.NotificationModule = NotificationModule;
+const NotificationModuleWithReadSync = {
+  ...NotificationModule,
+  async render(container) {
+    await NotificationModule.render(container);
+    await window.NotificationBell?.markNotificationsViewed?.();
+    await window.NotificationBell?.updateDashboardNotificationCount?.();
+  }
+};
+
+window.NotificationModule = NotificationModuleWithReadSync;

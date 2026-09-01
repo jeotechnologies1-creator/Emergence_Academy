@@ -336,6 +336,199 @@ class API {
     };
 
     /* ======================================================
+       NOTIFICATIONS API
+    ====================================================== */
+
+    static notifications = {
+
+        async inbox(limit = 100) {
+
+            try {
+
+                const profile = await Auth.profile();
+                const profileId = String(profile?.id || "").trim();
+                const role = String(profile?.role || "").trim().toLowerCase();
+
+                const roleQuery = role ? `target_role.eq.${role}` : "";
+                const pieces = ["target_role.eq.all", roleQuery];
+
+                if (profileId) {
+                    pieces.push(`user_id.eq.${profileId}`);
+                }
+
+                let query = API.db
+                    .from("notifications")
+                    .select("id,title,message,user_id,target_role,created_at")
+                    .order("created_at", { ascending: false })
+                    .limit(limit);
+
+                const filters = pieces.filter(Boolean);
+                if (filters.length) {
+                    query = query.or(filters.join(","));
+                }
+
+                const { data, error } = await query;
+
+                if (error) throw error;
+
+                return data || [];
+
+            } catch (error) {
+
+                console.error("Notifications inbox load failed:", error);
+
+                return [];
+
+            }
+
+        },
+
+        inboxSeenKey(profileId) {
+
+            return `emergence_notifications_seen_at_${String(profileId || "anonymous")}`;
+
+        },
+
+        getLastSeenAt(profileId) {
+
+            try {
+                return Number(localStorage.getItem(this.inboxSeenKey(profileId)) || 0);
+            } catch (error) {
+                console.error("Unable to read notification seen state:", error);
+                return 0;
+            }
+
+        },
+
+        setLastSeenAt(profileId, timestamp = Date.now()) {
+
+            try {
+                localStorage.setItem(this.inboxSeenKey(profileId), String(timestamp));
+            } catch (error) {
+                console.error("Unable to save notification seen state:", error);
+            }
+
+        },
+
+        async unreadCount() {
+
+            try {
+                const profile = await Auth.profile();
+                const profileId = String(profile?.id || "").trim();
+                const inbox = await this.inbox();
+
+                if (!inbox.length) {
+                    return 0;
+                }
+
+                if (!profileId) {
+                    return 0;
+                }
+
+                const notificationIds = inbox
+                    .map((item) => String(item?.id || "").trim())
+                    .filter(Boolean);
+
+                if (!notificationIds.length) {
+                    return 0;
+                }
+
+                const { data, error } = await API.db
+                    .from("notification_reads")
+                    .select("notification_id")
+                    .eq("profile_id", profileId)
+                    .in("notification_id", notificationIds);
+
+                if (error) {
+                    if (this.isMissingReadTrackingError(error)) {
+                        const seenAt = this.getLastSeenAt(profileId);
+                        return inbox.filter((item) => {
+                            const created = item?.created_at ? new Date(item.created_at).getTime() : 0;
+                            return created > seenAt;
+                        }).length;
+                    }
+
+                    throw error;
+                }
+
+                const readIds = new Set((data || []).map((item) => String(item.notification_id)));
+
+                return notificationIds.filter((id) => !readIds.has(id)).length;
+
+            } catch (error) {
+                console.error("Notifications unread count failed:", error);
+                return 0;
+            }
+
+        },
+
+        async markInboxViewed() {
+
+            try {
+                const profile = await Auth.profile();
+                const profileId = String(profile?.id || "").trim();
+
+                if (!profileId) {
+                    return true;
+                }
+
+                const inbox = await this.inbox();
+                const notificationIds = inbox
+                    .map((item) => String(item?.id || "").trim())
+                    .filter(Boolean);
+
+                if (!notificationIds.length) {
+                    this.setLastSeenAt(profileId, Date.now());
+                    return true;
+                }
+
+                const nowIso = new Date().toISOString();
+
+                const rows = notificationIds.map((notificationId) => ({
+                    notification_id: notificationId,
+                    profile_id: profileId,
+                    read_at: nowIso,
+                    updated_at: nowIso
+                }));
+
+                const { error } = await API.db
+                    .from("notification_reads")
+                    .upsert(rows, {
+                        onConflict: "notification_id,profile_id"
+                    });
+
+                if (error) {
+                    if (this.isMissingReadTrackingError(error)) {
+                        this.setLastSeenAt(profileId, Date.now());
+                        return true;
+                    }
+
+                    throw error;
+                }
+
+                return true;
+            } catch (error) {
+                console.error("Unable to mark inbox viewed:", error);
+                return false;
+            }
+
+        },
+
+        isMissingReadTrackingError(error) {
+
+            const message = String(error?.message || "").toLowerCase();
+            const code = String(error?.code || "").toLowerCase();
+
+            return (
+                code === "42p01" ||
+                message.includes("notification_reads") && message.includes("does not exist")
+            );
+
+        }
+
+    };
+
+    /* ======================================================
        GENERIC RECORDS API
     ====================================================== */
 
@@ -492,6 +685,9 @@ class API {
 
     static students = {
 
+        // Keep this projection explicit for teacher-facing roster reads.
+        staticTeacherProfileSelect: "profiles:profile_id(id,first_name,last_name,email,phone,avatar_url)",
+
         /* ==============================================
            GET ALL STUDENTS
         ============================================== */
@@ -524,6 +720,10 @@ class API {
                     return (data?.students || [])
                         .map((student) => ({
                             ...student,
+                            // Teacher roster rows are expected to expose the
+                            // profile shape represented by
+                            // `profiles:profile_id(id,first_name,last_name,email,phone,avatar_url)`
+                            // when returned from secured server-side queries.
                             classes: classesById[String(student.class_id)] || null,
                             departments: null
                         }))

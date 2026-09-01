@@ -13,6 +13,8 @@ class DashboardHome {
         period: "7d"
     };
 
+    static OFFICE_ACTIVITY_WINDOW = "7d";
+
     static ROLE_COPY = {
         ceo: "Executive overview of academic performance, operations, and finance.",
         admin: "Monitor school-wide operations and keep every office in sync.",
@@ -317,6 +319,7 @@ class DashboardHome {
             <h3 class="text-xl font-bold">Recent Activity</h3>
             ${this.activityFilterControls(recentActivity)}
         </div>
+        ${this.officeActivityChart(recentActivity)}
         <div id="dashboard-activity-timeline">
             ${this.activityTimeline(this.filterActivity(recentActivity))}
         </div>
@@ -403,6 +406,88 @@ class DashboardHome {
     </select>
 </div>
 `;
+
+    }
+
+    static officeActivityChart(items) {
+
+        const source = this.filterActivityByWindow(items, this.OFFICE_ACTIVITY_WINDOW);
+        const activity = this.aggregateOfficeActivity(source);
+
+        if (!activity.length) {
+            return `
+<div class="mb-4 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+    No office activity available for the last 7 days.
+</div>
+`;
+        }
+
+        const max = Math.max(...activity.map((item) => item.count), 1);
+
+        return `
+<div class="mb-6 rounded-xl border border-slate-100 bg-slate-50 p-4">
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+        <h4 class="text-sm font-semibold uppercase tracking-wide text-slate-700">Office Activity Snapshot</h4>
+        <span class="text-xs text-slate-500">Last 7 days</span>
+    </div>
+    <div class="mt-4 space-y-3">
+        ${activity.map((item) => {
+            const ratio = Math.round((item.count / max) * 100);
+            return `
+<div>
+    <div class="flex items-center justify-between gap-2 text-xs text-slate-600">
+        <span class="uppercase tracking-wide">${this.safeText(item.label)}</span>
+        <span class="font-semibold text-slate-700">${item.count}</span>
+    </div>
+    <div class="mt-1 h-2 rounded-full bg-slate-200 overflow-hidden">
+        <div class="h-full rounded-full bg-blue-600" style="width: ${ratio}%;"></div>
+    </div>
+</div>
+`;
+        }).join("")}
+    </div>
+</div>
+`;
+
+    }
+
+    static filterActivityByWindow(items, windowKey = "7d") {
+
+        const source = Array.isArray(items) ? items : [];
+        const now = Date.now();
+        const timeWindow = {
+            "24h": 24 * 60 * 60 * 1000,
+            "7d": 7 * 24 * 60 * 60 * 1000,
+            "30d": 30 * 24 * 60 * 60 * 1000,
+            "all": Number.POSITIVE_INFINITY
+        };
+        const maxAge = timeWindow[windowKey] ?? timeWindow["7d"];
+
+        return source.filter((item) => {
+            if (windowKey === "all") return true;
+            const createdAt = item?.created_at ? new Date(item.created_at).getTime() : NaN;
+            return Number.isFinite(createdAt) && (now - createdAt) <= maxAge;
+        });
+
+    }
+
+    static aggregateOfficeActivity(items) {
+
+        const map = new Map();
+
+        (items || []).forEach((item) => {
+            const module = String(item?.module || "general").trim().toLowerCase();
+            const current = map.get(module) || 0;
+            map.set(module, current + 1);
+        });
+
+        return Array.from(map.entries())
+            .map(([module, count]) => ({
+                label: module.replace(/_/g, " "),
+                count
+            }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 6);
 
     }
 
