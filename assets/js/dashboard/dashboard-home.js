@@ -215,6 +215,8 @@ class DashboardHome {
 
             ]);
 
+            const adminCharts = await this.fetchAdminCharts(role, stats);
+
             this.currentActivity = Array.isArray(recentActivity) ? recentActivity : [];
 
             container.innerHTML = this.template(
@@ -227,7 +229,9 @@ class DashboardHome {
 
                 permissions,
 
-                recentActivity
+                recentActivity,
+
+                adminCharts
 
             );
 
@@ -249,7 +253,7 @@ class DashboardHome {
        TEMPLATE
     ====================================================== */
 
-    static template(profile, stats, announcements, permissions, recentActivity) {
+    static template(profile, stats, announcements, permissions, recentActivity, adminCharts = null) {
 
         const role = this.normalizedRole(profile);
         const copy = this.ROLE_COPY[role] || this.ROLE_COPY.student;
@@ -292,6 +296,8 @@ class DashboardHome {
 
     </div>
 
+    ${this.adminChartsSection(role, adminCharts)}
+
     <div class="bg-white rounded-xl shadow p-6">
         <div class="flex items-center justify-between gap-3 flex-wrap">
             <h3 class="text-lg font-semibold text-slate-800">Quick Actions</h3>
@@ -329,6 +335,221 @@ class DashboardHome {
 
 </div>
 
+`;
+
+    }
+
+    static async fetchAdminCharts(role, fallbackStats = null) {
+
+        if (role !== "admin") {
+            return null;
+        }
+
+        try {
+            const roleDistribution = await this.fetchRoleDistribution(fallbackStats);
+            const performance = await this.fetchStudentPerformance();
+            return {
+                roleDistribution,
+                performance
+            };
+        } catch (error) {
+            console.error("Admin chart data load failed:", error);
+            return {
+                roleDistribution: null,
+                performance: null
+            };
+        }
+
+    }
+
+    static async fetchRoleDistribution(fallbackStats = null) {
+
+        const stats = fallbackStats || await API.dashboard.stats();
+        const students = Number(stats?.students || 0);
+        const teachers = Number(stats?.teachers || 0);
+        const parents = Number(stats?.parents || 0);
+
+        let otherOffices = 0;
+
+        try {
+            const profileMap = await API.officeProfileMap();
+            const rows = Object.values(profileMap || {});
+            otherOffices = rows.filter((profile) => {
+                const role = this.normalizedRole(profile);
+                return !["student", "teacher", "parent"].includes(role);
+            }).length;
+        } catch (error) {
+            console.error("Role distribution fallback applied:", error);
+        }
+
+        return [
+            { key: "students", label: "Students", count: students, color: "#2563eb" },
+            { key: "teachers", label: "Teachers", count: teachers, color: "#10b981" },
+            { key: "parents", label: "Parents", count: parents, color: "#f59e0b" },
+            { key: "offices", label: "Other Offices", count: otherOffices, color: "#7c3aed" }
+        ];
+
+    }
+
+    static async fetchStudentPerformance() {
+
+        const palette = [
+            "#2563eb",
+            "#10b981",
+            "#f59e0b",
+            "#7c3aed",
+            "#ef4444",
+            "#0ea5e9",
+            "#84cc16",
+            "#f97316"
+        ];
+
+        try {
+            const { data, error } = await API.db
+                .from("grades")
+                .select("score,subject_id,subjects:subject_id(subject_name,subject_code)")
+                .order("created_at", { ascending: false })
+                .limit(2000);
+
+            if (error) throw error;
+
+            const scoreRows = (data || []).filter((row) => Number.isFinite(Number(row?.score)));
+
+            const bySubject = new Map();
+
+            scoreRows.forEach((row) => {
+                const subjectLabel = String(
+                    row?.subjects?.subject_name ||
+                    row?.subjects?.subject_code ||
+                    row?.subject_id ||
+                    "Unassigned Subject"
+                ).trim();
+
+                const current = bySubject.get(subjectLabel) || { total: 0, count: 0 };
+                current.total += Number(row.score || 0);
+                current.count += 1;
+                bySubject.set(subjectLabel, current);
+            });
+
+            const subjects = Array.from(bySubject.entries())
+                .map(([label, state], index) => ({
+                    label,
+                    average: state.count ? (state.total / state.count) : 0,
+                    count: state.count,
+                    color: palette[index % palette.length]
+                }))
+                .sort((left, right) => right.average - left.average)
+                .slice(0, 8);
+
+            const average = scoreRows.length
+                ? (scoreRows.reduce((sum, row) => sum + Number(row.score || 0), 0) / scoreRows.length)
+                : 0;
+
+            return {
+                subjects,
+                average,
+                totalRecords: scoreRows.length
+            };
+        } catch (error) {
+            console.error("Student performance data load failed:", error);
+            return {
+                subjects: [],
+                average: 0,
+                totalRecords: 0
+            };
+        }
+
+    }
+
+    static adminChartsSection(role, adminCharts) {
+
+        if (role !== "admin") {
+            return "";
+        }
+
+        const roleDistribution = Array.isArray(adminCharts?.roleDistribution)
+            ? adminCharts.roleDistribution
+            : [];
+        const performance = adminCharts?.performance || { subjects: [], average: 0, totalRecords: 0 };
+
+        const roleTotal = roleDistribution.reduce((sum, item) => sum + Number(item?.count || 0), 0);
+        const safeTotal = roleTotal > 0 ? roleTotal : 1;
+
+        let cumulative = 0;
+        const pieStops = roleDistribution.map((item) => {
+            const count = Number(item?.count || 0);
+            const start = cumulative;
+            const percent = (count / safeTotal) * 100;
+            cumulative += percent;
+            const color = String(item?.color || "#94a3b8");
+            return `${color} ${start.toFixed(2)}% ${cumulative.toFixed(2)}%`;
+        }).join(", ");
+
+        const pieStyle = roleDistribution.length
+            ? `background: conic-gradient(${pieStops});`
+            : "background: #e2e8f0;";
+
+        const bars = Array.isArray(performance?.subjects) ? performance.subjects : [];
+        const avgScore = Number(performance?.average || 0);
+        const totalGrades = Number(performance?.totalRecords || 0);
+
+        return `
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <div class="bg-white rounded-xl shadow p-6 border border-slate-100">
+        <h3 class="text-lg font-semibold text-slate-800">Population by Office Type</h3>
+        <p class="text-sm text-slate-500 mt-1">Students, teachers, parents, and other offices.</p>
+        <div class="mt-5 flex flex-col sm:flex-row items-center gap-6">
+            <div class="w-44 h-44 rounded-full border border-slate-200" style="${pieStyle}"></div>
+            <div class="w-full space-y-2">
+                ${(roleDistribution.length ? roleDistribution : [
+                    { label: "Students", count: 0, color: "#2563eb" },
+                    { label: "Teachers", count: 0, color: "#10b981" },
+                    { label: "Parents", count: 0, color: "#f59e0b" },
+                    { label: "Other Offices", count: 0, color: "#7c3aed" }
+                ]).map((item) => {
+                    const count = Number(item?.count || 0);
+                    const percent = roleTotal ? ((count / roleTotal) * 100).toFixed(1) : "0.0";
+                    return `
+<div class="flex items-center justify-between text-sm">
+    <div class="flex items-center gap-2 text-slate-700">
+        <span class="inline-block w-3 h-3 rounded-full" style="background:${this.safeText(item.color || "#94a3b8")}"></span>
+        <span>${this.safeText(item.label || "Group")}</span>
+    </div>
+    <div class="font-semibold text-slate-800">${count} <span class="text-slate-500 font-normal">(${percent}%)</span></div>
+</div>`;
+                }).join("")}
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow p-6 border border-slate-100">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+            <h3 class="text-lg font-semibold text-slate-800">Student Performance by Subject</h3>
+            <span class="text-xs text-slate-500">${totalGrades} grade records</span>
+        </div>
+        <p class="text-sm text-slate-500 mt-1">Average score for each subject based on recorded grades.</p>
+        <div class="mt-4 rounded-lg bg-slate-50 border border-slate-100 px-4 py-3 text-sm text-slate-700">
+            Average score: <span class="font-semibold text-slate-900">${avgScore.toFixed(1)}%</span>
+        </div>
+        <div class="mt-4 space-y-3">
+            ${bars.map((subject) => {
+                const width = Math.max(6, Math.round(Number(subject?.average || 0)));
+                const sampleCount = Number(subject?.count || 0);
+                return `
+<div>
+    <div class="flex items-center justify-between text-xs text-slate-600">
+        <span>${this.safeText(subject.label || "Subject")}</span>
+        <span class="font-semibold text-slate-800">${Number(subject?.average || 0).toFixed(1)}% <span class="text-slate-500 font-normal">(${sampleCount} records)</span></span>
+    </div>
+    <div class="mt-1 h-3 rounded-full bg-slate-200 overflow-hidden">
+        <div class="h-full rounded-full" style="width:${width}%; background:${this.safeText(subject.color || "#2563eb")};"></div>
+    </div>
+</div>`;
+            }).join("")}
+            ${bars.length ? "" : '<div class="text-sm text-slate-500">No subject performance records available yet.</div>'}
+        </div>
+    </div>
+</div>
 `;
 
     }
