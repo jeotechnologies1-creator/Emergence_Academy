@@ -44,6 +44,31 @@
             line-height: 1.6;
         }
 
+        .overflow-auto,
+        .overflow-y-auto,
+        .overflow-x-auto,
+        [class*="overflow-auto"],
+        [class*="overflow-y-auto"],
+        [class*="overflow-x-auto"],
+        .mobile-menu,
+        .timeline,
+        .portal-glass,
+        .contact-map {
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-gutter: stable;
+        }
+
+        .feature-card,
+        .program-card,
+        .testimonial-card,
+        .portal-card,
+        .timeline-content,
+        .contact-method {
+            border-color: rgba(147, 197, 253, 0.35);
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+        }
+
         html,
         body {
             max-width: 100%;
@@ -2153,6 +2178,21 @@
                 right: 0.75rem;
                 width: 2.75rem;
                 height: 2.75rem;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .overflow-auto,
+            .overflow-y-auto,
+            .overflow-x-auto,
+            [class*="overflow-auto"],
+            [class*="overflow-y-auto"],
+            [class*="overflow-x-auto"],
+            .mobile-menu,
+            .timeline,
+            .portal-glass,
+            .contact-map {
+                scroll-behavior: auto;
             }
         }
 

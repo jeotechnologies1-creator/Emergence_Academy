@@ -2,6 +2,18 @@
     box-sizing: border-box;
 }
 
+:root {
+    --ea-bg: #f3f7ff;
+    --ea-surface: #ffffff;
+    --ea-surface-soft: #f8fbff;
+    --ea-border: #dbe7ff;
+    --ea-text: #0f172a;
+    --ea-muted: #64748b;
+    --ea-primary: #2563eb;
+    --ea-primary-strong: #1e40af;
+    --ea-shadow: 0 14px 32px rgba(37, 99, 235, 0.12);
+}
+
 button,
 a,
 input,
@@ -13,10 +25,15 @@ textarea {
 body {
     font-family: 'Inter', sans-serif;
     line-height: 1.6;
-    background: linear-gradient(135deg, #f8faff 0%, #eef2ff 100%);
+    background:
+        radial-gradient(circle at 85% -10%, rgba(56, 189, 248, 0.2), transparent 36%),
+        radial-gradient(circle at -5% 110%, rgba(99, 102, 241, 0.18), transparent 34%),
+        linear-gradient(145deg, #f8fbff 0%, var(--ea-bg) 100%);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    color: var(--ea-text);
+    overflow-x: hidden;
 }
 
 .global-notification-bell {
@@ -90,8 +107,84 @@ html {
     -webkit-text-size-adjust: 100%;
 }
 
+html,
+body {
+    max-width: 100%;
+}
+
+.overflow-auto,
+.overflow-y-auto,
+.overflow-x-auto,
+[class*="overflow-auto"],
+[class*="overflow-y-auto"],
+[class*="overflow-x-auto"],
+main,
+aside,
+nav,
+table {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #e8eefb;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #60a5fa, #3b82f6);
+    border-radius: 999px;
+    border: 2px solid #e8eefb;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #3b82f6, #2563eb);
+}
+
+.bg-white.rounded-3xl,
+.bg-white.rounded-2xl,
+.bg-white.rounded-xl,
+.bg-white.rounded-lg {
+    background: linear-gradient(180deg, var(--ea-surface) 0%, var(--ea-surface-soft) 100%);
+    border: 1px solid var(--ea-border);
+    box-shadow: var(--ea-shadow);
+}
+
+input,
+select,
+textarea {
+    border-color: #c7d8fb;
+    background: #ffffff;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--ea-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
 @media (prefers-reduced-motion: reduce) {
     html {
+        scroll-behavior: auto;
+    }
+
+    .overflow-auto,
+    .overflow-y-auto,
+    .overflow-x-auto,
+    [class*="overflow-auto"],
+    [class*="overflow-y-auto"],
+    [class*="overflow-x-auto"],
+    main,
+    aside,
+    nav,
+    table {
         scroll-behavior: auto;
     }
 
@@ -105,6 +198,15 @@ html {
         right: 0.75rem;
         width: 2.75rem;
         height: 2.75rem;
+    }
+
+    .min-h-screen.flex.items-center.justify-center.px-4.py-8 > .w-full.max-w-md {
+        padding: 1.25rem;
+        border-radius: 1rem;
+    }
+
+    h1 {
+        font-size: clamp(1.25rem, 5vw, 1.6rem);
     }
 }
 
