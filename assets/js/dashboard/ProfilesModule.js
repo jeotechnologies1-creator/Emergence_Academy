@@ -310,12 +310,19 @@
         static async invokeCreateUserDirect(payload) {
             let { data: sessionData, error: sessionError } = await API.db.auth.getSession();
             let session = sessionData?.session || null;
-            const expiresSoon = Number(session?.expires_at || 0) * 1000 <= Date.now() + 60_000;
 
-            if (!session || expiresSoon) {
+            const refreshCurrentSession = async () => {
                 const { data: refreshData, error: refreshError } = await API.db.auth.refreshSession();
-                session = refreshData?.session || null;
+                if (refreshData?.session) {
+                    session = refreshData.session;
+                }
                 sessionError = sessionError || refreshError;
+            };
+
+            if (!session) {
+                await refreshCurrentSession();
+            } else {
+                await refreshCurrentSession();
             }
 
             if (sessionError && !session) {
@@ -326,15 +333,24 @@
                 throw new Error("Your session is unavailable. Please sign in again.");
             }
 
-            const response = await fetch(`${window.CONFIG.SUPABASE.URL}/functions/v1/create-user`, {
+            const callCreateUser = async (accessToken) => fetch(`${window.CONFIG.SUPABASE.URL}/functions/v1/create-user`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     apikey: window.CONFIG.SUPABASE.ANON_KEY,
-                    Authorization: `Bearer ${session.access_token}`
+                    Authorization: `Bearer ${accessToken}`
                 },
                 body: JSON.stringify(payload)
             });
+
+            let response = await callCreateUser(session.access_token);
+
+            if (response.status === 401) {
+                await refreshCurrentSession();
+                if (session?.access_token) {
+                    response = await callCreateUser(session.access_token);
+                }
+            }
 
             const raw = await response.text();
             let result = {};
