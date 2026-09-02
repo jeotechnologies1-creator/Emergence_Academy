@@ -56,7 +56,7 @@ const RoleRouter = {
             title: "Student Office",
             subtitle: "Track coursework, submissions, grades, and announcements.",
             defaultRoute: "dashboard",
-            modules: ["dashboard", "subjects", "assignments", "live-classes", "grades", "attendance", "notifications", "ai"]
+            modules: ["dashboard", "subjects", "assignments", "live-classes", "grades", "attendance", "notifications", "ai", "settings"]
         },
         parent: {
             title: "Parent Office",

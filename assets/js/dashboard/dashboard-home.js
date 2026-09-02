@@ -140,7 +140,8 @@ class DashboardHome {
         student: [
             { label: "View Assignments", route: "assignments" },
             { label: "Check Grades", route: "grades" },
-            { label: "Open AI Assistant", route: "ai" }
+            { label: "Open AI Assistant", route: "ai" },
+            { label: "Profile Settings", route: "settings" }
         ],
         parent: [
             { label: "Track Attendance", route: "attendance" },

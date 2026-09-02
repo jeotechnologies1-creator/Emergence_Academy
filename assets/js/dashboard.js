@@ -227,7 +227,10 @@
                     window.NotificationModule,
 
                 ai:
-                    window.AIModule
+                    window.AIModule,
+
+                settings:
+                    window.StudentSettingsModule
 
             };
 
