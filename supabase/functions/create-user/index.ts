@@ -109,6 +109,37 @@ function normalizeIdList(value: unknown): string[] {
   return [...new Set(value.map((item) => String(item ?? "").trim()).filter(Boolean))];
 }
 
+function getSupabaseAdminKey() {
+  const directKey = [
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    Deno.env.get("ADMISSION_SERVICE_ROLE_KEY"),
+    Deno.env.get("sb_secret"),
+  ]
+    .map((value) => String(value || "").trim())
+    .find((value) => (value.startsWith("eyJ") && value.split(".").length === 3) || value.startsWith("sb_secret_"));
+
+  if (directKey) return directKey;
+
+  try {
+    const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}") as Record<string, unknown>;
+    const managedSecretKey = String(secretKeys.default || "").trim()
+      || Object.values(secretKeys)
+        .map((value) => String(value || "").trim())
+        .find(Boolean);
+    if (managedSecretKey) return managedSecretKey;
+  } catch {
+    // Some projects do not expose SUPABASE_SECRET_KEYS.
+  }
+
+  return "";
+}
+
+function serverKeyFetch(input: RequestInfo | URL, init?: RequestInit) {
+  const headers = new Headers(init?.headers);
+  headers.delete("authorization");
+  return fetch(input, { ...init, headers });
+}
+
 function generateEmployeeId(): string {
   const year = new Date().getUTCFullYear();
   const suffix = crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
@@ -165,7 +196,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_URL");
 
     const serviceRoleKey =
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      getSupabaseAdminKey();
 
     const anonKey =
       Deno.env.get("SUPABASE_ANON_KEY");
@@ -193,16 +224,28 @@ Deno.serve(async (req: Request): Promise<Response> => {
        ADMIN CLIENT
     ====================================================== */
 
-    const supabaseAdmin = createClient(
-      supabaseUrl,
-      serviceRoleKey,
-      {
+    const usesModernSecretKey = serviceRoleKey.startsWith("sb_secret_");
+    const supabaseAdmin = usesModernSecretKey
+      ? createClient(supabaseUrl, serviceRoleKey, {
         auth: {
           autoRefreshToken: false,
           persistSession: false,
         },
-      },
-    );
+        global: {
+          fetch: serverKeyFetch,
+        },
+      })
+      : createClient(supabaseUrl, serviceRoleKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+        global: {
+          headers: {
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+        },
+      });
 
     /* ======================================================
        VERIFY AUTHORIZATION HEADER
