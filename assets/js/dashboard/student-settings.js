@@ -286,14 +286,21 @@
                         this.state.uploading = true;
                         const profile = this.state.profile || await Profile.load();
                         const authUser = window.Auth?.user ? await Auth.user() : null;
-                        const ext = (file.name.split(".").pop() || "png").toLowerCase();
+                        // A new object key avoids Storage upsert policy issues and makes
+                        // the avatar URL cache-safe, so the freshly selected photo is
+                        // shown immediately in both Settings and the dashboard header.
+                        const extByMimeType = {
+                            "image/jpeg": "jpg",
+                            "image/png": "png",
+                            "image/webp": "webp"
+                        };
+                        const ext = extByMimeType[file.type] || "png";
                         const ownerId = authUser?.id || profile?.id;
                         if (!ownerId) throw new Error("Authenticated user not found.");
 
-                        const path = `${ownerId}/avatar.${ext}`;
+                        const path = `${ownerId}/avatar-${crypto.randomUUID()}.${ext}`;
                         const { error: uploadError } = await API.db.storage.from(this.BUCKET).upload(path, file, {
-                            contentType: file.type,
-                            upsert: true
+                            contentType: file.type
                         });
                         if (uploadError) throw uploadError;
                         const { data } = API.db.storage.from(this.BUCKET).getPublicUrl(path);

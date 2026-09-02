@@ -19,7 +19,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.0";
    - first_name and last_name are used instead.
    ========================================================== */
 
-const FUNCTION_VERSION = "2026-08-18-ENROLLMENT-01";
+const FUNCTION_VERSION = "2026-09-02-PASSWORD-RESET-01";
 const DEFAULT_RESET_PASSWORD = "Emergence2026!";
 
 const ALLOWED_ROLES = new Set([
@@ -138,6 +138,45 @@ function serverKeyFetch(input: RequestInfo | URL, init?: RequestInit) {
   const headers = new Headers(init?.headers);
   headers.delete("authorization");
   return fetch(input, { ...init, headers });
+}
+
+/**
+ * Auth's current `sb_secret_*` keys must be supplied as the API key, not as
+ * a bearer JWT. Supabase-js's Admin API path can still attach the key as a
+ * bearer token in some Edge Runtime combinations, which Auth rejects as
+ * "Not authenticated". Make sensitive Auth Admin updates explicitly so both
+ * modern secret keys and legacy service-role JWTs use their required headers.
+ */
+async function updateAuthUserWithServiceKey(
+  url: string,
+  publicApiKey: string,
+  serviceRoleKey: string,
+  userId: string,
+  updates: Record<string, unknown>,
+) {
+  const usesModernSecretKey = serviceRoleKey.startsWith("sb_secret_");
+  const response = await fetch(`${url}/auth/v1/admin/users/${userId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: usesModernSecretKey ? serviceRoleKey : publicApiKey,
+      ...(usesModernSecretKey ? {} : { Authorization: `Bearer ${serviceRoleKey}` }),
+    },
+    body: JSON.stringify(updates),
+  });
+
+  if (response.ok) return;
+
+  const raw = await response.text();
+  let details: Record<string, unknown> = {};
+  try {
+    details = raw ? JSON.parse(raw) : {};
+  } catch {
+    details = { message: raw };
+  }
+  throw new Error(String(
+    details.msg || details.message || details.error || `Auth Admin request failed (${response.status}).`,
+  ));
 }
 
 function generateEmployeeId(): string {
@@ -526,8 +565,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const { data: target, error: targetError } = await supabaseAdmin.from("profiles")
         .select("id, role").eq("id", targetId).maybeSingle();
       if (targetError || !target) return jsonResponse({ error: "Profile was not found.", function_version: FUNCTION_VERSION }, 404);
-      const { error: resetError } = await supabaseAdmin.auth.admin.updateUserById(targetId, { password: DEFAULT_RESET_PASSWORD });
-      if (resetError) return jsonResponse({ error: `Unable to reset password: ${resetError.message}`, function_version: FUNCTION_VERSION }, 400);
+      try {
+        await updateAuthUserWithServiceKey(
+          supabaseUrl,
+          anonKey,
+          serviceRoleKey,
+          targetId,
+          { password: DEFAULT_RESET_PASSWORD },
+        );
+      } catch (resetError) {
+        const message = resetError instanceof Error ? resetError.message : String(resetError);
+        return jsonResponse({ error: `Unable to reset password: ${message}`, function_version: FUNCTION_VERSION }, 400);
+      }
       const { error: flagError } = await supabaseAdmin.rpc("set_profile_password_change_flag", {
         target_profile_id: targetId,
         required: true,
@@ -552,8 +601,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (callerProfileError || !callerProfileRecord) return jsonResponse({ error: "Your profile could not be found.", function_version: FUNCTION_VERSION }, 404);
       if (!callerProfileRecord.must_change_password) return jsonResponse({ error: "Your temporary password has already been changed.", function_version: FUNCTION_VERSION }, 400);
 
-      const { error: authPasswordError } = await supabaseAdmin.auth.admin.updateUserById(callerId, { password });
-      if (authPasswordError) return jsonResponse({ error: `Unable to change password: ${authPasswordError.message}`, function_version: FUNCTION_VERSION }, 400);
+      try {
+        await updateAuthUserWithServiceKey(
+          supabaseUrl,
+          anonKey,
+          serviceRoleKey,
+          callerId,
+          { password },
+        );
+      } catch (authPasswordError) {
+        const message = authPasswordError instanceof Error ? authPasswordError.message : String(authPasswordError);
+        return jsonResponse({ error: `Unable to change password: ${message}`, function_version: FUNCTION_VERSION }, 400);
+      }
       const { error: clearFlagError } = await supabaseAdmin.rpc("set_profile_password_change_flag", {
         target_profile_id: callerId,
         required: false,
