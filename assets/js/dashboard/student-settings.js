@@ -69,10 +69,42 @@
             return initials;
         }
 
+        static normalizeStorageAvatarUrl(value) {
+            const raw = String(value || "").trim();
+            if (!raw) return "";
+
+            if (!/^https?:\/\//i.test(raw)) {
+                return raw;
+            }
+
+            try {
+                const parsed = new URL(raw);
+                const marker = "/storage/v1/object/";
+                const markerIndex = parsed.pathname.indexOf(marker);
+                if (markerIndex === -1) return raw;
+
+                const objectPath = parsed.pathname.slice(markerIndex + marker.length);
+                if (objectPath.startsWith("public/")) return raw;
+
+                const slashIndex = objectPath.indexOf("/");
+                if (slashIndex <= 0) return raw;
+
+                const bucket = objectPath.slice(0, slashIndex);
+                const key = objectPath.slice(slashIndex + 1);
+                if (!bucket || !key) return raw;
+
+                return `${parsed.origin}/storage/v1/object/public/${bucket}/${key}`;
+            } catch (_) {
+                return raw;
+            }
+        }
+
         static async resolveAvatarUrl(value) {
             const path = String(value || "").trim();
             if (!path) return "";
-            if (/^https?:\/\//i.test(path)) return path;
+            if (/^https?:\/\//i.test(path)) {
+                return this.normalizeStorageAvatarUrl(path);
+            }
             const { data } = API.db.storage.from(this.BUCKET).getPublicUrl(path);
             return data?.publicUrl || path;
         }
@@ -253,17 +285,44 @@
                     try {
                         this.state.uploading = true;
                         const profile = this.state.profile || await Profile.load();
+                        const authUser = window.Auth?.user ? await Auth.user() : null;
                         const ext = (file.name.split(".").pop() || "png").toLowerCase();
-                        const path = `${profile.id}/avatar.${ext}`;
+                        const ownerId = authUser?.id || profile?.id;
+                        if (!ownerId) throw new Error("Authenticated user not found.");
+
+                        const path = `${ownerId}/avatar.${ext}`;
                         const { error: uploadError } = await API.db.storage.from(this.BUCKET).upload(path, file, {
                             contentType: file.type,
                             upsert: true
                         });
                         if (uploadError) throw uploadError;
                         const { data } = API.db.storage.from(this.BUCKET).getPublicUrl(path);
-                        this.state.previewUrl = data?.publicUrl || "";
+                        const publicUrl = this.normalizeStorageAvatarUrl(data?.publicUrl || "");
+                        if (!publicUrl) {
+                            throw new Error("Photo uploaded but URL could not be resolved.");
+                        }
+
+                        const { data: updatedProfile, error: updateError } = await API.db
+                            .from("profiles")
+                            .update({ avatar_url: publicUrl })
+                            .eq("id", profile.id)
+                            .select()
+                            .single();
+
+                        if (updateError) throw updateError;
+
+                        this.state.profile = updatedProfile || profile;
+                        this.state.previewUrl = publicUrl;
                         this.renderAvatar();
-                        this.notify("Photo selected. Save changes to publish it.");
+                        if (typeof Profile.refresh === "function") {
+                            await Profile.refresh();
+                        }
+                        if (typeof window.displayUser === "function") {
+                            await window.displayUser();
+                        }
+                        const status = document.querySelector("[data-settings-status]");
+                        if (status) status.textContent = "Photo updated successfully.";
+                        this.notify("Photo updated successfully.");
                     } catch (error) {
                         console.error(error);
                         this.notify(error?.message || "Unable to upload photo.", "error");
