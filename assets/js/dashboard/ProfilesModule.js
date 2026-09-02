@@ -308,28 +308,37 @@
         }
 
         static async invokeCreateUserDirect(payload) {
-            let { data: sessionData, error: sessionError } = await API.db.auth.getSession();
-            let session = sessionData?.session || null;
+            const authIsLoggedIn = typeof window.Auth?.isLoggedIn === "function"
+                ? await window.Auth.isLoggedIn()
+                : true;
 
-            const refreshCurrentSession = async () => {
-                const { data: refreshData, error: refreshError } = await API.db.auth.refreshSession();
-                if (refreshData?.session) {
-                    session = refreshData.session;
-                }
-                sessionError = sessionError || refreshError;
-            };
-
-            if (!session) {
-                await refreshCurrentSession();
-            } else {
-                await refreshCurrentSession();
-            }
-
-            if (sessionError && !session) {
+            if (!authIsLoggedIn) {
                 throw new Error("Your session is unavailable. Please sign in again.");
             }
 
-            if (!session?.access_token) {
+            let accessToken = typeof window.Auth?.accessToken === "function"
+                ? await window.Auth.accessToken()
+                : null;
+            let sessionError = null;
+
+            const refreshCurrentSession = async () => {
+                const { data: refreshData, error: refreshError } = await API.db.auth.refreshSession();
+                sessionError = sessionError || refreshError;
+
+                if (refreshData?.session?.access_token) {
+                    accessToken = refreshData.session.access_token;
+                } else if (typeof window.Auth?.accessToken === "function") {
+                    accessToken = await window.Auth.accessToken();
+                }
+            };
+
+            await refreshCurrentSession();
+
+            if (sessionError && !accessToken) {
+                throw new Error("Your session is unavailable. Please sign in again.");
+            }
+
+            if (!accessToken) {
                 throw new Error("Your session is unavailable. Please sign in again.");
             }
 
@@ -343,12 +352,12 @@
                 body: JSON.stringify(payload)
             });
 
-            let response = await callCreateUser(session.access_token);
+            let response = await callCreateUser(accessToken);
 
             if (response.status === 401) {
                 await refreshCurrentSession();
-                if (session?.access_token) {
-                    response = await callCreateUser(session.access_token);
+                if (accessToken) {
+                    response = await callCreateUser(accessToken);
                 }
             }
 
