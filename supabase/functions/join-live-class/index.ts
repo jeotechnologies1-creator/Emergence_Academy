@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     const status = statusFor(liveClass.starts_at, liveClass.ends_at, liveClass.status);
     if (status === "upcoming") return json({ error: "This class has not started yet." }, 409);
     if (status === "ended" || status === "cancelled") return json({ error: status === "ended" ? "This live class has ended." : "This live class was cancelled." }, 409);
-    if (!liveClass.meeting_url) return json({ error: "The Google Meet link is currently unavailable." }, 409);
+    if (!liveClass.meeting_url) return json({ error: "The Agora room is currently unavailable." }, 409);
     return json({ success: true, meeting_url: liveClass.meeting_url });
   } catch (error) {
     console.error("join-live-class failed", error);
