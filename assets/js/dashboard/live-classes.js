@@ -23,6 +23,172 @@ class LiveClassesModule {
   static assignmentSubjects() { const ids = new Set(this.state.assignments.filter((row) => String(row.teacher_id) === String(this.state.teacher?.id)).map((row) => String(row.subject_id))); return this.state.subjects.filter((row) => ids.has(String(row.id))); }
   static assignmentClasses() { const ids = new Set(this.state.assignments.filter((row) => String(row.teacher_id) === String(this.state.teacher?.id)).map((row) => String(row.class_id))); return this.state.classes.filter((row) => ids.has(String(row.id))); }
   static format(value) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "Unscheduled" : date.toLocaleString(); }
+  static getAgoraConfig() {
+    const config = window.CONFIG?.AGORA || {};
+    return {
+      appId: String(config.APP_ID || window.AGORA_APP_ID || "").trim(),
+      channelPrefix: String(config.CHANNEL_PREFIX || "emergence-live-class").trim() || "emergence-live-class"
+    };
+  }
+  static async requestAgoraToken(channelName, uid = 0, liveClassId = null, role = "join") {
+    const route = role === "create" ? "agora-create-room" : "agora-join-room";
+    const payload = { channel_name: channelName, uid };
+    if (liveClassId) payload.live_class_id = liveClassId;
+    const { data, error } = await API.db.functions.invoke(route, {
+      body: payload
+    });
+    if (error || data?.error) {
+      throw new Error(data?.error || error?.message || "Unable to generate an Agora token.");
+    }
+    if (!data?.token) {
+      throw new Error("Agora token generation returned no token.");
+    }
+    return data;
+  }
+  static async ensureAgoraSDK() {
+    if (window.AgoraRTC) return;
+    if (document.querySelector("script[data-agora-sdk='true']")) {
+      await new Promise((resolve) => {
+        const poll = setInterval(() => {
+          if (window.AgoraRTC) {
+            clearInterval(poll);
+            resolve();
+          }
+        }, 150);
+      });
+      return;
+    }
+    await new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://download.agora.io/sdk/release/AgoraRTC_N-4.21.3.js";
+      script.async = true;
+      script.dataset.agoraSdk = "true";
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("Unable to load the Agora Web SDK."));
+      document.head.appendChild(script);
+    });
+  }
+  static sanitizeChannelName(value) {
+    const cleaned = String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 32);
+    return cleaned || "emergence-live-class";
+  }
+  static openAgoraRoom(session) {
+    const channel = this.sanitizeChannelName(`${this.getAgoraConfig().channelPrefix}-${session?.id || session?.title || "room"}`);
+    const modal = document.createElement("div");
+    modal.className = "fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm";
+    modal.innerHTML = `
+      <div class="w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl shadow-cyan-950/25">
+        <div class="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-cyan-600 to-indigo-600 px-5 py-4 text-white">
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-100">Agora live class</p>
+            <h3 class="mt-1 text-xl font-bold">${this.safe(session?.title || "Live class")}</h3>
+          </div>
+          <button type="button" data-close-agora class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Close</button>
+        </div>
+        <div class="grid gap-4 p-5 lg:grid-cols-[1.5fr_0.8fr]">
+          <div class="relative min-h-[420px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),transparent_42%),linear-gradient(135deg,#020617,#0f172a_48%,#111827)]">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(96,165,250,0.18),transparent_60%)]"></div>
+            <div id="agora-remote-player" class="absolute inset-0"></div>
+            <div class="absolute inset-x-0 top-4 flex justify-between px-4">
+              <span class="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-cyan-100">Live</span>
+              <span class="rounded-full border border-white/10 bg-slate-900/50 px-3 py-1 text-xs font-medium text-slate-200">${this.safe(channel)}</span>
+            </div>
+            <div class="absolute bottom-4 right-4 h-40 w-28 overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl shadow-slate-950/60">
+              <div id="agora-local-player" class="h-full w-full bg-slate-800"></div>
+            </div>
+          </div>
+          <aside class="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-slate-200">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Session</p>
+              <p class="mt-2 text-lg font-semibold text-white">${this.safe(session?.subject_name || "Live class")}</p>
+              <p class="mt-1 text-sm text-slate-300">${this.safe(this.format(session?.starts_at))} to ${this.safe(this.format(session?.ends_at))}</p>
+            </div>
+            <div class="rounded-xl border border-cyan-500/20 bg-slate-900/60 p-3">
+              <p class="text-xs uppercase tracking-[0.2em] text-cyan-300">Agora status</p>
+              <p data-agora-status class="mt-2 text-sm text-slate-100">Connecting...</p>
+            </div>
+            <div class="rounded-xl border border-white/10 bg-slate-900/50 p-3 text-sm text-slate-300">
+              <p class="font-medium text-white">Required setup</p>
+              <p class="mt-2">Add your Agora App ID in <strong>assets/js/config.js</strong> under <strong>CONFIG.AGORA</strong>; the token is fetched securely from the backend.</p>
+            </div>
+            <div class="mt-auto flex gap-2">
+              <button type="button" data-agora-toggle-mic class="flex-1 rounded-xl bg-slate-800 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700">Mute</button>
+              <button type="button" data-agora-toggle-camera class="flex-1 rounded-xl bg-cyan-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-cyan-500">Camera off</button>
+            </div>
+          </aside>
+        </div>
+      </div>
+    `;
+    const closeButton = modal.querySelector("[data-close-agora]");
+    closeButton?.addEventListener("click", () => this.closeAgoraRoom(modal));
+    modal.dataset.channel = channel;
+    document.body.appendChild(modal);
+    return modal;
+  }
+  static async connectAgoraRoom(session) {
+    const { appId } = this.getAgoraConfig();
+    if (!appId) {
+      throw new Error("Agora App ID is missing. Add it to CONFIG.AGORA.APP_ID in assets/js/config.js.");
+    }
+    await this.ensureAgoraSDK();
+    const modal = this.openAgoraRoom(session);
+    const client = window.AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+    const channel = modal.dataset.channel;
+    const uid = Number(String(session?.id || Date.now()).replace(/\D/g, "")) || 0;
+    const status = modal.querySelector("[data-agora-status]");
+    status.textContent = "Fetching secure token...";
+    const isTeacherHost = this.canSchedule() && String(session?.teacher_id) === String(this.state.teacher?.id);
+    const tokenResponse = await this.requestAgoraToken(channel, uid, session?.id || null, isTeacherHost ? "create" : "join");
+    const token = tokenResponse.token;
+    const localAudioTrack = await window.AgoraRTC.createMicrophoneAudioTrack();
+    const localVideoTrack = await window.AgoraRTC.createCameraVideoTrack();
+    client.on("user-published", async (user, mediaType) => {
+      await client.subscribe(user, mediaType);
+      if (mediaType === "video" && user.videoTrack) {
+        user.videoTrack.play("agora-remote-player");
+      }
+      if (mediaType === "audio" && user.audioTrack) {
+        user.audioTrack.play();
+      }
+    });
+    client.on("user-left", () => {
+      status.textContent = "Remote participant left the room.";
+    });
+    const micButton = modal.querySelector("[data-agora-toggle-mic]");
+    const cameraButton = modal.querySelector("[data-agora-toggle-camera]");
+    let micEnabled = true;
+    let cameraEnabled = true;
+    micButton?.addEventListener("click", () => {
+      micEnabled = !micEnabled;
+      localAudioTrack.setEnabled(micEnabled);
+      micButton.textContent = micEnabled ? "Mute" : "Unmute";
+    });
+    cameraButton?.addEventListener("click", () => {
+      cameraEnabled = !cameraEnabled;
+      localVideoTrack.setEnabled(cameraEnabled);
+      cameraButton.textContent = cameraEnabled ? "Camera off" : "Camera on";
+    });
+    await client.join(appId, channel, token, Number(uid));
+    await client.publish([localAudioTrack, localVideoTrack]);
+    localVideoTrack.play("agora-local-player");
+    status.textContent = "Connected to Agora";
+    modal.__agora = { client, localAudioTrack, localVideoTrack };
+    return modal;
+  }
+  static closeAgoraRoom(modal) {
+    if (!modal) return;
+    const session = modal.__agora;
+    if (session?.client) {
+      session.client.leave();
+    }
+    if (session?.localAudioTrack) session.localAudioTrack.close();
+    if (session?.localVideoTrack) session.localVideoTrack.close();
+    modal.remove();
+  }
   static async render(container) { this.state.container = container; container.innerHTML = '<div class="bg-white rounded-xl p-8 text-slate-500 shadow">Loading live classes...</div>'; try { await this.load(); this.draw(); } catch (error) { console.error(error); container.innerHTML = `<div class="bg-white rounded-xl p-8 text-red-600 shadow">${this.safe(error.message || "Unable to load live classes.")}</div>`; } }
   static draw() {
     const sessions = this.state.sessions.map((session) => this.card(session)).join("") || '<div class="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">No live classes are scheduled for you yet.</div>';
@@ -91,7 +257,6 @@ class LiveClassesModule {
       const errorBox = this.state.container.querySelector("#live-class-error");
       const data = new FormData(event.currentTarget);
       const approvedStudentIds = data.getAll("approved_student_ids");
-      const meetingWindow = window.open("", "_blank", "noopener,noreferrer");
       try {
         if (!approvedStudentIds.length) throw new Error("Select at least one approved student.");
         const startsAt = new Date(String(data.get("starts_at") || ""));
@@ -101,22 +266,18 @@ class LiveClassesModule {
         if (result.error || result.data?.error) {
           const message = result.data?.error || await API.functionErrorMessage(
             result.error,
-            "Unable to schedule the Google Meet class."
+            "Unable to schedule the class."
           );
           throw new Error(message);
         }
-        if (!result.data?.meeting_url) throw new Error("Google Meet was created but no meeting link was returned.");
-        if (meetingWindow) meetingWindow.location.href = result.data.meeting_url;
-        else window.open(result.data.meeting_url, "_blank", "noopener,noreferrer");
-        window.Utils?.success?.("Class scheduled. Google Meet is now open.");
+        window.Utils?.success?.("Class scheduled. Agora room is ready when you start the lesson.");
         await this.render(this.state.container);
       } catch (error) {
-        meetingWindow?.close();
-        errorBox.textContent = error.message || "Unable to create the Google Meet class.";
+        errorBox.textContent = error.message || "Unable to create the class.";
         errorBox.classList.remove("hidden");
       }
     });
-    this.state.container.querySelectorAll("[data-live-action]").forEach((button) => button.addEventListener("click", async () => { try { const action = button.dataset.liveAction, id = button.dataset.id; if (action === "join") { const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: id } }); if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message); window.open(result.data.meeting_url, "_blank", "noopener,noreferrer"); return; } const status = action === "start" ? "live" : action === "end" ? "ended" : "cancelled"; const { error } = await API.db.rpc("set_live_class_status", { p_live_class_id: id, p_status: status }); if (error) throw error; if (action === "start") { const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: id } }); if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message); window.open(result.data.meeting_url, "_blank", "noopener,noreferrer"); } await this.render(this.state.container); } catch (error) { window.Utils?.error?.(error.message || "Unable to update the class.") || window.alert(error.message); } }));
+    this.state.container.querySelectorAll("[data-live-action]").forEach((button) => button.addEventListener("click", async () => { try { const action = button.dataset.liveAction, id = button.dataset.id; const session = this.state.sessions.find((item) => String(item.id) === String(id)); if (!session) throw new Error("Live class session was not found."); if (action === "join") { const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: id } }); if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message); await this.connectAgoraRoom(session); return; } const status = action === "start" ? "live" : action === "end" ? "ended" : "cancelled"; const { error } = await API.db.rpc("set_live_class_status", { p_live_class_id: id, p_status: status }); if (error) throw error; if (action === "start") { const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: id } }); if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message); await this.connectAgoraRoom(session); } await this.render(this.state.container); } catch (error) { window.Utils?.error?.(error.message || "Unable to update the class.") || window.alert(error.message); } }));
   }
 }
 window.LiveClassesModule = LiveClassesModule;

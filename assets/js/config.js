@@ -84,6 +84,13 @@ const DEFAULT_CONFIG = {
       DATE_FORMAT: "DD/MM/YYYY",
       TIME_FORMAT: "HH:mm"
    },
+   AGORA: {
+      // Insert your Agora Project App ID here.
+      // The token is generated securely on the server and fetched at runtime.
+      // You can also set window.AGORA_APP_ID directly.
+      APP_ID: "",
+      CHANNEL_PREFIX: "emergence-live-class"
+   },
    STATUS: {
       ACTIVE: "active",
       INACTIVE: "inactive",
