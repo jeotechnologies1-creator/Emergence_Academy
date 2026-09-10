@@ -38,6 +38,8 @@ const path = require('path');
   assert.ok(moduleCode.includes('await API.functionErrorMessage'), 'the scheduling form must display the Edge Function error body');
   assert.ok(moduleCode.includes('agora-create-room'), 'teacher hosts must request a dedicated room creation token');
   assert.ok(moduleCode.includes('agora-join-room'), 'students must request a dedicated room join token');
+  assert.ok(moduleCode.includes('const storedChannel = String(session?.agora_channel_name || "").trim()'), 'the browser must preserve the server-stored Agora channel exactly');
+  assert.ok(moduleCode.includes('static agoraUid(session)'), 'the browser must derive a safe 32-bit Agora UID instead of converting a UUID to an unsafe number');
   assert.ok(moduleCode.includes('AgoraRTC_N-4.24.8.js'), 'the browser must use a current pinned Agora Web SDK');
   assert.ok(moduleCode.includes('AgoraRTC_N-production.js'), 'fallback CDNs must use the package’s actual browser-bundle filename');
   assert.ok(moduleCode.includes('cdn.jsdelivr.net/npm/agora-rtc-sdk-ng'), 'the browser must retry a second fallback CDN when Agora CDN is unavailable');

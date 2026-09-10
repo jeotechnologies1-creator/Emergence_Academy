@@ -385,6 +385,63 @@ svg {
   overflow-wrap: anywhere;
 }
 
+/* Keep the document as the primary scroll area. This is particularly
+   important for modules rendered after load: a nested, viewport-height panel
+   can otherwise trap the page and cut off the bottom of a long form. */
+.dashboard-shell > .flex-1,
+.dashboard-shell > .flex-1 > main,
+#dashboard-content {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Tables should scroll inside their own panel instead of widening the page.
+   The generated modules use both direct tables and wrapper elements. */
+#dashboard-content .overflow-x-auto,
+#dashboard-content .module-table-wrap,
+#dashboard-content .module-table-wrapper,
+#dashboard-content .parent-records-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+#dashboard-content table {
+  max-width: none;
+}
+
+/* A dialog must scroll on short screens as well as narrow screens. The
+   overlay owns the scroll so headings, fields, and action buttons remain
+   reachable even when the virtual keyboard is open. */
+[data-modal],
+#profile-action-modal,
+.student-admission-overlay,
+.agora-room-modal,
+.live-class-notification-modal {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+[data-modal] > div,
+#profile-action-modal > div,
+#profile-action-modal > form,
+.student-admission-dialog,
+.agora-room-dialog,
+.live-class-notification-modal > div {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Fixed toast messages need a constrained width on phones, otherwise a long
+   server response can extend off-screen. */
+#error-message,
+#success-message {
+  max-width: min(26rem, calc(100vw - 1.5rem));
+  overflow-wrap: anywhere;
+}
+
 .agora-room-modal,
 .live-class-notification-modal {
   overflow-x: hidden;
@@ -466,11 +523,42 @@ svg {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Utility classes occasionally keep action rows horizontal. Let buttons
+     wrap rather than compressing their labels or forcing page overflow. */
+  #dashboard-content .flex.items-center.justify-end,
+  #dashboard-content .flex.justify-end,
+  #dashboard-content .flex.justify-between {
+    flex-wrap: wrap;
+  }
+
+  #dashboard-content :is(input, select, textarea, button) {
+    max-width: 100%;
+  }
+
+  #error-message,
+  #success-message {
+    right: 0.75rem;
+    left: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  #success-message {
+    top: auto;
+  }
 }
 
 @media (max-height: 640px) {
   .agora-video-stage {
     min-height: 13rem;
+  }
+
+  [data-modal],
+  #profile-action-modal,
+  .student-admission-overlay,
+  .agora-room-modal,
+  .live-class-notification-modal {
+    align-items: flex-start;
   }
 }
 

@@ -39,7 +39,11 @@ class LiveClassesModule {
       body: payload
     });
     if (error || data?.error) {
-      throw new Error(data?.error || error?.message || "Unable to generate an Agora token.");
+      const message = data?.error || await API.functionErrorMessage(
+        error,
+        "Unable to generate an Agora token."
+      );
+      throw new Error(message);
     }
     if (!data?.token) {
       throw new Error("Agora token generation returned no token.");
@@ -91,11 +95,28 @@ class LiveClassesModule {
       .toLowerCase()
       .replace(/[^a-z0-9_-]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 32);
+      .slice(0, 64);
     return cleaned || "emergence-live-class";
   }
+  static agoraUid(session) {
+    // Agora numeric UIDs must fit in an unsigned 32-bit integer. Converting
+    // the digits in a UUID directly can exceed that limit and invalidate an
+    // otherwise correctly issued Edge Function token.
+    const source = String(session?.id || session?.agora_channel_name || Date.now());
+    let hash = 2166136261;
+    for (let index = 0; index < source.length; index += 1) {
+      hash ^= source.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0) || 1;
+  }
   static openAgoraRoom(session) {
-    const channel = this.sanitizeChannelName(session?.agora_channel_name || `${this.getAgoraConfig().channelPrefix}-${session?.id || session?.title || "room"}`);
+    // The server stores the authoritative channel when the class is
+    // scheduled and authorizes tokens only for that exact value. Never
+    // re-sanitize/truncate a stored value here; that made the browser send a
+    // different channel to the Edge Function and receive a 403 response.
+    const storedChannel = String(session?.agora_channel_name || "").trim();
+    const channel = storedChannel || this.sanitizeChannelName(`${this.getAgoraConfig().channelPrefix}-${session?.id || session?.title || "room"}`);
     const modal = document.createElement("div");
     modal.className = "agora-room-modal fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm";
     modal.innerHTML = `
@@ -156,7 +177,7 @@ class LiveClassesModule {
     const modal = this.openAgoraRoom(session);
     const client = window.AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
     const channel = modal.dataset.channel;
-    const uid = Number(String(session?.id || Date.now()).replace(/\D/g, "")) || 0;
+    const uid = this.agoraUid(session);
     const status = modal.querySelector("[data-agora-status]");
     status.textContent = "Fetching secure token...";
     const isTeacherHost = this.canSchedule() && String(session?.teacher_id) === String(this.state.teacher?.id);

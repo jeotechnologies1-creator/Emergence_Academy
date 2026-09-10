@@ -110,6 +110,23 @@ html {
 html,
 body {
     max-width: 100%;
+    min-height: 100%;
+}
+
+/* Avoid the mobile browser's text-size adjustment and fixed overlays causing
+   horizontal page growth. Individual tables keep their own horizontal scroll. */
+body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: clip;
+    overflow-y: auto;
+}
+
+input,
+select,
+textarea,
+button {
+    max-width: 100%;
 }
 
 .overflow-auto,
@@ -207,6 +224,13 @@ textarea:focus {
 
     h1 {
         font-size: clamp(1.25rem, 5vw, 1.6rem);
+    }
+
+    .min-h-screen.flex.items-center.justify-center.px-4.py-8 {
+        align-items: flex-start;
+        min-height: 100dvh;
+        padding-top: max(1rem, env(safe-area-inset-top));
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
     }
 }
 
