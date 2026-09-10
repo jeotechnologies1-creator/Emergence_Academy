@@ -27,7 +27,11 @@ Deno.serve(async (req) => {
     const classId = String(body.class_id || "").trim();
     const startsAt = new Date(String(body.starts_at || ""));
     const endsAt = new Date(String(body.ends_at || ""));
+    const approvedStudentIds = Array.isArray(body.approved_student_ids)
+      ? [...new Set(body.approved_student_ids.map((id) => String(id).trim()).filter(Boolean))]
+      : [];
     if (!title || !subjectId || !classId || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || startsAt <= new Date() || endsAt <= startsAt) return json({ error: "Provide a title, subject, class, and valid future start/end times." }, 400);
+    if (!approvedStudentIds.length) return json({ error: "Select at least one enrolled student for this live class." }, 400);
 
     const admin = adminClient();
     const { data: profile } = await admin.from("profiles").select("role,status").eq("id", user.id).maybeSingle();
@@ -45,12 +49,13 @@ Deno.serve(async (req) => {
       if (!teacherId) return json({ error: "Select the teacher assigned to this class." }, 400);
     } else return json({ error: "Only an assigned teacher or administrator can schedule live classes." }, 403);
 
-    const { data: eligibleStudents, error: studentsError } = await admin
+    const { data: approvedStudents, error: studentsError } = await admin
       .from("students")
       .select("id,profile_id")
-      .eq("class_id", classId);
+      .eq("class_id", classId)
+      .in("id", approvedStudentIds);
     if (studentsError) throw studentsError;
-    if (!eligibleStudents?.length) return json({ error: "The selected class has no enrolled students to notify." }, 400);
+    if (!approvedStudents?.length || approvedStudents.length !== approvedStudentIds.length) return json({ error: "Every selected student must be enrolled in the selected class." }, 400);
 
     const roomName = makeAgoraRoomName(title, classId, subjectId);
     const roomUrl = makeAgoraRoomUrl(roomName);
@@ -61,7 +66,7 @@ Deno.serve(async (req) => {
     }).select("id,title,subject_id,class_id,teacher_id,starts_at,ends_at,status,created_at").single();
     if (error) throw error;
     const { error: approvalError } = await admin.from("live_class_students").insert(
-      eligibleStudents.map((student) => ({
+      approvedStudents.map((student) => ({
         live_class_id: liveClass.id,
         student_id: student.id,
         approved_by: user.id,
@@ -72,7 +77,7 @@ Deno.serve(async (req) => {
       throw approvalError;
     }
     const startsAtLabel = startsAt.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
-    const notificationRows = eligibleStudents
+    const notificationRows = approvedStudents
       .filter((student) => student.profile_id)
       .map((student) => ({
         user_id: student.profile_id,

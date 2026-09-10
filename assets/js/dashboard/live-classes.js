@@ -48,26 +48,42 @@ class LiveClassesModule {
   }
   static async ensureAgoraSDK() {
     if (window.AgoraRTC) return;
-    if (document.querySelector("script[data-agora-sdk='true']")) {
-      await new Promise((resolve) => {
-        const poll = setInterval(() => {
-          if (window.AgoraRTC) {
-            clearInterval(poll);
-            resolve();
-          }
-        }, 150);
-      });
-      return;
+    const existing = document.querySelector("script[data-agora-sdk='true']");
+    if (existing) existing.remove();
+    const sources = [
+      "https://download.agora.io/sdk/release/AgoraRTC_N-4.24.8.js",
+      "https://unpkg.com/agora-rtc-sdk-ng@4.24.8/AgoraRTC_N-4.24.8.js"
+    ];
+    let lastError = null;
+    for (const source of sources) {
+      try {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          const timeout = window.setTimeout(() => {
+            script.remove();
+            reject(new Error(`Timed out loading ${source}`));
+          }, 15000);
+          script.src = source;
+          script.async = true;
+          script.crossOrigin = "anonymous";
+          script.dataset.agoraSdk = "true";
+          script.onload = () => {
+            window.clearTimeout(timeout);
+            window.AgoraRTC ? resolve() : reject(new Error(`AgoraRTC was not exposed by ${source}`));
+          };
+          script.onerror = () => {
+            window.clearTimeout(timeout);
+            script.remove();
+            reject(new Error(`Unable to load ${source}`));
+          };
+          document.head.appendChild(script);
+        });
+        return;
+      } catch (error) {
+        lastError = error;
+      }
     }
-    await new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://download.agora.io/sdk/release/AgoraRTC_N-4.21.3.js";
-      script.async = true;
-      script.dataset.agoraSdk = "true";
-      script.onload = resolve;
-      script.onerror = () => reject(new Error("Unable to load the Agora Web SDK."));
-      document.head.appendChild(script);
-    });
+    throw new Error(`Unable to load the Agora Web SDK. Check that this network permits download.agora.io or unpkg.com, then retry. ${lastError?.message || ""}`.trim());
   }
   static sanitizeChannelName(value) {
     const cleaned = String(value || "")
@@ -205,7 +221,13 @@ class LiveClassesModule {
         .map((assignment) => String(assignment.class_id));
       return `<option value="${this.safe(subject.id)}" data-class-ids="${this.safe(assignedClassIds.join(","))}" disabled>${this.safe(subject.subject_name)}</option>`;
     }).join("");
-    return `<section class="rounded-xl bg-white p-5 shadow"><h3 class="text-xl font-bold text-slate-800">Schedule an Agora live class</h3>${disabled ? '<p class="mt-2 text-sm text-amber-700">You need an administrator assignment for a subject and class before scheduling.</p>' : ""}<form id="live-class-form" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2"><label><span class="text-sm">Class *</span><select required name="class_id" id="live-class-id" class="mt-1 w-full rounded-lg border p-2.5"><option value="">Select class</option>${classes.map((row) => `<option value="${this.safe(row.id)}">${this.safe(row.class_name)}</option>`).join("")}</select></label><label><span class="text-sm">Subject *</span><select required name="subject_id" id="live-subject-id" disabled class="mt-1 w-full rounded-lg border p-2.5 disabled:bg-slate-100"><option value="">Select a class first</option>${subjectOptions}</select></label><label class="md:col-span-2"><span class="text-sm">Class title *</span><input required name="title" class="mt-1 w-full rounded-lg border p-2.5" placeholder="Introduction to Algebra"></label><label class="md:col-span-2"><span class="text-sm">Description</span><textarea name="description" rows="2" class="mt-1 w-full rounded-lg border p-2.5"></textarea></label><label><span class="text-sm">Start time *</span><input required name="starts_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><label><span class="text-sm">End time *</span><input required name="ends_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><p class="md:col-span-2 rounded-lg bg-cyan-50 p-3 text-sm text-cyan-900">Every student enrolled in the selected class will be notified and can join this Agora session.</p><div id="live-class-error" class="hidden md:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"></div><div class="md:col-span-2"><button ${disabled ? "disabled" : ""} class="rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white disabled:opacity-50">Schedule Agora Class</button></div></form></section>`;
+    const students = this.state.students.map((student) => {
+      const name = `${student.profiles?.first_name || ""} ${student.profiles?.last_name || ""}`.trim() || student.profiles?.email || "Student";
+      const studentNumber = String(student.student_no || student.admission_number || "").trim();
+      const label = studentNumber ? `${name} (${studentNumber})` : name;
+      return `<label data-approved-student data-class-id="${this.safe(student.class_id)}" class="hidden items-center gap-2 rounded border p-2 text-sm"><input disabled type="checkbox" name="approved_student_ids" value="${this.safe(student.id)}"><span>${this.safe(label)}</span></label>`;
+    }).join("") || '<p class="text-sm text-slate-500">No students are enrolled in your assigned classes.</p>';
+    return `<section class="rounded-xl bg-white p-5 shadow"><h3 class="text-xl font-bold text-slate-800">Schedule an Agora live class</h3>${disabled ? '<p class="mt-2 text-sm text-amber-700">You need an administrator assignment for a subject and class before scheduling.</p>' : ""}<form id="live-class-form" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2"><label><span class="text-sm">Class *</span><select required name="class_id" id="live-class-id" class="mt-1 w-full rounded-lg border p-2.5"><option value="">Select class</option>${classes.map((row) => `<option value="${this.safe(row.id)}">${this.safe(row.class_name)}</option>`).join("")}</select></label><label><span class="text-sm">Subject *</span><select required name="subject_id" id="live-subject-id" disabled class="mt-1 w-full rounded-lg border p-2.5 disabled:bg-slate-100"><option value="">Select a class first</option>${subjectOptions}</select></label><label class="md:col-span-2"><span class="text-sm">Class title *</span><input required name="title" class="mt-1 w-full rounded-lg border p-2.5" placeholder="Introduction to Algebra"></label><label class="md:col-span-2"><span class="text-sm">Description</span><textarea name="description" rows="2" class="mt-1 w-full rounded-lg border p-2.5"></textarea></label><label><span class="text-sm">Start time *</span><input required name="starts_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><label><span class="text-sm">End time *</span><input required name="ends_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><fieldset class="md:col-span-2"><div class="flex items-center justify-between gap-3"><legend class="text-sm font-medium">Students for this live class *</legend><label class="text-sm font-medium text-cyan-700"><input disabled data-select-all-students type="checkbox"> Select all in class</label></div><p class="mb-2 text-xs text-slate-500">Select enrolled students who may receive the notification, join this Agora class, and be marked present.</p><div id="approved-students" class="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">${students}</div></fieldset><div id="live-class-error" class="hidden md:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"></div><div class="md:col-span-2"><button ${disabled ? "disabled" : ""} class="rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white disabled:opacity-50">Schedule Agora Class</button></div></form></section>`;
   }
   static card(session) {
     const status = String(session.status || "upcoming").toLowerCase(), teacherControls = this.canSchedule() && String(session.teacher_id) === String(this.state.teacher?.id);
@@ -224,6 +246,22 @@ class LiveClassesModule {
     const form = this.state.container.querySelector("#live-class-form");
     const classSelect = this.state.container.querySelector("#live-class-id");
     const subjectSelect = this.state.container.querySelector("#live-subject-id");
+    const selectAll = this.state.container.querySelector("[data-select-all-students]");
+    const updateEligibleStudents = () => {
+      const classId = String(classSelect?.value || "");
+      const subjectId = String(subjectSelect?.value || "");
+      let eligibleCount = 0;
+      this.state.container.querySelectorAll("[data-approved-student]").forEach((label) => {
+        const allowed = Boolean(classId && subjectId) && String(label.dataset.classId) === classId;
+        const input = label.querySelector("input");
+        label.classList.toggle("hidden", !allowed);
+        input.disabled = !allowed;
+        if (!allowed) input.checked = false;
+        if (allowed) eligibleCount += 1;
+      });
+      selectAll.disabled = eligibleCount === 0;
+      if (!eligibleCount) selectAll.checked = false;
+    };
     classSelect?.addEventListener("change", () => {
       const classId = String(classSelect.value || "");
       subjectSelect.disabled = !classId;
@@ -234,16 +272,23 @@ class LiveClassesModule {
         if (!allowed && option.selected) subjectSelect.value = "";
       });
       subjectSelect.querySelector("option[value='']").textContent = classId ? "Select subject" : "Select a class first";
+      updateEligibleStudents();
+    });
+    subjectSelect?.addEventListener("change", updateEligibleStudents);
+    selectAll?.addEventListener("change", () => {
+      this.state.container.querySelectorAll("[data-approved-student] input:not(:disabled)").forEach((input) => { input.checked = selectAll.checked; });
     });
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const errorBox = this.state.container.querySelector("#live-class-error");
       const data = new FormData(event.currentTarget);
+      const approvedStudentIds = data.getAll("approved_student_ids");
       try {
+        if (!approvedStudentIds.length) throw new Error("Select at least one enrolled student.");
         const startsAt = new Date(String(data.get("starts_at") || ""));
         const endsAt = new Date(String(data.get("ends_at") || ""));
         if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) throw new Error("Enter valid start and end times.");
-        const result = await API.db.functions.invoke("schedule-live-class", { body: { ...Object.fromEntries(data), starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString() } });
+        const result = await API.db.functions.invoke("schedule-live-class", { body: { ...Object.fromEntries(data), starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), approved_student_ids: approvedStudentIds } });
         if (result.error || result.data?.error) {
           const message = result.data?.error || await API.functionErrorMessage(
             result.error,
