@@ -1,6 +1,7 @@
 /* Agora live classes. Session access is authorized by the Edge Function before joining. */
 class LiveClassesModule {
   static state = { container: null, profile: null, teacher: null, subjects: [], classes: [], assignments: [], students: [], sessions: [] };
+  static liveNotificationTimer = null;
   static safe(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
   static role() { return String(this.state.profile?.role || "").toLowerCase(); }
   static canSchedule() { return this.role() === "teacher"; }
@@ -18,6 +19,7 @@ class LiveClassesModule {
     this.state.subjects = options.data?.subjects || []; this.state.classes = options.data?.classes || [];
     this.state.assignments = options.data?.assignments || []; this.state.students = options.data?.students || [];
     this.state.sessions = (result.data || []).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+    this.watchStudentLiveClassNotifications();
   }
   static assignmentSubjects() { const ids = new Set(this.state.assignments.filter((row) => String(row.teacher_id) === String(this.state.teacher?.id)).map((row) => String(row.subject_id))); return this.state.subjects.filter((row) => ids.has(String(row.id))); }
   static assignmentClasses() { const ids = new Set(this.state.assignments.filter((row) => String(row.teacher_id) === String(this.state.teacher?.id)).map((row) => String(row.class_id))); return this.state.classes.filter((row) => ids.has(String(row.id))); }
@@ -76,7 +78,7 @@ class LiveClassesModule {
     return cleaned || "emergence-live-class";
   }
   static openAgoraRoom(session) {
-    const channel = this.sanitizeChannelName(`${this.getAgoraConfig().channelPrefix}-${session?.id || session?.title || "room"}`);
+    const channel = this.sanitizeChannelName(session?.agora_channel_name || `${this.getAgoraConfig().channelPrefix}-${session?.id || session?.title || "room"}`);
     const modal = document.createElement("div");
     modal.className = "fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm";
     modal.innerHTML = `
@@ -203,13 +205,7 @@ class LiveClassesModule {
         .map((assignment) => String(assignment.class_id));
       return `<option value="${this.safe(subject.id)}" data-class-ids="${this.safe(assignedClassIds.join(","))}" disabled>${this.safe(subject.subject_name)}</option>`;
     }).join("");
-    const students = this.state.students.map((student) => {
-      const name = `${student.profiles?.first_name || ""} ${student.profiles?.last_name || ""}`.trim() || student.profiles?.email || "Student";
-      const studentNumber = String(student.student_no || student.admission_number || "").trim();
-      const label = studentNumber ? `${name} (${studentNumber})` : name;
-      return `<label data-approved-student data-class-id="${this.safe(student.class_id)}" class="hidden items-center gap-2 rounded border p-2 text-sm"><input disabled type="checkbox" name="approved_student_ids" value="${this.safe(student.id)}"><span>${this.safe(label)}</span></label>`;
-    }).join("") || '<p class="text-sm text-slate-500">No students are enrolled in your assigned classes.</p>';
-    return `<section class="rounded-xl bg-white p-5 shadow"><h3 class="text-xl font-bold text-slate-800">Schedule an Agora live class</h3>${disabled ? '<p class="mt-2 text-sm text-amber-700">You need an administrator assignment for a subject and class before scheduling.</p>' : ""}<form id="live-class-form" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2"><label><span class="text-sm">Class *</span><select required name="class_id" id="live-class-id" class="mt-1 w-full rounded-lg border p-2.5"><option value="">Select class</option>${classes.map((row) => `<option value="${this.safe(row.id)}">${this.safe(row.class_name)}</option>`).join("")}</select></label><label><span class="text-sm">Subject *</span><select required name="subject_id" id="live-subject-id" disabled class="mt-1 w-full rounded-lg border p-2.5 disabled:bg-slate-100"><option value="">Select a class first</option>${subjectOptions}</select></label><label class="md:col-span-2"><span class="text-sm">Class title *</span><input required name="title" class="mt-1 w-full rounded-lg border p-2.5" placeholder="Introduction to Algebra"></label><label class="md:col-span-2"><span class="text-sm">Description</span><textarea name="description" rows="2" class="mt-1 w-full rounded-lg border p-2.5"></textarea></label><label><span class="text-sm">Start time *</span><input required name="starts_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><label><span class="text-sm">End time *</span><input required name="ends_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><fieldset class="md:col-span-2"><legend class="text-sm font-medium">Students approved for this live class *</legend><p class="mb-2 text-xs text-slate-500">Choose students enrolled in the selected class. Only they can join this session.</p><div id="approved-students" class="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">${students}</div></fieldset><div id="live-class-error" class="hidden md:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"></div><div class="md:col-span-2"><button ${disabled ? "disabled" : ""} class="rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white disabled:opacity-50">Schedule & Open Google Meet</button></div></form></section>`;
+    return `<section class="rounded-xl bg-white p-5 shadow"><h3 class="text-xl font-bold text-slate-800">Schedule an Agora live class</h3>${disabled ? '<p class="mt-2 text-sm text-amber-700">You need an administrator assignment for a subject and class before scheduling.</p>' : ""}<form id="live-class-form" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2"><label><span class="text-sm">Class *</span><select required name="class_id" id="live-class-id" class="mt-1 w-full rounded-lg border p-2.5"><option value="">Select class</option>${classes.map((row) => `<option value="${this.safe(row.id)}">${this.safe(row.class_name)}</option>`).join("")}</select></label><label><span class="text-sm">Subject *</span><select required name="subject_id" id="live-subject-id" disabled class="mt-1 w-full rounded-lg border p-2.5 disabled:bg-slate-100"><option value="">Select a class first</option>${subjectOptions}</select></label><label class="md:col-span-2"><span class="text-sm">Class title *</span><input required name="title" class="mt-1 w-full rounded-lg border p-2.5" placeholder="Introduction to Algebra"></label><label class="md:col-span-2"><span class="text-sm">Description</span><textarea name="description" rows="2" class="mt-1 w-full rounded-lg border p-2.5"></textarea></label><label><span class="text-sm">Start time *</span><input required name="starts_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><label><span class="text-sm">End time *</span><input required name="ends_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><p class="md:col-span-2 rounded-lg bg-cyan-50 p-3 text-sm text-cyan-900">Every student enrolled in the selected class will be notified and can join this Agora session.</p><div id="live-class-error" class="hidden md:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"></div><div class="md:col-span-2"><button ${disabled ? "disabled" : ""} class="rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white disabled:opacity-50">Schedule Agora Class</button></div></form></section>`;
   }
   static card(session) {
     const status = String(session.status || "upcoming").toLowerCase(), teacherControls = this.canSchedule() && String(session.teacher_id) === String(this.state.teacher?.id);
@@ -228,16 +224,6 @@ class LiveClassesModule {
     const form = this.state.container.querySelector("#live-class-form");
     const classSelect = this.state.container.querySelector("#live-class-id");
     const subjectSelect = this.state.container.querySelector("#live-subject-id");
-    const updateEligibleStudents = () => {
-      const classId = String(classSelect?.value || "");
-      const subjectId = String(subjectSelect?.value || "");
-      this.state.container.querySelectorAll("[data-approved-student]").forEach((label) => {
-        const allowed = Boolean(classId && subjectId) && String(label.dataset.classId) === classId;
-        label.classList.toggle("hidden", !allowed);
-        label.querySelector("input").disabled = !allowed;
-        if (!allowed) label.querySelector("input").checked = false;
-      });
-    };
     classSelect?.addEventListener("change", () => {
       const classId = String(classSelect.value || "");
       subjectSelect.disabled = !classId;
@@ -248,20 +234,16 @@ class LiveClassesModule {
         if (!allowed && option.selected) subjectSelect.value = "";
       });
       subjectSelect.querySelector("option[value='']").textContent = classId ? "Select subject" : "Select a class first";
-      updateEligibleStudents();
     });
-    subjectSelect?.addEventListener("change", updateEligibleStudents);
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const errorBox = this.state.container.querySelector("#live-class-error");
       const data = new FormData(event.currentTarget);
-      const approvedStudentIds = data.getAll("approved_student_ids");
       try {
-        if (!approvedStudentIds.length) throw new Error("Select at least one approved student.");
         const startsAt = new Date(String(data.get("starts_at") || ""));
         const endsAt = new Date(String(data.get("ends_at") || ""));
         if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) throw new Error("Enter valid start and end times.");
-        const result = await API.db.functions.invoke("schedule-live-class", { body: { ...Object.fromEntries(data), starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), approved_student_ids: approvedStudentIds } });
+        const result = await API.db.functions.invoke("schedule-live-class", { body: { ...Object.fromEntries(data), starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString() } });
         if (result.error || result.data?.error) {
           const message = result.data?.error || await API.functionErrorMessage(
             result.error,
@@ -278,5 +260,49 @@ class LiveClassesModule {
     });
     this.state.container.querySelectorAll("[data-live-action]").forEach((button) => button.addEventListener("click", async () => { try { const action = button.dataset.liveAction, id = button.dataset.id; const session = this.state.sessions.find((item) => String(item.id) === String(id)); if (!session) throw new Error("Live class session was not found."); if (action === "join") { const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: id } }); if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message); await this.connectAgoraRoom(session); return; } const status = action === "start" ? "live" : action === "end" ? "ended" : "cancelled"; const { error } = await API.db.rpc("set_live_class_status", { p_live_class_id: id, p_status: status }); if (error) throw error; if (action === "start") { const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: id } }); if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message); await this.connectAgoraRoom(session); } await this.render(this.state.container); } catch (error) { window.Utils?.error?.(error.message || "Unable to update the class.") || window.alert(error.message); } }));
   }
+  static notificationKey(id) { return `emergence_live_class_popup_${id}`; }
+  static async joinFromNotification(liveClassId) {
+    await this.load();
+    const session = this.state.sessions.find((item) => String(item.id) === String(liveClassId));
+    if (!session) throw new Error("This live class is no longer available.");
+    const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: liveClassId } });
+    if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message || "Unable to join the live class.");
+    return this.connectAgoraRoom(session);
+  }
+  static async showLiveClassNotifications() {
+    if (this.role() !== "student" || !window.API?.notifications?.inbox) return;
+    const notifications = await window.API.notifications.inbox(20);
+    for (const notification of notifications) {
+      const match = String(notification.message || "").match(/\[live-class:([a-f0-9-]{36})\]/i);
+      if (!match || sessionStorage.getItem(this.notificationKey(notification.id))) continue;
+      sessionStorage.setItem(this.notificationKey(notification.id), "shown");
+      const liveClassId = match[1];
+      const modal = document.createElement("div");
+      modal.className = "fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4";
+      modal.innerHTML = `<div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><p class="text-xs font-bold uppercase tracking-[.18em] text-cyan-700">Agora live class</p><h3 class="mt-2 text-xl font-bold text-slate-900">${this.safe(notification.title || "A live class was scheduled")}</h3><p class="mt-3 text-sm leading-6 text-slate-600">${this.safe(String(notification.message || "").replace(/\s*\[live-class:[^\]]+\]/i, ""))}</p><div class="mt-6 flex justify-end gap-3"><button data-live-popup-close class="rounded-lg border px-4 py-2 text-sm font-medium">Later</button><button data-live-popup-join class="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white">Join live class</button></div></div>`;
+      modal.querySelector("[data-live-popup-close]")?.addEventListener("click", () => modal.remove());
+      modal.querySelector("[data-live-popup-join]")?.addEventListener("click", async () => {
+        try { await this.joinFromNotification(liveClassId); modal.remove(); }
+        catch (error) { window.Utils?.error?.(error.message || "This class has not started yet.") || window.alert(error.message || "This class has not started yet."); }
+      });
+      document.body.appendChild(modal);
+    }
+  }
+  static watchStudentLiveClassNotifications() {
+    if (this.role() !== "student" || this.liveNotificationTimer) return;
+    this.showLiveClassNotifications().catch((error) => console.error("Unable to check live-class notifications:", error));
+    this.liveNotificationTimer = window.setInterval(() => this.showLiveClassNotifications().catch((error) => console.error("Unable to check live-class notifications:", error)), 15000);
+  }
+  static async startLiveClassNotifications() {
+    try {
+      const profile = await Auth.profile(true);
+      if (!profile || String(profile.role || "").toLowerCase() !== "student") return;
+      this.state.profile = profile;
+      this.watchStudentLiveClassNotifications();
+    } catch (error) {
+      console.error("Unable to start live-class notifications:", error);
+    }
+  }
 }
 window.LiveClassesModule = LiveClassesModule;
+document.addEventListener("DOMContentLoaded", () => LiveClassesModule.startLiveClassNotifications());

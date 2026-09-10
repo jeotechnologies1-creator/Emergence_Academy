@@ -88,7 +88,7 @@ const DEFAULT_CONFIG = {
       // Insert your Agora Project App ID here.
       // The token is generated securely on the server and fetched at runtime.
       // You can also set window.AGORA_APP_ID directly.
-      APP_ID: "",
+      APP_ID: "379e5f047a3e4bed996efce41f3b8006",
       CHANNEL_PREFIX: "emergence-live-class"
    },
    STATUS: {

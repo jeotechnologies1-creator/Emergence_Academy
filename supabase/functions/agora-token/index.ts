@@ -1,5 +1,5 @@
 import { adminClient, caller, corsHeaders, json, normalizedRole } from "../_shared/live-class.ts";
-import { RtcTokenBuilder, RtcRole } from "npm:agora-access-token@2.8.0";
+import { RtcTokenBuilder, RtcRole } from "npm:agora-token@2.0.6";
 
 function roleForToken(profileRole: unknown) {
   const role = normalizedRole(profileRole);

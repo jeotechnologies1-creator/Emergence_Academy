@@ -4,10 +4,6 @@
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check:syntax": "node tests/check-syntax.js",
-    "google:oauth": "node tools/google-oauth.js"
-  },
-  "dependencies": {
-    "googleapis": "^174.0.1"
+    "check:syntax": "node tests/check-syntax.js"
   }
 }

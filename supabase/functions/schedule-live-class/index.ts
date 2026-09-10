@@ -27,11 +27,7 @@ Deno.serve(async (req) => {
     const classId = String(body.class_id || "").trim();
     const startsAt = new Date(String(body.starts_at || ""));
     const endsAt = new Date(String(body.ends_at || ""));
-    const approvedStudentIds = Array.isArray(body.approved_student_ids)
-      ? [...new Set(body.approved_student_ids.map((id) => String(id).trim()).filter(Boolean))]
-      : [];
     if (!title || !subjectId || !classId || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || startsAt <= new Date() || endsAt <= startsAt) return json({ error: "Provide a title, subject, class, and valid future start/end times." }, 400);
-    if (!approvedStudentIds.length) return json({ error: "Approve at least one enrolled student for this live class." }, 400);
 
     const admin = adminClient();
     const { data: profile } = await admin.from("profiles").select("role,status").eq("id", user.id).maybeSingle();
@@ -51,33 +47,45 @@ Deno.serve(async (req) => {
 
     const { data: eligibleStudents, error: studentsError } = await admin
       .from("students")
-      .select("id")
-      .eq("class_id", classId)
-      .in("id", approvedStudentIds);
+      .select("id,profile_id")
+      .eq("class_id", classId);
     if (studentsError) throw studentsError;
-    const eligibleIds = new Set((eligibleStudents || []).map((student) => String(student.id)));
-    if (eligibleIds.size !== approvedStudentIds.length) {
-      return json({ error: "Every approved student must belong to the selected class." }, 400);
-    }
+    if (!eligibleStudents?.length) return json({ error: "The selected class has no enrolled students to notify." }, 400);
 
     const roomName = makeAgoraRoomName(title, classId, subjectId);
     const roomUrl = makeAgoraRoomUrl(roomName);
     const { data: liveClass, error } = await admin.from("live_classes").insert({
       title, description: description || null, subject_id: subjectId, class_id: classId, teacher_id: teacherId,
       starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), duration_minutes: Math.round((endsAt.getTime() - startsAt.getTime()) / 60000),
-      meeting_url: roomUrl, google_event_id: null, status: "scheduled",
+      meeting_url: roomUrl, agora_channel_name: roomName, status: "scheduled",
     }).select("id,title,subject_id,class_id,teacher_id,starts_at,ends_at,status,created_at").single();
     if (error) throw error;
     const { error: approvalError } = await admin.from("live_class_students").insert(
-      approvedStudentIds.map((studentId) => ({
+      eligibleStudents.map((student) => ({
         live_class_id: liveClass.id,
-        student_id: studentId,
+        student_id: student.id,
         approved_by: user.id,
       })),
     );
     if (approvalError) {
       await admin.from("live_classes").delete().eq("id", liveClass.id);
       throw approvalError;
+    }
+    const startsAtLabel = startsAt.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
+    const notificationRows = eligibleStudents
+      .filter((student) => student.profile_id)
+      .map((student) => ({
+        user_id: student.profile_id,
+        target_role: "student",
+        title: `Live class scheduled: ${title}`,
+        message: `${title} is scheduled for ${startsAtLabel}. Select Join live class when the teacher starts the Agora session. [live-class:${liveClass.id}]`,
+      }));
+    if (notificationRows.length) {
+      const { error: notificationError } = await admin.from("notifications").insert(notificationRows);
+      if (notificationError) {
+        await admin.from("live_classes").delete().eq("id", liveClass.id);
+        throw notificationError;
+      }
     }
     return json({ success: true, live_class: liveClass, meeting_url: roomUrl, channel_name: roomName });
   } catch (error) {

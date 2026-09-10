@@ -120,12 +120,6 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (!approval) return json({ error: "You have not been approved for this live class." }, 403);
 
-      await recordStudentAttendanceOnJoin(admin, {
-        studentId: String(student.id),
-        classId: String(liveClass.class_id),
-        subjectId: String(liveClass.subject_id),
-        liveClassId: String(liveClass.id),
-      });
     } else if (role === "teacher") {
       const { data: teacher } = await admin.from("teachers").select("id").eq("profile_id", user.id).maybeSingle();
       if (String(teacher?.id) !== String(liveClass.teacher_id)) return json({ error: "You cannot join another teacher's class." }, 403);
@@ -134,6 +128,16 @@ Deno.serve(async (req) => {
     if (status === "upcoming") return json({ error: "This class has not started yet." }, 409);
     if (status === "ended" || status === "cancelled") return json({ error: status === "ended" ? "This live class has ended." : "This live class was cancelled." }, 409);
     if (!liveClass.meeting_url) return json({ error: "The Agora room is currently unavailable." }, 409);
+    if (role === "student") {
+      const { data: student } = await admin.from("students").select("id").eq("profile_id", user.id).maybeSingle();
+      if (!student) return json({ error: "Your student record could not be found." }, 403);
+      await recordStudentAttendanceOnJoin(admin, {
+        studentId: String(student.id),
+        classId: String(liveClass.class_id),
+        subjectId: String(liveClass.subject_id),
+        liveClassId: String(liveClass.id),
+      });
+    }
     return json({ success: true, meeting_url: liveClass.meeting_url });
   } catch (error) {
     console.error("join-live-class failed", error);

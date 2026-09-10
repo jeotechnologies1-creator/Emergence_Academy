@@ -54,14 +54,16 @@ node --test tests/*.js
 
 All current tests pass after the latest stabilization pass.
 
-## Google Meet live classes
+## Agora live classes
 
 Apply the Supabase migrations, then deploy `live-class-options`,
-`schedule-live-class`, and `join-live-class`. Configure these Edge Function secrets in Supabase (never in
-browser JavaScript): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and
-`GOOGLE_REFRESH_TOKEN`. The refresh token must belong to the Google Calendar
-account that should host the Meet events and have Calendar event/conference
-creation access.
+`schedule-live-class`, `join-live-class`, `agora-create-room`, and
+`agora-join-room`. Configure `AGORA_APP_ID` and `AGORA_APP_CERTIFICATE` as
+Supabase Edge Function secrets. Put only the App ID in
+`assets/js/config.js` under `CONFIG.AGORA.APP_ID`; never expose the App
+Certificate in browser code. Scheduling a class automatically authorizes and
+notifies every student enrolled in its selected class. A student's first join
+of a live session records attendance as present.
 
 ## AI Assistant
 

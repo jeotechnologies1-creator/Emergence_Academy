@@ -1,5 +1,5 @@
 import { caller, corsHeaders, json, normalizedRole } from "../_shared/live-class.ts";
-import { RtcTokenBuilder, RtcRole } from "npm:agora-access-token@2.8.0";
+import { RtcTokenBuilder, RtcRole } from "npm:agora-token@2.0.6";
 import { validateAgoraLiveClassAccess } from "../_shared/agora-access.ts";
 
 Deno.serve(async (req) => {

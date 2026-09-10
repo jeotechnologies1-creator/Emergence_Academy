@@ -1,5 +1,5 @@
 import { caller, corsHeaders, json } from "../_shared/live-class.ts";
-import { RtcTokenBuilder, RtcRole } from "npm:agora-access-token@2.8.0";
+import { RtcTokenBuilder, RtcRole } from "npm:agora-token@2.0.6";
 import { adminClient } from "../_shared/live-class.ts";
 
 Deno.serve(async (req) => {
@@ -27,12 +27,13 @@ Deno.serve(async (req) => {
     const admin = adminClient();
     const [{ data: profile, error: profileError }, { data: liveClass, error: liveClassError }] = await Promise.all([
       admin.from("profiles").select("role").eq("id", user.id).maybeSingle(),
-      admin.from("live_classes").select("id,teacher_id").eq("id", liveClassId).maybeSingle(),
+      admin.from("live_classes").select("id,teacher_id,agora_channel_name").eq("id", liveClassId).maybeSingle(),
     ]);
 
     if (profileError) throw profileError;
     if (liveClassError) throw liveClassError;
     if (!liveClass) return json({ error: "Live class was not found." }, 404);
+    if (channelName !== String(liveClass.agora_channel_name || "")) return json({ error: "Invalid Agora channel for this live class." }, 403);
 
     const role = String(profile?.role || "").trim().toLowerCase();
     const isTeacher = ["teacher", "admin", "ceo", "executive"].includes(role);
