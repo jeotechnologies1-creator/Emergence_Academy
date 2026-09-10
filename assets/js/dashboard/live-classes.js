@@ -272,6 +272,7 @@ class LiveClassesModule {
   static async showLiveClassNotifications() {
     if (this.role() !== "student" || !window.API?.notifications?.inbox) return;
     const notifications = await window.API.notifications.inbox(20);
+    window.NotificationBell?.updateDashboardNotificationCount?.();
     for (const notification of notifications) {
       const match = String(notification.message || "").match(/\[live-class:([a-f0-9-]{36})\]/i);
       if (!match || sessionStorage.getItem(this.notificationKey(notification.id))) continue;

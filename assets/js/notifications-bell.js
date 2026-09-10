@@ -3,6 +3,14 @@
 
     let forceZeroUntil = 0;
 
+    function setBadgeCount(total) {
+        const count = Number(total || 0);
+        document.querySelectorAll("[data-notification-count]").forEach((badge) => {
+            badge.textContent = String(count);
+            badge.classList.toggle("hidden", count <= 0);
+        });
+    }
+
     function setActiveNotificationsNav() {
         document
             .querySelectorAll("[data-route]")
@@ -59,10 +67,7 @@
                 total = 0;
             }
 
-            document.querySelectorAll("[data-notification-count]").forEach((badge) => {
-                badge.textContent = String(total);
-                badge.classList.toggle("hidden", total <= 0);
-            });
+            setBadgeCount(total);
         } catch (error) {
             console.error("[Notifications] Unable to update notification count:", error);
         }
@@ -88,6 +93,9 @@
             }
 
             forceZeroUntil = Date.now() + 1200;
+            // Give immediate feedback when the inbox opens; the server write
+            // below persists that read state across the student's devices.
+            setBadgeCount(0);
             await window.API.notifications.markInboxViewed();
             await updateDashboardNotificationCount();
         } catch (error) {
@@ -101,7 +109,7 @@
 
         window.setInterval(() => {
             updateDashboardNotificationCount();
-        }, 30000);
+        }, 15000);
 
         if (window.location.hash.replace("#", "") === "notifications") {
             markNotificationsViewed();

@@ -6,6 +6,7 @@ const path = require('path');
   const root = path.join(__dirname, '..');
   const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
   const moduleCode = read('assets', 'js', 'dashboard', 'live-classes.js');
+  const config = read('assets', 'js', 'config.js');
   const schedule = read('supabase', 'functions', 'schedule-live-class', 'index.ts');
   const join = read('supabase', 'functions', 'join-live-class', 'index.ts');
   const options = read('supabase', 'functions', 'live-class-options', 'index.ts');
@@ -14,6 +15,7 @@ const path = require('path');
   const attendanceMigration = read('supabase', 'migrations', '202609010002_add_live_class_attendance_columns.sql');
 
   assert.ok(schedule.includes('makeAgoraRoomName'), 'scheduling must create a server-side Agora channel name');
+  assert.match(config, /APP_ID:\s*"[a-f0-9]{32}"/i, 'the browser must have a valid public Agora App ID');
   assert.ok(schedule.includes('meeting_url: roomUrl'), 'scheduling must store the Agora room URL in the live class record');
   assert.ok(!schedule.includes('oauth2.googleapis.com/token'), 'scheduling must no longer rely on Google Calendar OAuth');
   assert.ok(schedule.includes('teacher_subjects'), 'server must verify teacher assignment');
