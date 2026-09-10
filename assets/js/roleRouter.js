@@ -32,13 +32,13 @@ const RoleRouter = {
             title: "CEO Office",
             subtitle: "Strategic leadership, institution-wide insights, and controls.",
             defaultRoute: "dashboard",
-            modules: ["dashboard", "profiles", "subjects", "students", "teachers", "parents", "attendance", "assignments", "live-classes", "grades", "finance", "reports", "notifications", "ai"]
+            modules: ["dashboard", "profiles", "subjects", "students", "teachers", "parents", "attendance", "assignments", "live-classes", "grades", "finance", "reports", "notifications", "ai", "settings"]
         },
         admin: {
             title: "Admin Office",
             subtitle: "School operations, records, and full module administration.",
             defaultRoute: "dashboard",
-            modules: ["dashboard", "profiles", "subjects", "students", "teachers", "parents", "attendance", "assignments", "live-classes", "grades", "finance", "reports", "notifications", "ai"]
+            modules: ["dashboard", "profiles", "subjects", "students", "teachers", "parents", "attendance", "assignments", "live-classes", "grades", "finance", "reports", "notifications", "ai", "settings"]
         },
         executive: {
             title: "Executive Office",

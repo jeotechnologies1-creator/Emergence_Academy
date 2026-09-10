@@ -59,6 +59,26 @@ body {
     box-shadow: 0 14px 28px rgba(30, 64, 175, 0.35);
 }
 
+.skip-link {
+    position: fixed;
+    z-index: 9999;
+    top: 0.75rem;
+    left: 0.75rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: 0.5rem;
+    color: #ffffff;
+    background: #1e40af;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+    transform: translateY(-150%);
+    transition: transform 0.15s ease;
+}
+
+.skip-link:focus {
+    transform: translateY(0);
+    outline: 3px solid #fbbf24;
+    outline-offset: 2px;
+}
+
 .fade-in {
     animation: fadeIn .35s ease-out;
 }

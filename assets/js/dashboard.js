@@ -229,8 +229,17 @@
                 ai:
                     window.AIModule,
 
-                settings:
-                    window.StudentSettingsModule
+                settings: {
+                    async render(container) {
+                        const profile = await Auth.profile(true);
+                        const role = String(profile?.role || "").toLowerCase();
+                        const module = ["admin", "ceo"].includes(role)
+                            ? window.AdminSettingsModule
+                            : window.StudentSettingsModule;
+                        if (!module?.render) throw new Error("Settings module is unavailable.");
+                        await module.render(container);
+                    }
+                }
 
             };
 

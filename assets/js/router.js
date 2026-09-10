@@ -94,6 +94,12 @@ class Router {
 
             await route(container);
 
+            // Route changes replace the main content. Move keyboard focus to
+            // the landmark so screen-reader and keyboard users begin at the
+            // newly loaded page instead of remaining on the old navigation.
+            const main = document.getElementById("main-content");
+            main?.focus({ preventScroll: true });
+
         }
 
         catch (error) {
