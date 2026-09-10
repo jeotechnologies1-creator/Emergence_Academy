@@ -52,7 +52,8 @@ class LiveClassesModule {
     if (existing) existing.remove();
     const sources = [
       "https://download.agora.io/sdk/release/AgoraRTC_N-4.24.8.js",
-      "https://unpkg.com/agora-rtc-sdk-ng@4.24.8/AgoraRTC_N-4.24.8.js"
+      "https://unpkg.com/agora-rtc-sdk-ng@4.24.8/AgoraRTC_N-production.js",
+      "https://cdn.jsdelivr.net/npm/agora-rtc-sdk-ng@4.24.8/AgoraRTC_N-production.js"
     ];
     let lastError = null;
     for (const source of sources) {
