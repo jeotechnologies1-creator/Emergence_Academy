@@ -366,6 +366,114 @@ nav button[data-route].active {
   }
 }
 
+/* Responsive safety net: pages and modules use a mixture of utility classes
+   and generated content. These rules keep long names, forms, tables, and
+   dialogs usable on narrow and short screens without shrinking text. */
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+#dashboard-content,
+#dashboard-content * {
+  min-width: 0;
+}
+
+#dashboard-content :is(p, span, label, td, th, button) {
+  overflow-wrap: anywhere;
+}
+
+.agora-room-modal,
+.live-class-notification-modal {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.agora-room-dialog {
+  margin: auto;
+  max-height: calc(100dvh - 2rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+@media (max-width: 767px) {
+  /* iOS zooms pages when form controls render below 16px. */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  .dashboard-shell > .flex-1 {
+    min-width: 0;
+  }
+
+  header .flex.items-center.gap-5 > .relative:first-child {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  header .flex.items-center.gap-5 > .relative:first-child input {
+    width: 100%;
+  }
+
+  .agora-room-modal,
+  .live-class-notification-modal {
+    align-items: flex-start;
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .agora-room-dialog {
+    margin: 0;
+    max-height: none;
+    border-radius: 1rem;
+  }
+
+  .agora-room-dialog > div:first-child {
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .agora-room-dialog > div:first-child h3 {
+    font-size: 1.125rem;
+    line-height: 1.35;
+  }
+
+  .agora-video-stage {
+    min-height: 15rem;
+  }
+
+  .agora-video-stage > div:last-child {
+    height: 7rem;
+    width: 5.25rem;
+    right: 0.75rem;
+    bottom: 0.75rem;
+  }
+
+  .live-class-notification-modal > div {
+    max-height: calc(100dvh - 1.5rem);
+    overflow-y: auto;
+  }
+
+  #dashboard-content table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-height: 640px) {
+  .agora-video-stage {
+    min-height: 13rem;
+  }
+}
+
 @media (min-width: 1024px) {
   #sidebar {
     transform: translateX(0) !important;

@@ -97,9 +97,9 @@ class LiveClassesModule {
   static openAgoraRoom(session) {
     const channel = this.sanitizeChannelName(session?.agora_channel_name || `${this.getAgoraConfig().channelPrefix}-${session?.id || session?.title || "room"}`);
     const modal = document.createElement("div");
-    modal.className = "fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm";
+    modal.className = "agora-room-modal fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm";
     modal.innerHTML = `
-      <div class="w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl shadow-cyan-950/25">
+      <div class="agora-room-dialog w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl shadow-cyan-950/25">
         <div class="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-cyan-600 to-indigo-600 px-5 py-4 text-white">
           <div>
             <p class="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-100">Agora live class</p>
@@ -108,7 +108,7 @@ class LiveClassesModule {
           <button type="button" data-close-agora class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Close</button>
         </div>
         <div class="grid gap-4 p-5 lg:grid-cols-[1.5fr_0.8fr]">
-          <div class="relative min-h-[420px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),transparent_42%),linear-gradient(135deg,#020617,#0f172a_48%,#111827)]">
+          <div class="agora-video-stage relative min-h-[420px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),transparent_42%),linear-gradient(135deg,#020617,#0f172a_48%,#111827)]">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(96,165,250,0.18),transparent_60%)]"></div>
             <div id="agora-remote-player" class="absolute inset-0"></div>
             <div class="absolute inset-x-0 top-4 flex justify-between px-4">
@@ -325,7 +325,7 @@ class LiveClassesModule {
       sessionStorage.setItem(this.notificationKey(notification.id), "shown");
       const liveClassId = match[1];
       const modal = document.createElement("div");
-      modal.className = "fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4";
+      modal.className = "live-class-notification-modal fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4";
       modal.innerHTML = `<div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><p class="text-xs font-bold uppercase tracking-[.18em] text-cyan-700">Agora live class</p><h3 class="mt-2 text-xl font-bold text-slate-900">${this.safe(notification.title || "A live class was scheduled")}</h3><p class="mt-3 text-sm leading-6 text-slate-600">${this.safe(String(notification.message || "").replace(/\s*\[live-class:[^\]]+\]/i, ""))}</p><div class="mt-6 flex justify-end gap-3"><button data-live-popup-close class="rounded-lg border px-4 py-2 text-sm font-medium">Later</button><button data-live-popup-join class="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white">Join live class</button></div></div>`;
       modal.querySelector("[data-live-popup-close]")?.addEventListener("click", () => modal.remove());
       modal.querySelector("[data-live-popup-join]")?.addEventListener("click", async () => {
