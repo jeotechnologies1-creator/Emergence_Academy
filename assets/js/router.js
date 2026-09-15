@@ -118,7 +118,12 @@ class Router {
 
                     <p class="mt-2 text-gray-600">
 
-                        ${error.message}
+                        ${String(error?.message || "Unable to load this page.")
+                            .replace(/&/g, "&amp;")
+                            .replace(/</g, "&lt;")
+                            .replace(/>/g, "&gt;")
+                            .replace(/\"/g, "&quot;")
+                            .replace(/'/g, "&#39;")}
 
                     </p>
 

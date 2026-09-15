@@ -6,6 +6,7 @@ const vm = require('vm');
 (async () => {
   const routerCode = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'router.js'), 'utf8');
   const dashboardCode = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'dashboard.js'), 'utf8');
+  assert.ok(routerCode.includes('replace(/</g, "&lt;")'), 'route errors must escape untrusted error messages');
 
   const mount = { innerHTML: '' };
   const document = {
