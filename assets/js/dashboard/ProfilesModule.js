@@ -386,7 +386,7 @@
             modal.id = "profile-action-modal";
             modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4";
             modal.style.zIndex = "80";
-            modal.innerHTML = `<form class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><h3 class="text-xl font-bold">Reset user password</h3><p class="mt-2 text-sm text-slate-600">For ${this.safe(profile.email)}. This will reset the password to <strong>Emergence2026!</strong> and force the user to change it once after next login.</p><p data-reset-error class="hidden mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700"></p><div class="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" data-profile-close class="rounded border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700">Cancel</button><button type="submit" data-reset-submit class="inline-flex min-h-11 items-center justify-center rounded-lg border-2 border-red-800 bg-red-600 px-5 py-2 font-bold text-white shadow-md ring-2 ring-red-200 hover:bg-red-700">Reset to default</button></div></form>`;
+            modal.innerHTML = `<form class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><h3 class="text-xl font-bold">Reset user password</h3><p class="mt-2 text-sm text-slate-600">For ${this.safe(profile.email)}. A new, strong temporary password will be generated and must be shared securely with the user. They will be required to change it after signing in.</p><p data-reset-error class="hidden mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700"></p><div class="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" data-profile-close class="rounded border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700">Cancel</button><button type="submit" data-reset-submit class="inline-flex min-h-11 items-center justify-center rounded-lg border-2 border-red-800 bg-red-600 px-5 py-2 font-bold text-white shadow-md ring-2 ring-red-200 hover:bg-red-700">Generate temporary password</button></div></form>`;
             document.body.appendChild(modal);
             modal.querySelector("[data-profile-close]")?.addEventListener("click", () => this.closeModal());
             modal.querySelector("form")?.addEventListener("submit", async (event) => {
@@ -401,77 +401,46 @@
                     submitButton.textContent = "Resetting...";
                 }
 
-                const attempts = [
-                    {
-                        operation: "reset-profile-password",
-                        profile_id: profile.id,
-                        email: profile.email,
-                        first_name: profile.first_name,
-                        last_name: profile.last_name,
-                        phone: profile.phone,
-                        role: profile.role,
-                        password: "Emergence2026!"
-                    },
-                    {
-                        operation: "reset-password",
-                        profile_id: profile.id,
-                        email: profile.email,
-                        first_name: profile.first_name,
-                        last_name: profile.last_name,
-                        phone: profile.phone,
-                        role: profile.role,
-                        password: "Emergence2026!"
-                    },
-                    {
-                        operation: "reset-user-password",
-                        profile_id: profile.id,
-                        email: profile.email,
-                        first_name: profile.first_name,
-                        last_name: profile.last_name,
-                        phone: profile.phone,
-                        role: profile.role,
-                        password: "Emergence2026!"
-                    }
-                ];
-
-                let lastMessage = "Unable to reset password.";
-                let success = false;
-
-                for (const payload of attempts) {
-                    try {
-                        await this.invokeCreateUserDirect(payload);
-                        success = true;
-                        break;
-                    } catch (error) {
-                        const parsedMessage = typeof API.functionErrorMessage === "function"
-                            ? await API.functionErrorMessage(error, error?.message || lastMessage)
-                            : (error?.message || lastMessage);
-                        let message = parsedMessage;
-                        if (message === "Edge Function returned a non-2xx status code") {
-                            message = error?.message || lastMessage;
-                        }
-                        lastMessage = message;
-
-                        const looksLikeUnsupportedOperation = /operation|unsupported|unknown|not\s+implemented/i.test(String(message || ""));
-                        if (!looksLikeUnsupportedOperation) {
-                            break;
-                        }
-                    }
-                }
-
-                if (!success) {
-                    errorBox.textContent = lastMessage;
+                let result;
+                try {
+                    result = await this.invokeCreateUserDirect({ operation: "reset-profile-password", profile_id: profile.id });
+                } catch (error) {
+                    errorBox.textContent = typeof API.functionErrorMessage === "function"
+                        ? await API.functionErrorMessage(error, error?.message || "Unable to reset password.")
+                        : (error?.message || "Unable to reset password.");
                     errorBox.classList.remove("hidden");
                     if (submitButton) {
                         submitButton.disabled = false;
-                        submitButton.textContent = "Reset to default";
+                        submitButton.textContent = "Generate temporary password";
                     }
                     return;
                 }
 
                 this.closeModal();
                 await this.loadProfiles();
-                this.notify("Password reset to default (Emergence2026!). User must change it after next login.");
+                this.showTemporaryPassword(profile.email, result?.temporary_password);
+            });
+        }
+
+        static showTemporaryPassword(email, temporaryPassword) {
+            if (!temporaryPassword) {
+                this.notify("Password reset, but no temporary password was returned. Do not ask the user to sign in; contact support.", "error");
+                return;
+            }
+            const modal = document.createElement("div");
+            modal.id = "profile-action-modal";
+            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4";
+            modal.innerHTML = `<section class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="temporary-password-title"><h3 id="temporary-password-title" class="text-xl font-bold">Temporary password created</h3><p class="mt-2 text-sm text-slate-600">Share this once, securely, with ${this.safe(email)}. It will not be shown again and the user must change it after signing in.</p><label class="mt-4 block text-sm font-semibold">Temporary password<input data-temporary-password readonly value="${this.safe(temporaryPassword)}" class="mt-1 w-full rounded border bg-slate-50 px-3 py-2 font-mono" aria-label="Temporary password"></label><p class="mt-3 text-sm text-amber-700">Do not send this through an insecure group chat or save it in a shared document.</p><div class="mt-5 flex justify-end gap-3"><button type="button" data-copy-password class="rounded border border-slate-300 px-4 py-2 font-medium">Copy</button><button type="button" data-profile-close class="rounded bg-blue-600 px-4 py-2 font-medium text-white">I have shared it securely</button></div></section>`;
+            document.body.appendChild(modal);
+            modal.querySelector("[data-profile-close]")?.addEventListener("click", () => this.closeModal());
+            modal.querySelector("[data-copy-password]")?.addEventListener("click", async (event) => {
+                try {
+                    await navigator.clipboard.writeText(temporaryPassword);
+                } catch {
+                    modal.querySelector("[data-temporary-password]")?.select();
+                    document.execCommand("copy");
+                }
+                event.currentTarget.textContent = "Copied";
             });
         }
 

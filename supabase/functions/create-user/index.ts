@@ -19,8 +19,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.0";
    - first_name and last_name are used instead.
    ========================================================== */
 
-const FUNCTION_VERSION = "2026-09-02-PASSWORD-RESET-01";
-const DEFAULT_RESET_PASSWORD = "Emergence2026!";
+const FUNCTION_VERSION = "2026-09-15-SECURE-PASSWORD-RESET-01";
 
 const ALLOWED_ROLES = new Set([
   "ceo",
@@ -107,6 +106,25 @@ function normalizeName(value: unknown): string {
 function normalizeIdList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.map((item) => String(item ?? "").trim()).filter(Boolean))];
+}
+
+// Returned only to the administrator who initiated a reset. Supabase Auth
+// stores the value as a hash; it is never saved in application tables.
+function generateTemporaryPassword(): string {
+  const categories = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", "!@#$%*-"];
+  const randomIndex = (size: number) => {
+    const bytes = new Uint32Array(1);
+    crypto.getRandomValues(bytes);
+    return bytes[0] % size;
+  };
+  const characters = categories.map((alphabet) => alphabet[randomIndex(alphabet.length)]);
+  const alphabet = categories.join("");
+  while (characters.length < 20) characters.push(alphabet[randomIndex(alphabet.length)]);
+  for (let index = characters.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomIndex(index + 1);
+    [characters[index], characters[swapIndex]] = [characters[swapIndex], characters[index]];
+  }
+  return characters.join("");
 }
 
 function getSupabaseAdminKey() {
@@ -565,13 +583,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const { data: target, error: targetError } = await supabaseAdmin.from("profiles")
         .select("id, role").eq("id", targetId).maybeSingle();
       if (targetError || !target) return jsonResponse({ error: "Profile was not found.", function_version: FUNCTION_VERSION }, 404);
+      const temporaryPassword = generateTemporaryPassword();
       try {
         await updateAuthUserWithServiceKey(
           supabaseUrl,
           anonKey,
           serviceRoleKey,
           targetId,
-          { password: DEFAULT_RESET_PASSWORD },
+          { password: temporaryPassword },
         );
       } catch (resetError) {
         const message = resetError instanceof Error ? resetError.message : String(resetError);
@@ -582,7 +601,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         required: true,
       });
       if (flagError) return jsonResponse({ error: flagError.message, function_version: FUNCTION_VERSION }, 500);
-      return jsonResponse({ success: true, default_password: DEFAULT_RESET_PASSWORD, message: "Password reset successfully. User must change password after next login.", function_version: FUNCTION_VERSION });
+      return jsonResponse({ success: true, temporary_password: temporaryPassword, message: "Password reset successfully. User must change it after next login.", function_version: FUNCTION_VERSION });
     }
 
     // A user flagged with must_change_password may replace the

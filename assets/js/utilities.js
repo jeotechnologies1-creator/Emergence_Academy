@@ -21,7 +21,7 @@ class Utils {
             loader.innerHTML = `
                 <div class="bg-white rounded-xl shadow-xl p-6 text-center">
                     <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-                    <p id="loader-text" class="text-gray-700">${text}</p>
+                    <p id="loader-text" class="text-gray-700"></p>
                 </div>
             `;
             document.body.appendChild(loader);

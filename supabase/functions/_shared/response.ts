@@ -1,4 +1,4 @@
-import { corsHeaders } from "./cors.ts";
+import { corsHeaders } from "./core.ts";
 
 export function success(data: any) {
 

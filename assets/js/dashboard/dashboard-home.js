@@ -1011,16 +1011,22 @@ No announcements available.
 
     }
 
-    static generatePassword(length = 12) {
+    static generatePassword(length = 16) {
 
-        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$!";
-        let out = "";
-
-        for (let i = 0; i < length; i += 1) {
-            out += chars.charAt(Math.floor(Math.random() * chars.length));
+        const categories = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", "!@#$%*-"];
+        const index = (size) => {
+            const values = new Uint32Array(1);
+            crypto.getRandomValues(values);
+            return values[0] % size;
+        };
+        const password = categories.map((characters) => characters[index(characters.length)]);
+        const all = categories.join("");
+        while (password.length < Math.max(12, length)) password.push(all[index(all.length)]);
+        for (let position = password.length - 1; position > 0; position -= 1) {
+            const swap = index(position + 1);
+            [password[position], password[swap]] = [password[swap], password[position]];
         }
-
-        return out;
+        return password.join("");
 
     }
 
@@ -1040,7 +1046,15 @@ No announcements available.
         try {
             const raw = localStorage.getItem(this.RECENT_ACCOUNTS_KEY);
             const list = JSON.parse(raw || "[]");
-            return Array.isArray(list) ? list : [];
+            if (!Array.isArray(list)) return [];
+            // Passwords may have been stored by older versions. Remove them
+            // immediately; credentials should be displayed once, never kept
+            // in persistent browser storage.
+            const sanitized = list.map(({ temp_password, ...account }) => account);
+            if (JSON.stringify(sanitized) !== JSON.stringify(list)) {
+                localStorage.setItem(this.RECENT_ACCOUNTS_KEY, JSON.stringify(sanitized));
+            }
+            return sanitized;
         } catch (error) {
             console.error("Unable to parse recent accounts list:", error);
             return [];
@@ -1057,7 +1071,8 @@ No announcements available.
     static appendRecentAccount(account) {
 
         const existing = this.loadRecentAccounts();
-        const updated = [account, ...existing].slice(0, 10);
+        const { temp_password, ...safeAccount } = account || {};
+        const updated = [safeAccount, ...existing].slice(0, 10);
         this.saveRecentAccounts(updated);
         this.renderRecentAccounts();
 
@@ -1082,18 +1097,14 @@ No announcements available.
             const email = this.safeText(item.email);
             const role = this.safeText(String(item.role || "").toUpperCase());
             const createdAt = item.created_at ? new Date(item.created_at).toLocaleString() : "";
-            const hasPassword = Boolean(item.temp_password);
-            const passwordLabel = hasPassword ? "Saved" : "Not saved";
             return `
 <div class="rounded-lg border border-slate-200 px-3 py-2 bg-slate-50">
     <div class="font-medium text-slate-800">${firstName} ${lastName} <span class="text-slate-500">(${role})</span></div>
     <div class="text-slate-600">${email}</div>
     <div class="text-xs text-slate-500 mt-1">Created: ${this.safeText(createdAt)}</div>
-    <div class="text-xs text-slate-500 mt-1">Password: ${passwordLabel}</div>
+    <div class="text-xs text-slate-500 mt-1">Credentials are shown only when the account is created.</div>
     <div class="mt-2 flex items-center gap-2">
         <button type="button" data-account-action="copy-email" data-account-index="${index}" class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-100 text-slate-700">Copy Email</button>
-        <button type="button" data-account-action="copy-password" data-account-index="${index}" class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 ${hasPassword ? "" : "opacity-50 cursor-not-allowed"}">Copy Password</button>
-        <button type="button" data-account-action="resend-invite" data-account-index="${index}" class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-100 text-slate-700">Resend Invite</button>
     </div>
 </div>
 `;
@@ -1178,19 +1189,6 @@ No announcements available.
             if (action === "copy-email") {
                 await this.copyText(String(item.email || ""), "Email copied to clipboard.", "Unable to copy email.");
                 return;
-            }
-
-            if (action === "copy-password") {
-                if (!item.temp_password) {
-                    this.setOfficeStatus("Password is not available for this account.", "warning");
-                    return;
-                }
-                await this.copyText(String(item.temp_password), "Temporary password copied.", "Unable to copy password.");
-                return;
-            }
-
-            if (action === "resend-invite") {
-                this.setOfficeStatus(`Invite resend queued for ${item.email}.`, "info");
             }
 
         };
@@ -1288,7 +1286,6 @@ No announcements available.
                     last_name: payload.last_name,
                     email: payload.email,
                     role: payload.role,
-                    temp_password: effectivePassword,
                     created_at: new Date().toISOString()
                 });
 
