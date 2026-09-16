@@ -595,6 +595,88 @@ svg {
   background: #0f172a;
 }
 
+/* Keep the classroom video primary. Details/chat open only on demand, and
+   the teacher's camera can be widened with the resize handle. */
+.agora-classroom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  overflow: hidden;
+}
+
+.agora-classroom.agora-sidebar-open {
+  grid-template-columns: minmax(0, 1fr) minmax(19rem, 24rem);
+}
+
+.agora-class-sidebar {
+  display: none;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.agora-sidebar-open .agora-class-sidebar {
+  display: flex;
+}
+
+.agora-local-preview {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 2;
+  width: clamp(12rem, 23vw, 22rem);
+  height: clamp(8rem, 16vw, 15rem);
+  min-width: 11.25rem;
+  min-height: 7.5rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 1rem;
+  background: #0f172a;
+  box-shadow: 0 1.5rem 3rem rgba(2, 6, 23, 0.55);
+}
+
+.agora-preview-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  cursor: nwse-resize;
+  border: 0;
+  border-radius: 0.75rem 0 0.9rem 0;
+  background: linear-gradient(135deg, transparent 36%, #22d3ee 38%, #22d3ee 50%, transparent 52%, transparent 62%, #22d3ee 64%, #22d3ee 76%, transparent 78%);
+}
+
+.agora-chat-messages {
+  min-height: 8rem;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.agora-chat-message {
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.65rem;
+  background: rgba(51, 65, 85, 0.7);
+}
+
+.agora-chat-message-own {
+  background: rgba(8, 145, 178, 0.32);
+}
+
+.agora-chat-author {
+  margin: 0;
+  color: #67e8f9;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.agora-chat-text {
+  margin: 0.25rem 0 0;
+  color: #e2e8f0;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
 .agora-room-dialog {
   margin: 0;
   max-height: none;
@@ -652,6 +734,23 @@ svg {
   .agora-video-stage > div:last-child {
     height: 7rem;
     width: 5.25rem;
+    right: 0.75rem;
+    bottom: 0.75rem;
+  }
+
+  .agora-classroom,
+  .agora-classroom.agora-sidebar-open {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+
+  .agora-sidebar-open .agora-class-sidebar {
+    min-height: 28rem;
+  }
+
+  .agora-local-preview {
+    width: min(52vw, 15rem);
+    height: min(36vw, 10.5rem);
     right: 0.75rem;
     bottom: 0.75rem;
   }
