@@ -34,15 +34,18 @@ Deno.serve(async (req) => {
     if (!approvedStudentIds.length) return json({ error: "Select at least one enrolled student for this live class." }, 400);
 
     const admin = adminClient();
-    const { data: profile } = await admin.from("profiles").select("role,status").eq("id", user.id).maybeSingle();
+    const { data: profile, error: profileError } = await admin.from("profiles").select("role,status").eq("id", user.id).maybeSingle();
+    if (profileError) throw profileError;
     if (!profile || String(profile.status).toLowerCase() !== "active") return json({ error: "Your account is not active." }, 403);
     const role = normalizedRole(profile.role);
     let teacherId = "";
     if (role === "teacher") {
-      const { data: teacher } = await admin.from("teachers").select("id").eq("profile_id", user.id).maybeSingle();
+      const { data: teacher, error: teacherError } = await admin.from("teachers").select("id").eq("profile_id", user.id).maybeSingle();
+      if (teacherError) throw teacherError;
       teacherId = String(teacher?.id || "");
       if (!teacherId) return json({ error: "Your teacher record could not be found." }, 403);
-      const { data: assignment } = await admin.from("teacher_subjects").select("teacher_id").eq("teacher_id", teacherId).eq("subject_id", subjectId).eq("class_id", classId).maybeSingle();
+      const { data: assignment, error: assignmentError } = await admin.from("teacher_subjects").select("teacher_id").eq("teacher_id", teacherId).eq("subject_id", subjectId).eq("class_id", classId).maybeSingle();
+      if (assignmentError) throw assignmentError;
       if (!assignment) return json({ error: "You are not authorized to schedule a class for this subject and class." }, 403);
     } else if (["admin", "ceo", "executive"].includes(role)) {
       teacherId = String(body.teacher_id || "");

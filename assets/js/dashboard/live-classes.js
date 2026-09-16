@@ -315,7 +315,7 @@ class LiveClassesModule {
       const label = studentNumber ? `${name} (${studentNumber})` : name;
       return `<label data-approved-student data-class-id="${this.safe(student.class_id)}" class="hidden items-center gap-2 rounded border p-2 text-sm"><input disabled type="checkbox" name="approved_student_ids" value="${this.safe(student.id)}"><span>${this.safe(label)}</span></label>`;
     }).join("") || '<p class="text-sm text-slate-500">No students are enrolled in your assigned classes.</p>';
-    return `<section class="rounded-xl bg-white p-5 shadow"><h3 class="text-xl font-bold text-slate-800">Schedule an Agora live class</h3>${disabled ? '<p class="mt-2 text-sm text-amber-700">You need an administrator assignment for a subject and class before scheduling.</p>' : ""}<form id="live-class-form" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2"><label><span class="text-sm">Class *</span><select required name="class_id" id="live-class-id" class="mt-1 w-full rounded-lg border p-2.5"><option value="">Select class</option>${classes.map((row) => `<option value="${this.safe(row.id)}">${this.safe(row.class_name)}</option>`).join("")}</select></label><label><span class="text-sm">Subject *</span><select required name="subject_id" id="live-subject-id" disabled class="mt-1 w-full rounded-lg border p-2.5 disabled:bg-slate-100"><option value="">Select a class first</option>${subjectOptions}</select></label><label class="md:col-span-2"><span class="text-sm">Class title *</span><input required name="title" class="mt-1 w-full rounded-lg border p-2.5" placeholder="Introduction to Algebra"></label><label class="md:col-span-2"><span class="text-sm">Description</span><textarea name="description" rows="2" class="mt-1 w-full rounded-lg border p-2.5"></textarea></label><label><span class="text-sm">Start time *</span><input required name="starts_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><label><span class="text-sm">End time *</span><input required name="ends_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><fieldset class="md:col-span-2"><div class="flex items-center justify-between gap-3"><legend class="text-sm font-medium">Students for this live class *</legend><label class="text-sm font-medium text-cyan-700"><input disabled data-select-all-students type="checkbox"> Select all in class</label></div><p class="mb-2 text-xs text-slate-500">Select enrolled students who may receive the notification, join this Agora class, and be marked present.</p><div id="approved-students" class="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">${students}</div></fieldset><div id="live-class-error" class="hidden md:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"></div><div class="md:col-span-2"><button ${disabled ? "disabled" : ""} class="rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white disabled:opacity-50">Schedule Agora Class</button></div></form></section>`;
+    return `<section class="rounded-xl bg-white p-5 shadow"><h3 class="text-xl font-bold text-slate-800">Schedule an Agora live class</h3>${disabled ? '<p class="mt-2 text-sm text-amber-700">You need an administrator assignment for a subject and class before scheduling.</p>' : ""}<form id="live-class-form" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2"><label><span class="text-sm">Class *</span><select required name="class_id" id="live-class-id" class="mt-1 w-full rounded-lg border p-2.5"><option value="">Select class</option>${classes.map((row) => `<option value="${this.safe(row.id)}">${this.safe(row.class_name)}</option>`).join("")}</select></label><label><span class="text-sm">Subject *</span><select required name="subject_id" id="live-subject-id" disabled class="mt-1 w-full rounded-lg border p-2.5 disabled:bg-slate-100"><option value="">Select a class first</option>${subjectOptions}</select></label><label class="md:col-span-2"><span class="text-sm">Class title *</span><input required name="title" class="mt-1 w-full rounded-lg border p-2.5" placeholder="Introduction to Algebra"></label><label class="md:col-span-2"><span class="text-sm">Description</span><textarea name="description" rows="2" class="mt-1 w-full rounded-lg border p-2.5"></textarea></label><label><span class="text-sm">Start time *</span><input required name="starts_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><label><span class="text-sm">End time *</span><input required name="ends_at" type="datetime-local" class="mt-1 w-full rounded-lg border p-2.5"></label><fieldset class="md:col-span-2"><div class="flex items-center justify-between gap-3"><legend class="text-sm font-medium">Students for this live class *</legend><label class="text-sm font-medium text-cyan-700"><input disabled data-select-all-students type="checkbox"> Select all in class</label></div><p class="mb-2 text-xs text-slate-500">Select enrolled students who may receive the notification, join this Agora class, and be marked present.</p><div id="approved-students" class="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">${students}</div></fieldset><div id="live-class-error" role="alert" class="hidden md:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"></div><div class="md:col-span-2"><button ${disabled ? "disabled" : ""} data-schedule-submit class="rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white disabled:opacity-50">Schedule Agora Class</button></div></form></section>`;
   }
   static card(session) {
     const status = String(session.status || "upcoming").toLowerCase(), teacherControls = this.canSchedule() && String(session.teacher_id) === String(this.state.teacher?.id);
@@ -335,6 +335,13 @@ class LiveClassesModule {
     const classSelect = this.state.container.querySelector("#live-class-id");
     const subjectSelect = this.state.container.querySelector("#live-subject-id");
     const selectAll = this.state.container.querySelector("[data-select-all-students]");
+    const startInput = this.state.container.querySelector("[name=starts_at]");
+    const endInput = this.state.container.querySelector("[name=ends_at]");
+    const localDateTime = (date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const earliestStart = localDateTime(new Date(Date.now() + 60000));
+    if (startInput) startInput.min = earliestStart;
+    if (endInput) endInput.min = earliestStart;
+    startInput?.addEventListener("change", () => { if (startInput.value) endInput.min = startInput.value; });
     const updateEligibleStudents = () => {
       const classId = String(classSelect?.value || "");
       const subjectId = String(subjectSelect?.value || "");
@@ -369,6 +376,7 @@ class LiveClassesModule {
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const errorBox = this.state.container.querySelector("#live-class-error");
+      const submitButton = form.querySelector("[data-schedule-submit]");
       const data = new FormData(event.currentTarget);
       const approvedStudentIds = data.getAll("approved_student_ids");
       try {
@@ -376,6 +384,9 @@ class LiveClassesModule {
         const startsAt = new Date(String(data.get("starts_at") || ""));
         const endsAt = new Date(String(data.get("ends_at") || ""));
         if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) throw new Error("Enter valid start and end times.");
+        if (endsAt <= startsAt) throw new Error("End time must be after the start time.");
+        submitButton.disabled = true;
+        submitButton.setAttribute("aria-busy", "true");
         const result = await API.db.functions.invoke("schedule-live-class", { body: { ...Object.fromEntries(data), starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), approved_student_ids: approvedStudentIds } });
         if (result.error || result.data?.error) {
           const message = result.data?.error || await API.functionErrorMessage(
@@ -389,6 +400,9 @@ class LiveClassesModule {
       } catch (error) {
         errorBox.textContent = error.message || "Unable to create the class.";
         errorBox.classList.remove("hidden");
+      } finally {
+        submitButton.disabled = false;
+        submitButton.removeAttribute("aria-busy");
       }
     });
     this.state.container.querySelectorAll("[data-live-action]").forEach((button) => button.addEventListener("click", async () => {
