@@ -42,6 +42,7 @@ const path = require('path');
   assert.ok(moduleCode.includes('You are connected as a viewer.'), 'student viewers must not receive host camera and microphone controls');
   assert.ok(moduleCode.includes('const storedChannel = String(session?.agora_channel_name || "").trim()'), 'the browser must preserve the server-stored Agora channel exactly');
   assert.ok(moduleCode.includes('static agoraUid(session)'), 'the browser must derive a safe 32-bit Agora UID instead of converting a UUID to an unsafe number');
+  assert.ok(moduleCode.includes('const source = `${sessionId}:${userId}`'), 'Agora UIDs must be unique per live class and authenticated participant');
   assert.ok(moduleCode.includes('AgoraRTC_N-4.24.8.js'), 'the browser must use a current pinned Agora Web SDK');
   assert.ok(moduleCode.includes('AgoraRTC_N-production.js'), 'fallback CDNs must use the package’s actual browser-bundle filename');
   assert.ok(moduleCode.includes('cdn.jsdelivr.net/npm/agora-rtc-sdk-ng'), 'the browser must retry a second fallback CDN when Agora CDN is unavailable');

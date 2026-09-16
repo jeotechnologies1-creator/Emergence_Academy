@@ -101,8 +101,12 @@ class LiveClassesModule {
   static agoraUid(session) {
     // Agora numeric UIDs must fit in an unsigned 32-bit integer. Converting
     // the digits in a UUID directly can exceed that limit and invalidate an
-    // otherwise correctly issued Edge Function token.
-    const source = String(session?.id || session?.agora_channel_name || Date.now());
+    // otherwise correctly issued Edge Function token. Include the profile ID:
+    // a class ID alone gives the teacher and every student the same UID,
+    // which Agora rejects with UID_CONFLICT.
+    const sessionId = session?.id || session?.agora_channel_name || Date.now();
+    const userId = this.state.profile?.id || "anonymous";
+    const source = `${sessionId}:${userId}`;
     let hash = 2166136261;
     for (let index = 0; index < source.length; index += 1) {
       hash ^= source.charCodeAt(index);
