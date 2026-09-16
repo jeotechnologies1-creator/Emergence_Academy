@@ -450,6 +450,20 @@ svg {
   -webkit-overflow-scrolling: touch;
 }
 
+/* dashboard.html uses the static Tailwind 2.2 stylesheet, which does not
+   generate slash-opacity or arbitrary-gradient utility classes. Give the
+   Agora overlay and its stage real, opaque fallbacks instead of exposing the
+   dashboard beneath the class room. */
+.agora-room-modal {
+  background-color: #020617;
+  backdrop-filter: none;
+}
+
+.agora-video-stage {
+  background-color: #020617;
+  background-image: radial-gradient(circle at top, rgba(34, 211, 238, 0.2), transparent 42%), linear-gradient(135deg, #020617, #0f172a 48%, #111827);
+}
+
 .agora-room-dialog {
   margin: auto;
   max-height: calc(100dvh - 2rem);

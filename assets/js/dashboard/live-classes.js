@@ -195,8 +195,10 @@ class LiveClassesModule {
       // Students receive a subscriber token. Creating or publishing local
       // tracks for them makes Agora reject the call with INVALID_PARAMS.
       if (isTeacherHost) {
-        localAudioTrack = await window.AgoraRTC.createMicrophoneAudioTrack();
-        localVideoTrack = await window.AgoraRTC.createCameraVideoTrack();
+        [localAudioTrack, localVideoTrack] = await window.AgoraRTC.createMicrophoneAndCameraTracks();
+        if (!localAudioTrack || !localVideoTrack) {
+          throw new Error("Agora could not create the teacher's microphone and camera tracks.");
+        }
         const micButton = modal.querySelector("[data-agora-toggle-mic]");
         const cameraButton = modal.querySelector("[data-agora-toggle-camera]");
         let micEnabled = true;
@@ -211,7 +213,11 @@ class LiveClassesModule {
           localVideoTrack.setEnabled(cameraEnabled);
           cameraButton.textContent = cameraEnabled ? "Camera off" : "Camera on";
         });
-        await client.publish([localAudioTrack, localVideoTrack]);
+        // Publish each track explicitly. This keeps the SDK from receiving a
+        // malformed track array and makes both tracks unambiguously local to
+        // this teacher client.
+        await client.publish(localAudioTrack);
+        await client.publish(localVideoTrack);
         localVideoTrack.play("agora-local-player");
       }
       status.textContent = "Connected to Agora";
