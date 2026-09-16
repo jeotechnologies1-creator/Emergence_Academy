@@ -115,7 +115,7 @@ class LiveClassesModule {
     }
     return (hash >>> 0) || 1;
   }
-  static openAgoraRoom(session, canPublish) {
+  static openAgoraRoom(session, canPublish, canEndClass = false) {
     // The server stores the authoritative channel when the class is
     // scheduled and authorizes tokens only for that exact value. Never
     // re-sanitize/truncate a stored value here; that made the browser send a
@@ -136,7 +136,7 @@ class LiveClassesModule {
             <p class="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-100">Agora live class</p>
             <h3 class="mt-1 text-xl font-bold">${this.safe(session?.title || "Live class")}</h3>
           </div>
-          <button type="button" data-close-agora class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Close</button>
+          <div class="flex items-center gap-2"><button type="button" data-close-agora class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Close</button>${canEndClass ? '<button type="button" data-end-agora class="rounded-full bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60">End class</button>' : ""}</div>
         </div>
         <div class="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:p-5">
           <div class="agora-video-stage relative min-h-[320px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),transparent_42%),linear-gradient(135deg,#020617,#0f172a_48%,#111827)] lg:min-h-0">
@@ -169,6 +169,20 @@ class LiveClassesModule {
     `;
     const closeButton = modal.querySelector("[data-close-agora]");
     closeButton?.addEventListener("click", () => this.closeAgoraRoom(modal));
+    modal.querySelector("[data-end-agora]")?.addEventListener("click", async (event) => {
+      const endButton = event.currentTarget;
+      endButton.disabled = true;
+      try {
+        const { error } = await API.db.rpc("set_live_class_status", { p_live_class_id: session.id, p_status: "ended" });
+        if (error) throw error;
+        this.closeAgoraRoom(modal);
+        window.Utils?.success?.("Class ended.");
+        if (this.state.container) await this.render(this.state.container);
+      } catch (error) {
+        endButton.disabled = false;
+        window.Utils?.error?.(error.message || "Unable to end the class.") || window.alert(error.message || "Unable to end the class.");
+      }
+    });
     modal.dataset.channel = channel;
     modal.__previousBodyOverflow = document.body.style.overflow;
     modal.__previousFocus = document.activeElement;
@@ -189,7 +203,7 @@ class LiveClassesModule {
     await this.ensureAgoraSDK();
     const isTeacherHost = this.canSchedule() && String(session?.teacher_id) === String(this.state.teacher?.id);
     const canPublish = isTeacherHost || this.role() === "student";
-    const modal = this.openAgoraRoom(session, canPublish);
+    const modal = this.openAgoraRoom(session, canPublish, isTeacherHost);
     const client = window.AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
     // Store the client immediately so Close can cancel an in-flight token,
     // join, or media-device request without leaving a connection behind.

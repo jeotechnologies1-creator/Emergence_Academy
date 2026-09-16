@@ -75,6 +75,7 @@ const path = require('path');
   assert.ok(moduleCode.includes('teacher_employee_id'), 'live class cards must display the generated teacher employee ID');
   assert.ok(moduleCode.includes('data-live-action="start"'), 'teachers should be able to start their own scheduled classes');
   assert.ok(moduleCode.includes('action === "start" ? "live"'), 'starting a class should persist live status');
+  assert.ok(moduleCode.includes('data-end-agora'), 'teachers should be able to end a class from the full-page classroom');
   assert.ok(moduleCode.includes('toISOString()'), 'the browser should send scheduled times with an explicit timezone');
   assert.ok(read('supabase', 'functions', '_shared', 'live-class.ts').includes('if (status === "live") return "live"'), 'the join function should honor a manually started class');
   assert.ok(read('supabase', 'migrations', '202608110005_fix_admission_and_live_class_statuses.sql').includes("when lc.status = 'live' then 'live'"), 'the live class query should preserve a manually started state');
