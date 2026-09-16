@@ -110,7 +110,7 @@ class LiveClassesModule {
     }
     return (hash >>> 0) || 1;
   }
-  static openAgoraRoom(session) {
+  static openAgoraRoom(session, isTeacherHost) {
     // The server stores the authoritative channel when the class is
     // scheduled and authorizes tokens only for that exact value. Never
     // re-sanitize/truncate a stored value here; that made the browser send a
@@ -136,9 +136,7 @@ class LiveClassesModule {
               <span class="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-cyan-100">Live</span>
               <span class="rounded-full border border-white/10 bg-slate-900/50 px-3 py-1 text-xs font-medium text-slate-200">${this.safe(channel)}</span>
             </div>
-            <div class="absolute bottom-4 right-4 h-40 w-28 overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl shadow-slate-950/60">
-              <div id="agora-local-player" class="h-full w-full bg-slate-800"></div>
-            </div>
+            ${isTeacherHost ? '<div class="absolute bottom-4 right-4 h-40 w-28 overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl shadow-slate-950/60"><div id="agora-local-player" class="h-full w-full bg-slate-800"></div></div>' : ""}
           </div>
           <aside class="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-slate-200">
             <div>
@@ -154,10 +152,7 @@ class LiveClassesModule {
               <p class="font-medium text-white">Required setup</p>
               <p class="mt-2">Add your Agora App ID in <strong>assets/js/config.js</strong> under <strong>CONFIG.AGORA</strong>; the token is fetched securely from the backend.</p>
             </div>
-            <div class="mt-auto flex gap-2">
-              <button type="button" data-agora-toggle-mic class="flex-1 rounded-xl bg-slate-800 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700">Mute</button>
-              <button type="button" data-agora-toggle-camera class="flex-1 rounded-xl bg-cyan-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-cyan-500">Camera off</button>
-            </div>
+            ${isTeacherHost ? '<div class="mt-auto flex gap-2"><button type="button" data-agora-toggle-mic class="flex-1 rounded-xl bg-slate-800 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700">Mute</button><button type="button" data-agora-toggle-camera class="flex-1 rounded-xl bg-cyan-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-cyan-500">Camera off</button></div>' : '<p class="mt-auto text-sm text-slate-300">You are connected as a viewer.</p>'}
           </aside>
         </div>
       </div>
@@ -174,49 +169,55 @@ class LiveClassesModule {
       throw new Error("Agora App ID is missing. Add it to CONFIG.AGORA.APP_ID in assets/js/config.js.");
     }
     await this.ensureAgoraSDK();
-    const modal = this.openAgoraRoom(session);
+    const isTeacherHost = this.canSchedule() && String(session?.teacher_id) === String(this.state.teacher?.id);
+    const modal = this.openAgoraRoom(session, isTeacherHost);
     const client = window.AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
     const channel = modal.dataset.channel;
     const uid = this.agoraUid(session);
     const status = modal.querySelector("[data-agora-status]");
     status.textContent = "Fetching secure token...";
-    const isTeacherHost = this.canSchedule() && String(session?.teacher_id) === String(this.state.teacher?.id);
-    const tokenResponse = await this.requestAgoraToken(channel, uid, session?.id || null, isTeacherHost ? "create" : "join");
-    const token = tokenResponse.token;
-    const localAudioTrack = await window.AgoraRTC.createMicrophoneAudioTrack();
-    const localVideoTrack = await window.AgoraRTC.createCameraVideoTrack();
-    client.on("user-published", async (user, mediaType) => {
-      await client.subscribe(user, mediaType);
-      if (mediaType === "video" && user.videoTrack) {
-        user.videoTrack.play("agora-remote-player");
+    let localAudioTrack;
+    let localVideoTrack;
+    try {
+      const tokenResponse = await this.requestAgoraToken(channel, uid, session?.id || null, isTeacherHost ? "create" : "join");
+      client.on("user-published", async (user, mediaType) => {
+        await client.subscribe(user, mediaType);
+        if (mediaType === "video" && user.videoTrack) user.videoTrack.play("agora-remote-player");
+        if (mediaType === "audio" && user.audioTrack) user.audioTrack.play();
+      });
+      client.on("user-left", () => { status.textContent = "Remote participant left the room."; });
+      await client.join(appId, channel, tokenResponse.token, Number(uid));
+
+      // Students receive a subscriber token. Creating or publishing local
+      // tracks for them makes Agora reject the call with INVALID_PARAMS.
+      if (isTeacherHost) {
+        localAudioTrack = await window.AgoraRTC.createMicrophoneAudioTrack();
+        localVideoTrack = await window.AgoraRTC.createCameraVideoTrack();
+        const micButton = modal.querySelector("[data-agora-toggle-mic]");
+        const cameraButton = modal.querySelector("[data-agora-toggle-camera]");
+        let micEnabled = true;
+        let cameraEnabled = true;
+        micButton?.addEventListener("click", () => {
+          micEnabled = !micEnabled;
+          localAudioTrack.setEnabled(micEnabled);
+          micButton.textContent = micEnabled ? "Mute" : "Unmute";
+        });
+        cameraButton?.addEventListener("click", () => {
+          cameraEnabled = !cameraEnabled;
+          localVideoTrack.setEnabled(cameraEnabled);
+          cameraButton.textContent = cameraEnabled ? "Camera off" : "Camera on";
+        });
+        await client.publish([localAudioTrack, localVideoTrack]);
+        localVideoTrack.play("agora-local-player");
       }
-      if (mediaType === "audio" && user.audioTrack) {
-        user.audioTrack.play();
-      }
-    });
-    client.on("user-left", () => {
-      status.textContent = "Remote participant left the room.";
-    });
-    const micButton = modal.querySelector("[data-agora-toggle-mic]");
-    const cameraButton = modal.querySelector("[data-agora-toggle-camera]");
-    let micEnabled = true;
-    let cameraEnabled = true;
-    micButton?.addEventListener("click", () => {
-      micEnabled = !micEnabled;
-      localAudioTrack.setEnabled(micEnabled);
-      micButton.textContent = micEnabled ? "Mute" : "Unmute";
-    });
-    cameraButton?.addEventListener("click", () => {
-      cameraEnabled = !cameraEnabled;
-      localVideoTrack.setEnabled(cameraEnabled);
-      cameraButton.textContent = cameraEnabled ? "Camera off" : "Camera on";
-    });
-    await client.join(appId, channel, token, Number(uid));
-    await client.publish([localAudioTrack, localVideoTrack]);
-    localVideoTrack.play("agora-local-player");
-    status.textContent = "Connected to Agora";
-    modal.__agora = { client, localAudioTrack, localVideoTrack };
-    return modal;
+      status.textContent = "Connected to Agora";
+      modal.__agora = { client, localAudioTrack, localVideoTrack };
+      return modal;
+    } catch (error) {
+      modal.__agora = { client, localAudioTrack, localVideoTrack };
+      this.closeAgoraRoom(modal);
+      throw error;
+    }
   }
   static closeAgoraRoom(modal) {
     if (!modal) return;
@@ -325,7 +326,36 @@ class LiveClassesModule {
         errorBox.classList.remove("hidden");
       }
     });
-    this.state.container.querySelectorAll("[data-live-action]").forEach((button) => button.addEventListener("click", async () => { try { const action = button.dataset.liveAction, id = button.dataset.id; const session = this.state.sessions.find((item) => String(item.id) === String(id)); if (!session) throw new Error("Live class session was not found."); if (action === "join") { const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: id } }); if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message); await this.connectAgoraRoom(session); return; } const status = action === "start" ? "live" : action === "end" ? "ended" : "cancelled"; const { error } = await API.db.rpc("set_live_class_status", { p_live_class_id: id, p_status: status }); if (error) throw error; if (action === "start") { const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: id } }); if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message); await this.connectAgoraRoom(session); } await this.render(this.state.container); } catch (error) { window.Utils?.error?.(error.message || "Unable to update the class.") || window.alert(error.message); } }));
+    this.state.container.querySelectorAll("[data-live-action]").forEach((button) => button.addEventListener("click", async () => {
+      let statusChanged = false;
+      try {
+        const action = button.dataset.liveAction;
+        const id = button.dataset.id;
+        const session = this.state.sessions.find((item) => String(item.id) === String(id));
+        if (!session) throw new Error("Live class session was not found.");
+        if (action === "join") {
+          const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: id } });
+          if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message);
+          await this.connectAgoraRoom(session);
+          return;
+        }
+        const status = action === "start" ? "live" : action === "end" ? "ended" : "cancelled";
+        const { error } = await API.db.rpc("set_live_class_status", { p_live_class_id: id, p_status: status });
+        if (error) throw error;
+        statusChanged = true;
+        if (action === "start") {
+          const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: id } });
+          if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message);
+          await this.connectAgoraRoom(session);
+        }
+        await this.render(this.state.container);
+      } catch (error) {
+        // The database status may already be live even if the browser could
+        // not open Agora. Refresh so the card never remains "Not started".
+        if (statusChanged) await this.render(this.state.container).catch(() => {});
+        window.Utils?.error?.(error.message || "Unable to update the class.") || window.alert(error.message);
+      }
+    }));
   }
   static notificationKey(id) { return `emergence_live_class_popup_${id}`; }
   static async joinFromNotification(liveClassId) {
