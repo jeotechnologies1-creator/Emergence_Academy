@@ -1,7 +1,7 @@
 /* A single, role-safe view of the work and live sessions already available
    to the signed-in user. Data access remains enforced by existing RLS/RPCs. */
 class LearningPlannerModule {
-  static state = { container: null, profile: null, items: [], filter: "all", warning: "" };
+  static state = { container: null, profile: null, items: [], filter: "all", warning: "", curriculum: null };
 
   static safe(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
   static role() { return String(this.state.profile?.role || "").trim().toLowerCase(); }
@@ -61,6 +61,30 @@ class LearningPlannerModule {
     this.state.items = [...assignments, ...sessions]
       .filter((item) => item.live || (!item.ended && new Date(item.at) <= cutoff && new Date(item.at) >= new Date(today.getTime() - 86400000)))
       .sort((a, b) => new Date(a.at) - new Date(b.at));
+    await this.loadTeacherCurriculum();
+  }
+
+  static async loadTeacherCurriculum() {
+    this.state.curriculum = null;
+    if (this.role() !== "teacher") return;
+    const { data: teacher, error: teacherError } = await API.db.from("teachers").select("id").eq("profile_id", this.state.profile.id).maybeSingle();
+    if (teacherError || !teacher) {
+      this.state.warning ||= "Your teacher record is unavailable, so term curriculum planning cannot be loaded.";
+      return;
+    }
+    const [pairsResult, termsResult, slotsResult, schemeResult] = await Promise.all([
+      API.db.from("teacher_subjects").select("class_id,subject_id,classes:class_id(class_name),subjects:subject_id(subject_name)").eq("teacher_id", teacher.id),
+      API.db.from("terms").select("id,term_name,sort_order").order("sort_order"),
+      API.db.from("teacher_timetable_slots").select("id,term_id,day_of_week,starts_at,ends_at,room,classes:class_id(class_name),subjects:subject_id(subject_name)").eq("teacher_id", teacher.id).order("day_of_week").order("starts_at"),
+      API.db.from("scheme_of_work_entries").select("id,term_id,week_number,topic,objectives,classes:class_id(class_name),subjects:subject_id(subject_name)").eq("teacher_id", teacher.id).order("week_number")
+    ]);
+    const error = pairsResult.error || termsResult.error || slotsResult.error || schemeResult.error;
+    if (error) {
+      console.error("Unable to load term curriculum planning:", error);
+      this.state.warning ||= "Term curriculum planning is unavailable until the latest school database update is applied.";
+      return;
+    }
+    this.state.curriculum = { teacherId: teacher.id, pairs: pairsResult.data || [], terms: termsResult.data || [], slots: slotsResult.data || [], scheme: schemeResult.data || [] };
   }
 
   static item(item) {
@@ -75,7 +99,18 @@ class LearningPlannerModule {
     const items = this.state.items.filter((item) => this.state.filter === "all" || item.type === this.state.filter);
     const upcoming = this.state.items.filter((item) => !item.overdue && !item.ended).length;
     const live = this.state.items.filter((item) => item.live).length;
-    return `<div class="space-y-6"><section class="rounded-2xl bg-gradient-to-r from-indigo-700 to-cyan-600 p-6 text-white shadow"><p class="text-sm font-semibold uppercase tracking-[.18em] text-cyan-100">Your learning schedule</p><h2 class="mt-2 text-3xl font-bold">Learning Planner</h2><p class="mt-2 max-w-2xl text-indigo-100">Assignments and live classes in one focused timeline for the next 30 days.</p><div class="mt-5 flex flex-wrap gap-3 text-sm"><span class="rounded-full bg-white/15 px-3 py-1.5">${upcoming} upcoming items</span>${live ? `<span class="rounded-full bg-emerald-500/90 px-3 py-1.5">${live} class live now</span>` : ""}</div></section>${this.state.warning ? `<p class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="status">${this.safe(this.state.warning)}</p>` : ""}<section class="rounded-xl bg-white p-5 shadow"><div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-xl font-bold text-slate-800">Upcoming work</h3><p class="mt-1 text-sm text-slate-500">Open an item to continue in its secure workspace.</p></div><div class="flex flex-wrap gap-2" role="group" aria-label="Planner filters">${filters.map(([key, label]) => `<button type="button" data-planner-filter="${key}" aria-pressed="${this.state.filter === key}" class="rounded-full px-3 py-1.5 text-sm font-medium ${this.state.filter === key ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}">${label}</button>`).join("")}</div></div><div class="mt-5 space-y-3">${items.length ? items.map((item) => this.item(item)).join("") : '<div class="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">Nothing is scheduled in the next 30 days.</div>'}</div></section></div>`;
+    return `<div class="space-y-6"><section class="rounded-2xl bg-gradient-to-r from-indigo-700 to-cyan-600 p-6 text-white shadow"><p class="text-sm font-semibold uppercase tracking-[.18em] text-cyan-100">Your learning schedule</p><h2 class="mt-2 text-3xl font-bold">Learning Planner</h2><p class="mt-2 max-w-2xl text-indigo-100">Assignments and live classes in one focused timeline for the next 30 days.</p><div class="mt-5 flex flex-wrap gap-3 text-sm"><span class="rounded-full bg-white/15 px-3 py-1.5">${upcoming} upcoming items</span>${live ? `<span class="rounded-full bg-emerald-500/90 px-3 py-1.5">${live} class live now</span>` : ""}</div></section>${this.state.warning ? `<p class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="status">${this.safe(this.state.warning)}</p>` : ""}${this.curriculumTemplate()}<section class="rounded-xl bg-white p-5 shadow"><div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-xl font-bold text-slate-800">Upcoming work</h3><p class="mt-1 text-sm text-slate-500">Open an item to continue in its secure workspace.</p></div><div class="flex flex-wrap gap-2" role="group" aria-label="Planner filters">${filters.map(([key, label]) => `<button type="button" data-planner-filter="${key}" aria-pressed="${this.state.filter === key}" class="rounded-full px-3 py-1.5 text-sm font-medium ${this.state.filter === key ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}">${label}</button>`).join("")}</div></div><div class="mt-5 space-y-3">${items.length ? items.map((item) => this.item(item)).join("") : '<div class="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">Nothing is scheduled in the next 30 days.</div>'}</div></section></div>`;
+  }
+
+  static curriculumTemplate() {
+    const data = this.state.curriculum;
+    if (!data) return "";
+    const terms = data.terms.map((term) => `<option value="${this.safe(term.id)}">${this.safe(term.term_name)}</option>`).join("");
+    const pairs = data.pairs.map((pair) => `<option value="${this.safe(pair.class_id)}|${this.safe(pair.subject_id)}">${this.safe(pair.classes?.class_name || "Class")} · ${this.safe(pair.subjects?.subject_name || "Subject")}</option>`).join("");
+    const slotRows = data.slots.map((slot) => `<li class="rounded-lg bg-slate-50 p-3 text-sm text-slate-700"><strong>${this.safe(slot.day_of_week)}</strong> · ${this.safe(String(slot.starts_at).slice(0, 5))}–${this.safe(String(slot.ends_at).slice(0, 5))}<br>${this.safe(slot.classes?.class_name || "Class")} · ${this.safe(slot.subjects?.subject_name || "Subject")}${slot.room ? ` · ${this.safe(slot.room)}` : ""}</li>`).join("") || '<li class="text-sm text-slate-500">No timetable slots set yet.</li>';
+    const schemeRows = data.scheme.map((entry) => `<li class="rounded-lg bg-slate-50 p-3 text-sm text-slate-700"><strong>Week ${this.safe(entry.week_number)}: ${this.safe(entry.topic)}</strong><br>${this.safe(entry.classes?.class_name || "Class")} · ${this.safe(entry.subjects?.subject_name || "Subject")}${entry.objectives ? `<p class="mt-1 text-slate-500">${this.safe(entry.objectives)}</p>` : ""}</li>`).join("") || '<li class="text-sm text-slate-500">No scheme-of-work entries set yet.</li>';
+    const disabled = !terms || !pairs;
+    return `<section class="rounded-xl bg-white p-5 shadow"><div><h3 class="text-xl font-bold text-slate-800">Term curriculum</h3><p class="mt-1 text-sm text-slate-500">Set your timetable and weekly scheme of work for classes assigned to you.</p></div>${disabled ? '<p class="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">An administrator must assign you a class, subject, and active term before planning can begin.</p>' : `<div class="mt-5 grid gap-5 xl:grid-cols-2"><form data-timetable-form class="rounded-xl border border-slate-200 p-4"><h4 class="font-semibold text-slate-800">Add timetable slot</h4><div class="mt-3 grid gap-3 sm:grid-cols-2"><select required name="term_id" class="rounded-lg border p-2"><option value="">Term</option>${terms}</select><select required name="pair" class="rounded-lg border p-2"><option value="">Class & subject</option>${pairs}</select><select required name="day_of_week" class="rounded-lg border p-2"><option value="">Day</option>${["Monday","Tuesday","Wednesday","Thursday","Friday"].map((day) => `<option>${day}</option>`).join("")}</select><input required name="room" placeholder="Room / location" class="rounded-lg border p-2"><input required type="time" name="starts_at" class="rounded-lg border p-2"><input required type="time" name="ends_at" class="rounded-lg border p-2"></div><button class="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white">Save slot</button><ul class="mt-4 space-y-2">${slotRows}</ul></form><form data-scheme-form class="rounded-xl border border-slate-200 p-4"><h4 class="font-semibold text-slate-800">Add scheme of work</h4><div class="mt-3 grid gap-3 sm:grid-cols-2"><select required name="term_id" class="rounded-lg border p-2"><option value="">Term</option>${terms}</select><select required name="pair" class="rounded-lg border p-2"><option value="">Class & subject</option>${pairs}</select><input required min="1" max="20" type="number" name="week_number" placeholder="Week" class="rounded-lg border p-2"><input required name="topic" placeholder="Topic" class="rounded-lg border p-2"><textarea name="objectives" placeholder="Learning objectives" class="rounded-lg border p-2 sm:col-span-2"></textarea><textarea name="learning_activities" placeholder="Learning activities" class="rounded-lg border p-2 sm:col-span-2"></textarea><input name="resources" placeholder="Resources" class="rounded-lg border p-2"><input name="assessment" placeholder="Assessment" class="rounded-lg border p-2"></div><button class="mt-3 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white">Save week plan</button><ul class="mt-4 space-y-2">${schemeRows}</ul></form></div>`}</section>`;
   }
 
   static bind() {
@@ -84,6 +119,33 @@ class LearningPlannerModule {
       this.state.container.innerHTML = this.template(); this.bind();
     }));
     this.state.container.querySelectorAll("[data-planner-route]").forEach((button) => button.addEventListener("click", () => Router.navigate(button.dataset.plannerRoute)));
+    this.state.container.querySelector("[data-timetable-form]")?.addEventListener("submit", (event) => this.saveCurriculum(event, "teacher_timetable_slots"));
+    this.state.container.querySelector("[data-scheme-form]")?.addEventListener("submit", (event) => this.saveCurriculum(event, "scheme_of_work_entries"));
+  }
+
+  static async saveCurriculum(event, table) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = form.querySelector("button[type=submit], button:not([type])");
+    try {
+      const values = Object.fromEntries(new FormData(form).entries());
+      const [class_id, subject_id] = String(values.pair || "").split("|");
+      if (!class_id || !subject_id || !values.term_id) throw new Error("Select a term and assigned class subject.");
+      const payload = { ...values, teacher_id: this.state.curriculum.teacherId, class_id, subject_id };
+      delete payload.pair;
+      if (table === "scheme_of_work_entries") payload.week_number = Number(values.week_number);
+      if (table === "teacher_timetable_slots" && String(values.ends_at) <= String(values.starts_at)) throw new Error("End time must be after start time.");
+      submit.disabled = true;
+      const { error } = await API.db.from(table).insert(payload);
+      if (error) throw error;
+      window.Utils?.success?.(table === "teacher_timetable_slots" ? "Timetable slot saved." : "Weekly scheme saved.");
+      await this.load();
+      this.state.container.innerHTML = this.template();
+      this.bind();
+    } catch (error) {
+      window.Utils?.error?.(error.message || "Unable to save term curriculum.") || window.alert(error.message || "Unable to save term curriculum.");
+      submit.disabled = false;
+    }
   }
 
   static async render(container) {
