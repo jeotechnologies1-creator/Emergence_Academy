@@ -145,7 +145,7 @@ class LiveClassesModule {
             <p class="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-100">Agora live class</p>
             <h3 class="mt-1 text-xl font-bold">${this.safe(session?.title || "Live class")}</h3>
           </div>
-          <div class="flex items-center gap-2"><button type="button" data-toggle-agora-sidebar aria-expanded="false" class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Chat & details</button><button type="button" data-close-agora class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Close</button>${canEndClass ? '<button type="button" data-end-agora class="rounded-full bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60">End class</button>' : ""}</div>
+          <div class="flex items-center gap-2"><button type="button" data-toggle-agora-sidebar aria-expanded="false" class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Chat & details</button>${canPublish ? '<button type="button" data-agora-share-screen class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Share screen</button>' : ""}<button type="button" data-close-agora class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Close</button>${canEndClass ? '<button type="button" data-end-agora class="rounded-full bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60">End class</button>' : ""}</div>
         </div>
         <div data-agora-classroom class="agora-classroom min-h-0 flex-1 p-4 lg:p-5">
           <div class="agora-video-stage relative min-h-[320px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),transparent_42%),linear-gradient(135deg,#020617,#0f172a_48%,#111827)] lg:min-h-0">
@@ -155,7 +155,7 @@ class LiveClassesModule {
               <span class="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-cyan-100">Live</span>
               <span class="rounded-full border border-white/10 bg-slate-900/50 px-3 py-1 text-xs font-medium text-slate-200">${this.safe(channel)}</span>
             </div>
-            ${canPublish ? '<div data-agora-local-preview class="agora-local-preview"><div id="agora-local-player" class="h-full w-full bg-slate-800"></div><button type="button" data-agora-preview-resize class="agora-preview-resize" aria-label="Resize camera preview" title="Drag to resize camera preview"></button></div>' : ""}
+            ${canPublish ? '<div data-agora-local-preview class="agora-local-preview"><div id="agora-local-player" class="h-full w-full bg-slate-800"></div><button type="button" data-toggle-camera-fill class="agora-preview-expand" aria-pressed="false">Fill stage</button><button type="button" data-agora-preview-resize class="agora-preview-resize" aria-label="Resize camera preview" title="Drag to resize camera preview"></button></div>' : ""}
           </div>
           <aside data-agora-sidebar class="agora-class-sidebar flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-slate-200" aria-label="Class details and chat">
             <div>
@@ -176,7 +176,7 @@ class LiveClassesModule {
               <div data-agora-chat-messages class="agora-chat-messages mt-3 flex-1" aria-live="polite"><p class="text-sm text-slate-400">Chat with everyone in this class.</p></div>
               <form data-agora-chat-form class="mt-3 flex gap-2"><input required maxlength="500" name="message" autocomplete="off" placeholder="Write a comment…" class="min-w-0 flex-1 rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-slate-400"><button type="submit" class="rounded-lg bg-cyan-600 px-3 py-2 text-sm font-medium text-white hover:bg-cyan-500">Send</button></form>
             </section>
-            ${canPublish ? '<div class="mt-auto flex gap-2"><button type="button" data-agora-toggle-mic class="flex-1 rounded-xl bg-slate-800 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700">Mute</button><button type="button" data-agora-toggle-camera class="flex-1 rounded-xl bg-cyan-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-cyan-500">Camera off</button></div>' : '<p class="mt-auto text-sm text-slate-300">You are connected as a viewer.</p>'}
+            ${canPublish ? '<div class="mt-auto grid grid-cols-2 gap-2"><button type="button" data-agora-toggle-mic class="rounded-xl bg-slate-800 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700">Mute</button><button type="button" data-agora-toggle-camera class="rounded-xl bg-cyan-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-cyan-500">Camera off</button></div>' : '<p class="mt-auto text-sm text-slate-300">You are connected as a viewer.</p>'}
           </aside>
         </div>
       </div>
@@ -192,14 +192,24 @@ class LiveClassesModule {
       if (isOpen) modal.querySelector("[name=message]")?.focus();
     });
     const preview = modal.querySelector("[data-agora-local-preview]");
+    preview?.querySelector("[data-toggle-camera-fill]")?.addEventListener("click", (event) => {
+      const expanded = preview.classList.toggle("agora-local-preview-expanded");
+      event.currentTarget.setAttribute("aria-pressed", String(expanded));
+      event.currentTarget.textContent = expanded ? "Restore size" : "Fill stage";
+    });
     preview?.querySelector("[data-agora-preview-resize]")?.addEventListener("pointerdown", (event) => {
       event.preventDefault();
       const startX = event.clientX, startY = event.clientY;
       const rect = preview.getBoundingClientRect();
       const startWidth = rect.width, startHeight = rect.height;
+      const stage = modal.querySelector(".agora-video-stage");
       const resize = (moveEvent) => {
-        const width = Math.min(520, Math.max(180, startWidth + startX - moveEvent.clientX));
-        const height = Math.min(360, Math.max(120, startHeight + startY - moveEvent.clientY));
+        const stageRect = stage?.getBoundingClientRect();
+        const width = Math.min(Math.max(180, (stageRect?.width || 0) - 24), Math.max(180, startWidth + startX - moveEvent.clientX));
+        const height = Math.min(Math.max(120, (stageRect?.height || 0) - 24), Math.max(120, startHeight + startY - moveEvent.clientY));
+        preview.classList.remove("agora-local-preview-expanded");
+        preview.querySelector("[data-toggle-camera-fill]")?.setAttribute("aria-pressed", "false");
+        if (preview.querySelector("[data-toggle-camera-fill]")) preview.querySelector("[data-toggle-camera-fill]").textContent = "Fill stage";
         preview.style.width = `${width}px`;
         preview.style.height = `${height}px`;
       };
@@ -261,6 +271,7 @@ class LiveClassesModule {
     status.textContent = "Fetching secure token...";
     let localAudioTrack;
     let localVideoTrack;
+    let screenVideoTrack;
     try {
       const tokenResponse = await this.requestAgoraToken(channel, uid, session?.id || null, isTeacherHost ? "create" : "join");
       if (modal.__closed) return null;
@@ -330,6 +341,51 @@ class LiveClassesModule {
           localVideoTrack.setEnabled(cameraEnabled);
           cameraButton.textContent = cameraEnabled ? "Camera off" : "Camera on";
         });
+        const screenButton = modal.querySelector("[data-agora-share-screen]");
+        const stopScreenShare = async () => {
+          if (!screenVideoTrack) return;
+          await client.unpublish(screenVideoTrack);
+          screenVideoTrack.close();
+          screenVideoTrack = null;
+          if (localVideoTrack) {
+            await client.publish(localVideoTrack);
+            localVideoTrack.play("agora-local-player");
+          }
+          modal.__agora = { ...modal.__agora, screenVideoTrack };
+          if (screenButton) screenButton.textContent = "Share screen";
+        };
+        screenButton?.addEventListener("click", async () => {
+          let cameraUnpublished = false;
+          try {
+            if (screenVideoTrack) {
+              await stopScreenShare();
+              return;
+            }
+            screenButton.disabled = true;
+            const createdTrack = await window.AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "disable");
+            screenVideoTrack = Array.isArray(createdTrack) ? createdTrack[0] : createdTrack;
+            if (!screenVideoTrack) throw new Error("Screen capture was not available.");
+            await client.unpublish(localVideoTrack);
+            cameraUnpublished = true;
+            await client.publish(screenVideoTrack);
+            screenVideoTrack.play("agora-local-player");
+            screenVideoTrack.on("track-ended", () => stopScreenShare().catch((error) => console.error("Unable to stop screen share:", error)));
+            modal.__agora = { ...modal.__agora, screenVideoTrack };
+            screenButton.textContent = "Stop sharing";
+          } catch (error) {
+            if (screenVideoTrack) {
+              screenVideoTrack.close();
+              screenVideoTrack = null;
+            }
+            if (cameraUnpublished && localVideoTrack) {
+              await client.publish(localVideoTrack);
+              localVideoTrack.play("agora-local-player");
+            }
+            window.Utils?.error?.(error.message || "Unable to share your screen.") || window.alert(error.message || "Unable to share your screen.");
+          } finally {
+            screenButton.disabled = false;
+          }
+        });
         // Publish each track explicitly. This keeps the SDK from receiving a
         // malformed track array and makes both tracks unambiguously local to
         // this teacher client.
@@ -338,10 +394,10 @@ class LiveClassesModule {
         localVideoTrack.play("agora-local-player");
       }
       status.textContent = "Connected to Agora";
-      modal.__agora = { ...modal.__agora, client, localAudioTrack, localVideoTrack };
+      modal.__agora = { ...modal.__agora, client, localAudioTrack, localVideoTrack, screenVideoTrack };
       return modal;
     } catch (error) {
-      modal.__agora = { ...modal.__agora, client, localAudioTrack, localVideoTrack };
+      modal.__agora = { ...modal.__agora, client, localAudioTrack, localVideoTrack, screenVideoTrack };
       if (modal.__closed) return null;
       this.closeAgoraRoom(modal);
       throw error;
@@ -356,6 +412,7 @@ class LiveClassesModule {
     }
     if (session?.localAudioTrack) session.localAudioTrack.close();
     if (session?.localVideoTrack) session.localVideoTrack.close();
+    if (session?.screenVideoTrack) session.screenVideoTrack.close();
     if (modal.__onKeydown) document.removeEventListener("keydown", modal.__onKeydown);
     document.body.style.overflow = modal.__previousBodyOverflow || "";
     modal.remove();

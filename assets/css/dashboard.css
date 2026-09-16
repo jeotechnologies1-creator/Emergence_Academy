@@ -634,6 +634,29 @@ svg {
   box-shadow: 0 1.5rem 3rem rgba(2, 6, 23, 0.55);
 }
 
+.agora-local-preview-expanded {
+  inset: 0.75rem !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none;
+  max-height: none;
+  border-radius: 0.75rem;
+}
+
+.agora-preview-expand {
+  position: absolute;
+  left: 0.55rem;
+  bottom: 0.55rem;
+  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  background: rgba(2, 6, 23, 0.72);
+  color: #f8fafc;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
 .agora-preview-resize {
   position: absolute;
   right: 0;
