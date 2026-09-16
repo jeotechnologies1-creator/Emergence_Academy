@@ -863,6 +863,69 @@ main {
 .parent-records-scroll::-webkit-scrollbar-track { background: #eef2ff; }
 .parent-records-scroll::-webkit-scrollbar-thumb { background: #93c5fd; border: 2px solid #eef2ff; border-radius: 99px; }
 
+/* Keep every dynamically rendered dashboard surface readable in dark mode.
+   These rules deliberately follow the visual-refresh styles above so light
+   table, card, and status utilities cannot override the selected theme. */
+:root[data-theme="dark"] #dashboard-content {
+  color: #e2e8f0;
+  background: linear-gradient(180deg, #0f172a, #111827) !important;
+}
+
+:root[data-theme="dark"] #dashboard-content :is(.bg-white, .bg-slate-50, .bg-slate-100, .bg-gray-50, .bg-gray-100, .bg-blue-50, .bg-indigo-50, .bg-cyan-50, .bg-emerald-50, .bg-green-50, .bg-amber-50, .bg-yellow-50, .bg-red-50) {
+  background-color: #111827 !important;
+  border-color: #334155 !important;
+}
+
+:root[data-theme="dark"] #dashboard-content :is(.text-black, .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700) {
+  color: #f8fafc !important;
+}
+
+:root[data-theme="dark"] #dashboard-content :is(.text-slate-600, .text-slate-500, .text-slate-400, .text-gray-600, .text-gray-500, .text-gray-400) {
+  color: #cbd5e1 !important;
+}
+
+:root[data-theme="dark"] #dashboard-content :is(.text-blue-700, .text-indigo-700, .text-cyan-700) {
+  color: #93c5fd !important;
+}
+
+:root[data-theme="dark"] #dashboard-content :is(.text-green-700, .text-emerald-700) {
+  color: #86efac !important;
+}
+
+:root[data-theme="dark"] #dashboard-content :is(.text-amber-700, .text-yellow-700) {
+  color: #fde68a !important;
+}
+
+:root[data-theme="dark"] #dashboard-content :is(.text-red-700, .text-red-600) {
+  color: #fca5a5 !important;
+}
+
+:root[data-theme="dark"] #dashboard-content table thead,
+:root[data-theme="dark"] #dashboard-content table tbody tr:hover {
+  background: #1e293b !important;
+}
+
+:root[data-theme="dark"] #dashboard-content table :is(th, td) {
+  border-color: #334155 !important;
+  color: #e2e8f0;
+}
+
+:root[data-theme="dark"] #dashboard-content :is(input, select, textarea, option) {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+:root[data-theme="dark"] #dashboard-content button:not([class*="bg-"]):not([disabled]) {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+
+:root[data-theme="dark"] #dashboard-content button:not([disabled]):hover {
+  filter: brightness(1.12);
+}
+
 @media (max-width: 767px) {
   nav button[data-route] { margin-left: 6px; margin-right: 6px; width: calc(100% - 12px); }
   #dashboard-content .rounded-xl, #dashboard-content .rounded-2xl { border-radius: 14px; }
