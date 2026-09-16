@@ -91,8 +91,10 @@ Deno.serve(async (req) => {
     if (notificationRows.length) {
       const { error: notificationError } = await admin.from("notifications").insert(notificationRows);
       if (notificationError) {
-        await admin.from("live_classes").delete().eq("id", liveClass.id);
-        throw notificationError;
+        // The class, its approved roster, and its Agora identity have already
+        // been saved. Notification delivery must not turn that successful
+        // scheduling operation into a false failure.
+        console.error("Live-class notification delivery failed", notificationError);
       }
     }
     return json({ success: true, live_class: liveClass, meeting_url: roomUrl, channel_name: roomName });

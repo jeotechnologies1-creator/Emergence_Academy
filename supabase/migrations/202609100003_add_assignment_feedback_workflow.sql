@@ -12,6 +12,13 @@ alter table public.assignment_submissions
 alter table public.assignment_submissions
   drop constraint if exists assignment_submissions_status_check;
 
+-- Some production databases received these checks during an earlier manual
+-- rollout.  Recreate them below so this tracked migration remains safe to
+-- apply to both those databases and a fresh project.
+alter table public.assignment_submissions
+  drop constraint if exists assignment_submissions_score_check,
+  drop constraint if exists assignment_submissions_feedback_length_check;
+
 alter table public.assignment_submissions
   add constraint assignment_submissions_status_check
   check (status in ('submitted', 'returned'));

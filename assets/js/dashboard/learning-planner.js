@@ -1,7 +1,7 @@
 /* A single, role-safe view of the work and live sessions already available
    to the signed-in user. Data access remains enforced by existing RLS/RPCs. */
 class LearningPlannerModule {
-  static state = { container: null, profile: null, items: [], filter: "all" };
+  static state = { container: null, profile: null, items: [], filter: "all", warning: "" };
 
   static safe(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
   static role() { return String(this.state.profile?.role || "").trim().toLowerCase(); }
@@ -13,6 +13,7 @@ class LearningPlannerModule {
   static async load() {
     this.state.profile = await Auth.profile(true);
     if (!this.canUse()) throw new Error("Your role does not have access to the learning planner.");
+    this.state.warning = "";
     const [assignmentsResult, sessionsResult] = await Promise.all([
       API.db.from("assignments")
         .select("id,title,due_date,status,subjects:subject_id(subject_name),classes:class_id(class_name)")
@@ -21,7 +22,13 @@ class LearningPlannerModule {
       API.db.rpc("get_live_classes")
     ]);
     if (assignmentsResult.error) throw assignmentsResult.error;
-    if (sessionsResult.error) throw sessionsResult.error;
+    // Assignments and live sessions are separate features.  In particular,
+    // an older deployment can be missing the newer live-class RPC columns.
+    // Do not make a teacher's whole planner unusable in that case.
+    if (sessionsResult.error) {
+      console.error("Unable to load live classes for learning planner:", sessionsResult.error);
+      this.state.warning = "Live classes could not be loaded right now. Your assignments are still available below.";
+    }
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const cutoff = new Date(today); cutoff.setDate(cutoff.getDate() + 30);
@@ -56,7 +63,7 @@ class LearningPlannerModule {
     const items = this.state.items.filter((item) => this.state.filter === "all" || item.type === this.state.filter);
     const upcoming = this.state.items.filter((item) => !item.overdue && !item.ended).length;
     const live = this.state.items.filter((item) => item.live).length;
-    return `<div class="space-y-6"><section class="rounded-2xl bg-gradient-to-r from-indigo-700 to-cyan-600 p-6 text-white shadow"><p class="text-sm font-semibold uppercase tracking-[.18em] text-cyan-100">Your learning schedule</p><h2 class="mt-2 text-3xl font-bold">Learning Planner</h2><p class="mt-2 max-w-2xl text-indigo-100">Assignments and live classes in one focused timeline for the next 30 days.</p><div class="mt-5 flex flex-wrap gap-3 text-sm"><span class="rounded-full bg-white/15 px-3 py-1.5">${upcoming} upcoming items</span>${live ? `<span class="rounded-full bg-emerald-500/90 px-3 py-1.5">${live} class live now</span>` : ""}</div></section><section class="rounded-xl bg-white p-5 shadow"><div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-xl font-bold text-slate-800">Upcoming work</h3><p class="mt-1 text-sm text-slate-500">Open an item to continue in its secure workspace.</p></div><div class="flex flex-wrap gap-2" role="group" aria-label="Planner filters">${filters.map(([key, label]) => `<button type="button" data-planner-filter="${key}" aria-pressed="${this.state.filter === key}" class="rounded-full px-3 py-1.5 text-sm font-medium ${this.state.filter === key ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}">${label}</button>`).join("")}</div></div><div class="mt-5 space-y-3">${items.length ? items.map((item) => this.item(item)).join("") : '<div class="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">Nothing is scheduled in the next 30 days.</div>'}</div></section></div>`;
+    return `<div class="space-y-6"><section class="rounded-2xl bg-gradient-to-r from-indigo-700 to-cyan-600 p-6 text-white shadow"><p class="text-sm font-semibold uppercase tracking-[.18em] text-cyan-100">Your learning schedule</p><h2 class="mt-2 text-3xl font-bold">Learning Planner</h2><p class="mt-2 max-w-2xl text-indigo-100">Assignments and live classes in one focused timeline for the next 30 days.</p><div class="mt-5 flex flex-wrap gap-3 text-sm"><span class="rounded-full bg-white/15 px-3 py-1.5">${upcoming} upcoming items</span>${live ? `<span class="rounded-full bg-emerald-500/90 px-3 py-1.5">${live} class live now</span>` : ""}</div></section>${this.state.warning ? `<p class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="status">${this.safe(this.state.warning)}</p>` : ""}<section class="rounded-xl bg-white p-5 shadow"><div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-xl font-bold text-slate-800">Upcoming work</h3><p class="mt-1 text-sm text-slate-500">Open an item to continue in its secure workspace.</p></div><div class="flex flex-wrap gap-2" role="group" aria-label="Planner filters">${filters.map(([key, label]) => `<button type="button" data-planner-filter="${key}" aria-pressed="${this.state.filter === key}" class="rounded-full px-3 py-1.5 text-sm font-medium ${this.state.filter === key ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}">${label}</button>`).join("")}</div></div><div class="mt-5 space-y-3">${items.length ? items.map((item) => this.item(item)).join("") : '<div class="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">Nothing is scheduled in the next 30 days.</div>'}</div></section></div>`;
   }
 
   static bind() {

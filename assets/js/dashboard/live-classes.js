@@ -160,7 +160,7 @@ class LiveClassesModule {
             </div>
             <div class="rounded-xl border border-white/10 bg-slate-900/50 p-3 text-sm text-slate-300">
               <p class="font-medium text-white">Required setup</p>
-              <p class="mt-2">Add your Agora App ID in <strong>assets/js/config.js</strong> under <strong>CONFIG.AGORA</strong>; the token is fetched securely from the backend.</p>
+              <p class="mt-2">Your secure Agora access token and project details are fetched from the backend when you join.</p>
             </div>
             ${canPublish ? '<div class="mt-auto flex gap-2"><button type="button" data-agora-toggle-mic class="flex-1 rounded-xl bg-slate-800 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700">Mute</button><button type="button" data-agora-toggle-camera class="flex-1 rounded-xl bg-cyan-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-cyan-500">Camera off</button></div>' : '<p class="mt-auto text-sm text-slate-300">You are connected as a viewer.</p>'}
           </aside>
@@ -196,10 +196,6 @@ class LiveClassesModule {
     return modal;
   }
   static async connectAgoraRoom(session) {
-    const { appId } = this.getAgoraConfig();
-    if (!appId) {
-      throw new Error("Agora App ID is missing. Add it to CONFIG.AGORA.APP_ID in assets/js/config.js.");
-    }
     await this.ensureAgoraSDK();
     const isTeacherHost = this.canSchedule() && String(session?.teacher_id) === String(this.state.teacher?.id);
     const canPublish = isTeacherHost || this.role() === "student";
@@ -217,6 +213,11 @@ class LiveClassesModule {
     try {
       const tokenResponse = await this.requestAgoraToken(channel, uid, session?.id || null, isTeacherHost ? "create" : "join");
       if (modal.__closed) return null;
+      // The token service is the source of truth for the Agora project. Using
+      // a browser-configured ID here can pair a valid token with a different
+      // project and makes Agora reject the host connection.
+      const appId = String(tokenResponse.app_id || this.getAgoraConfig().appId || "").trim();
+      if (!appId) throw new Error("Agora did not return an App ID for this class. Check the server configuration.");
       client.on("user-published", async (user, mediaType) => {
         await client.subscribe(user, mediaType);
         if (mediaType === "video" && user.videoTrack) {
