@@ -54,6 +54,11 @@ const path = require('path');
   assert.ok(read('supabase', 'functions', 'agora-create-room', 'index.ts').includes('Only teachers and administrators can create an Agora room'), 'teacher-only creation route must reject non-teachers');
   assert.ok(read('supabase', 'functions', 'agora-join-room', 'index.ts').includes('live_class_students'), 'student-only join route must verify approval before plane access');
   assert.ok(read('supabase', 'functions', 'agora-join-room', 'index.ts').includes('role === "student" ? RtcRole.PUBLISHER'), 'approved students must receive publisher access for two-way live classes');
+  for (const endpoint of ['agora-create-room', 'agora-join-room', 'agora-room', 'agora-token']) {
+    const endpointCode = read('supabase', 'functions', endpoint, 'index.ts');
+    assert.ok(endpointCode.includes('statusFor('), `${endpoint} must refuse tokens outside the live session window`);
+    assert.ok(endpointCode.includes('Invalid Agora channel for this live class.'), `${endpoint} must bind tokens to the stored class channel`);
+  }
   assert.ok(migration.includes("public.current_user_role() in ('ceo', 'admin', 'executive')"), 'administrators must be able to see every live class in the portal');
   assert.ok(!moduleCode.includes('enrolledSubjects.includes(subjectId)'), 'live classes must not depend on subject enrolment');
   assert.ok(schedule.includes('.eq("class_id", classId)'), 'schedule endpoint must validate selected students only against the selected class');

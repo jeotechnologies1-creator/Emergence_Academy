@@ -5,7 +5,7 @@ export type AgoraAccessRole = "publisher" | "subscriber";
 export async function validateAgoraLiveClassAccess(userId: string, liveClassId: string) {
   const admin = adminClient();
   const [{ data: liveClass, error: liveClassError }, { data: profile, error: profileError }] = await Promise.all([
-    admin.from("live_classes").select("id,class_id,subject_id,teacher_id,status,starts_at,ends_at").eq("id", liveClassId).maybeSingle(),
+    admin.from("live_classes").select("id,class_id,subject_id,teacher_id,status,starts_at,ends_at,agora_channel_name").eq("id", liveClassId).maybeSingle(),
     admin.from("profiles").select("role").eq("id", userId).maybeSingle(),
   ]);
 
@@ -24,7 +24,9 @@ export async function validateAgoraLiveClassAccess(userId: string, liveClassId: 
         throw new Error("You are not the teacher assigned to this live class.");
       }
     }
-    return { allow: true, role: "publisher" as const, liveClass };
+    // Administrators can observe any session, but only its assigned teacher
+    // hosts through this shared authorization path.
+    return { allow: true, role: role === "teacher" ? "publisher" as const : "subscriber" as const, liveClass };
   }
 
   if (role === "student") {
@@ -50,7 +52,9 @@ export async function validateAgoraLiveClassAccess(userId: string, liveClassId: 
     if (approvalError) throw approvalError;
     if (!approved) throw new Error("You are not approved for this live class.");
 
-    return { allow: true, role: "subscriber" as const, liveClass };
+    // Approved students take part in the two-way classroom and therefore
+    // receive publisher privilege, matching the dedicated join endpoint.
+    return { allow: true, role: "publisher" as const, liveClass };
   }
 
   throw new Error("You do not have access to this live class room.");

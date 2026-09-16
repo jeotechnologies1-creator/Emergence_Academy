@@ -1,4 +1,4 @@
-import { caller, corsHeaders, json, adminClient } from "../_shared/live-class.ts";
+import { caller, corsHeaders, json, adminClient, statusFor } from "../_shared/live-class.ts";
 import { RtcTokenBuilder, RtcRole } from "npm:agora-token@2.0.6";
 
 Deno.serve(async (req) => {
@@ -26,13 +26,17 @@ Deno.serve(async (req) => {
     const admin = adminClient();
     const [{ data: profile, error: profileError }, { data: liveClass, error: liveClassError }] = await Promise.all([
       admin.from("profiles").select("role").eq("id", user.id).maybeSingle(),
-      admin.from("live_classes").select("id,class_id,teacher_id,agora_channel_name").eq("id", liveClassId).maybeSingle(),
+      admin.from("live_classes").select("id,class_id,teacher_id,agora_channel_name,starts_at,ends_at,status").eq("id", liveClassId).maybeSingle(),
     ]);
 
     if (profileError) throw profileError;
     if (liveClassError) throw liveClassError;
     if (!liveClass) return json({ error: "Live class was not found." }, 404);
     if (channelName !== String(liveClass.agora_channel_name || "")) return json({ error: "Invalid Agora channel for this live class." }, 403);
+    const sessionStatus = statusFor(liveClass.starts_at, liveClass.ends_at, liveClass.status);
+    if (sessionStatus !== "live") {
+      return json({ error: sessionStatus === "ended" ? "This live class has ended." : "This class has not started yet." }, 409);
+    }
 
     const role = String(profile?.role || "").trim().toLowerCase();
     if (["admin", "ceo", "executive"].includes(role)) {

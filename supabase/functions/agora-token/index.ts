@@ -1,16 +1,6 @@
-import { adminClient, caller, corsHeaders, json, normalizedRole } from "../_shared/live-class.ts";
+import { caller, corsHeaders, json, statusFor } from "../_shared/live-class.ts";
 import { RtcTokenBuilder, RtcRole } from "npm:agora-token@2.0.6";
-
-function roleForToken(profileRole: unknown) {
-  const role = normalizedRole(profileRole);
-  if (role === "teacher" || role === "admin" || role === "ceo" || role === "executive") {
-    return { role: "publisher", agoraRole: RtcRole.PUBLISHER };
-  }
-  if (role === "student" || role === "parent") {
-    return { role: "subscriber", agoraRole: RtcRole.SUBSCRIBER };
-  }
-  return { role: "subscriber", agoraRole: RtcRole.SUBSCRIBER };
-}
+import { validateAgoraLiveClassAccess } from "../_shared/agora-access.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -29,18 +19,21 @@ Deno.serve(async (req) => {
       }, 500);
     }
 
-    const { channel_name: channelName, uid = 0 } = await req.json();
-    if (!channelName) return json({ error: "Channel name is required." }, 400);
+    const { live_class_id: liveClassId, liveClassId: camelLiveClassId, channel_name: channelName, channelName: camelChannelName, uid = 0 } = await req.json();
+    const requestedLiveClassId = String(liveClassId || camelLiveClassId || "").trim();
+    const requestedChannelName = String(channelName || camelChannelName || "").trim();
+    if (!requestedLiveClassId) return json({ error: "Live class ID is required." }, 400);
+    if (!requestedChannelName) return json({ error: "Channel name is required." }, 400);
 
-    const admin = adminClient();
-    const { data: profile, error: profileError } = await admin
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profileError) throw profileError;
-    const tokenPolicy = roleForToken(profile?.role);
+    const access = await validateAgoraLiveClassAccess(user.id, requestedLiveClassId);
+    if (requestedChannelName !== String(access.liveClass.agora_channel_name || "")) {
+      return json({ error: "Invalid Agora channel for this live class." }, 403);
+    }
+    const sessionStatus = statusFor(access.liveClass.starts_at, access.liveClass.ends_at, access.liveClass.status);
+    if (sessionStatus !== "live") {
+      return json({ error: sessionStatus === "ended" ? "This live class has ended." : "This class has not started yet." }, 409);
+    }
+    const agoraRole = access.role === "publisher" ? RtcRole.PUBLISHER : RtcRole.SUBSCRIBER;
 
     const safeUid = Number(uid) || 0;
     const expirySeconds = 3600;
@@ -50,9 +43,9 @@ Deno.serve(async (req) => {
     const token = RtcTokenBuilder.buildTokenWithUid(
       appId,
       appCertificate,
-      String(channelName),
+      requestedChannelName,
       safeUid,
-      tokenPolicy.agoraRole,
+      agoraRole,
       privilegeExpiredTs,
     );
 
@@ -60,9 +53,10 @@ Deno.serve(async (req) => {
       success: true,
       token,
       app_id: appId,
-      channel_name: String(channelName),
+      channel_name: requestedChannelName,
       uid: safeUid,
-      role: tokenPolicy.role,
+      role: access.role,
+      live_class_id: requestedLiveClassId,
       expires_at: privilegeExpiredTs,
     });
   } catch (error) {

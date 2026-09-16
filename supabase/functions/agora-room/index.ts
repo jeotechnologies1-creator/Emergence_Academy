@@ -1,4 +1,4 @@
-import { caller, corsHeaders, json, normalizedRole } from "../_shared/live-class.ts";
+import { caller, corsHeaders, json, statusFor } from "../_shared/live-class.ts";
 import { RtcTokenBuilder, RtcRole } from "npm:agora-token@2.0.6";
 import { validateAgoraLiveClassAccess } from "../_shared/agora-access.ts";
 
@@ -26,6 +26,13 @@ Deno.serve(async (req) => {
     if (!channelName) return json({ error: "Channel name is required." }, 400);
 
     const access = await validateAgoraLiveClassAccess(user.id, liveClassId);
+    if (channelName !== String(access.liveClass.agora_channel_name || "")) {
+      return json({ error: "Invalid Agora channel for this live class." }, 403);
+    }
+    const sessionStatus = statusFor(access.liveClass.starts_at, access.liveClass.ends_at, access.liveClass.status);
+    if (sessionStatus !== "live") {
+      return json({ error: sessionStatus === "ended" ? "This live class has ended." : "This class has not started yet." }, 409);
+    }
     const agoraRole = access.role === "publisher" ? RtcRole.PUBLISHER : RtcRole.SUBSCRIBER;
     const uid = Number(body.uid) || 0;
     const expirySeconds = 3600;

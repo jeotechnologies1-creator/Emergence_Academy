@@ -32,6 +32,22 @@ body {
   overflow-y: auto;
 }
 
+/* Live Agora sessions are a full-page classroom, not a constrained dialog.
+   The explicit rules keep the layout full-height even when utility styles
+   are not present in the generated Tailwind build. */
+.agora-room-modal {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.agora-room-dialog {
+  height: 100%;
+}
+
+.agora-room-modal .agora-video-stage {
+  min-height: 0;
+}
+
 /* The static Tailwind stylesheet cannot theme dynamically rendered modules.
    These scoped overrides keep cards, fields, tables, and dialogs legible. */
 :root[data-theme="dark"] body,
@@ -513,7 +529,6 @@ svg {
 [data-modal],
 #profile-action-modal,
 .student-admission-overlay,
-.agora-room-modal,
 .live-class-notification-modal {
   padding-top: max(0.75rem, env(safe-area-inset-top));
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
@@ -537,7 +552,13 @@ svg {
   overflow-wrap: anywhere;
 }
 
-.agora-room-modal,
+.agora-room-modal {
+  overflow-x: hidden;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .live-class-notification-modal {
   overflow-x: hidden;
   overflow-y: auto;
@@ -575,10 +596,10 @@ svg {
 }
 
 .agora-room-dialog {
-  margin: auto;
-  max-height: calc(100dvh - 2rem);
+  margin: 0;
+  max-height: none;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 @media (max-width: 767px) {
@@ -602,7 +623,6 @@ svg {
     width: 100%;
   }
 
-  .agora-room-modal,
   .live-class-notification-modal {
     align-items: flex-start;
     padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
@@ -611,7 +631,7 @@ svg {
   .agora-room-dialog {
     margin: 0;
     max-height: none;
-    border-radius: 1rem;
+    border-radius: 0;
   }
 
   .agora-room-dialog > div:first-child {

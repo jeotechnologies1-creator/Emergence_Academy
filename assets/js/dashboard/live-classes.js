@@ -123,18 +123,23 @@ class LiveClassesModule {
     const storedChannel = String(session?.agora_channel_name || "").trim();
     const channel = storedChannel || this.sanitizeChannelName(`${this.getAgoraConfig().channelPrefix}-${session?.id || session?.title || "room"}`);
     const modal = document.createElement("div");
-    modal.className = "agora-room-modal fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm";
+    // A live lesson is its own workspace. It deliberately fills the viewport
+    // so the dashboard is not competing with the classroom for attention.
+    modal.className = "agora-room-modal fixed inset-0 z-[60] bg-slate-950 text-slate-100";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-label", `Live class: ${session?.title || "Live class"}`);
     modal.innerHTML = `
-      <div class="agora-room-dialog w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl shadow-cyan-950/25">
-        <div class="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-cyan-600 to-indigo-600 px-5 py-4 text-white">
+      <div class="agora-room-dialog flex h-full min-h-0 w-full flex-col overflow-hidden bg-slate-950">
+        <div class="flex shrink-0 items-center justify-between border-b border-white/10 bg-gradient-to-r from-cyan-600 to-indigo-600 px-5 py-4 text-white">
           <div>
             <p class="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-100">Agora live class</p>
             <h3 class="mt-1 text-xl font-bold">${this.safe(session?.title || "Live class")}</h3>
           </div>
           <button type="button" data-close-agora class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Close</button>
         </div>
-        <div class="grid gap-4 p-5 lg:grid-cols-[1.5fr_0.8fr]">
-          <div class="agora-video-stage relative min-h-[420px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),transparent_42%),linear-gradient(135deg,#020617,#0f172a_48%,#111827)]">
+        <div class="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:p-5">
+          <div class="agora-video-stage relative min-h-[320px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),transparent_42%),linear-gradient(135deg,#020617,#0f172a_48%,#111827)] lg:min-h-0">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(96,165,250,0.18),transparent_60%)]"></div>
             <div data-agora-remote-grid class="agora-remote-grid absolute inset-0"></div>
             <div class="absolute inset-x-0 top-4 flex justify-between px-4">
@@ -165,7 +170,15 @@ class LiveClassesModule {
     const closeButton = modal.querySelector("[data-close-agora]");
     closeButton?.addEventListener("click", () => this.closeAgoraRoom(modal));
     modal.dataset.channel = channel;
+    modal.__previousBodyOverflow = document.body.style.overflow;
+    modal.__previousFocus = document.activeElement;
+    modal.__onKeydown = (event) => {
+      if (event.key === "Escape") this.closeAgoraRoom(modal);
+    };
+    document.body.style.overflow = "hidden";
     document.body.appendChild(modal);
+    document.addEventListener("keydown", modal.__onKeydown);
+    closeButton?.focus();
     return modal;
   }
   static async connectAgoraRoom(session) {
@@ -178,6 +191,9 @@ class LiveClassesModule {
     const canPublish = isTeacherHost || this.role() === "student";
     const modal = this.openAgoraRoom(session, canPublish);
     const client = window.AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+    // Store the client immediately so Close can cancel an in-flight token,
+    // join, or media-device request without leaving a connection behind.
+    modal.__agora = { client };
     const channel = modal.dataset.channel;
     const uid = this.agoraUid(session);
     const status = modal.querySelector("[data-agora-status]");
@@ -186,6 +202,7 @@ class LiveClassesModule {
     let localVideoTrack;
     try {
       const tokenResponse = await this.requestAgoraToken(channel, uid, session?.id || null, isTeacherHost ? "create" : "join");
+      if (modal.__closed) return null;
       client.on("user-published", async (user, mediaType) => {
         await client.subscribe(user, mediaType);
         if (mediaType === "video" && user.videoTrack) {
@@ -206,11 +223,17 @@ class LiveClassesModule {
         status.textContent = "Remote participant left the room.";
       });
       await client.join(appId, channel, tokenResponse.token, Number(uid));
+      if (modal.__closed) return null;
 
       if (tokenResponse.role === "publisher") {
         [localAudioTrack, localVideoTrack] = await window.AgoraRTC.createMicrophoneAndCameraTracks();
+        modal.__agora = { client, localAudioTrack, localVideoTrack };
+        if (modal.__closed) {
+          this.closeAgoraRoom(modal);
+          return null;
+        }
         if (!localAudioTrack || !localVideoTrack) {
-          throw new Error("Agora could not create the teacher's microphone and camera tracks.");
+          throw new Error("Agora could not create your microphone and camera tracks.");
         }
         const micButton = modal.querySelector("[data-agora-toggle-mic]");
         const cameraButton = modal.querySelector("[data-agora-toggle-camera]");
@@ -238,19 +261,24 @@ class LiveClassesModule {
       return modal;
     } catch (error) {
       modal.__agora = { client, localAudioTrack, localVideoTrack };
+      if (modal.__closed) return null;
       this.closeAgoraRoom(modal);
       throw error;
     }
   }
   static closeAgoraRoom(modal) {
     if (!modal) return;
+    modal.__closed = true;
     const session = modal.__agora;
     if (session?.client) {
       session.client.leave();
     }
     if (session?.localAudioTrack) session.localAudioTrack.close();
     if (session?.localVideoTrack) session.localVideoTrack.close();
+    if (modal.__onKeydown) document.removeEventListener("keydown", modal.__onKeydown);
+    document.body.style.overflow = modal.__previousBodyOverflow || "";
     modal.remove();
+    modal.__previousFocus?.focus?.({ preventScroll: true });
   }
   static async render(container) { this.state.container = container; container.innerHTML = '<div class="bg-white rounded-xl p-8 text-slate-500 shadow">Loading live classes...</div>'; try { await this.load(); this.draw(); } catch (error) { console.error(error); container.innerHTML = `<div class="bg-white rounded-xl p-8 text-red-600 shadow">${this.safe(error.message || "Unable to load live classes.")}</div>`; } }
   static draw() {

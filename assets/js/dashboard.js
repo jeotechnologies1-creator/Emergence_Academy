@@ -211,6 +211,9 @@
                 assignments:
                     window.AssignmentModule,
 
+                planner:
+                    window.LearningPlannerModule,
+
                 "live-classes":
                     window.LiveClassesModule,
 
