@@ -145,7 +145,7 @@ class LiveClassesModule {
             <p class="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-100">Agora live class</p>
             <h3 class="mt-1 text-xl font-bold">${this.safe(session?.title || "Live class")}</h3>
           </div>
-          <div class="flex items-center gap-2"><button type="button" data-toggle-agora-sidebar aria-expanded="false" class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Chat & details</button>${canPublish ? '<button type="button" data-agora-share-screen class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Share screen</button>' : ""}<button type="button" data-close-agora class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Close</button>${canEndClass ? '<button type="button" data-end-agora class="rounded-full bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60">End class</button>' : ""}</div>
+          <div class="flex items-center gap-2"><button type="button" data-toggle-agora-sidebar aria-expanded="false" class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Open chat</button>${canPublish ? '<button type="button" data-agora-share-screen class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Share screen</button>' : ""}<button type="button" data-close-agora class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">Close</button>${canEndClass ? '<button type="button" data-end-agora class="rounded-full bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60">End class</button>' : ""}</div>
         </div>
         <div data-agora-classroom class="agora-classroom min-h-0 flex-1 p-4 lg:p-5">
           <div class="agora-video-stage relative min-h-[320px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),transparent_42%),linear-gradient(135deg,#020617,#0f172a_48%,#111827)] lg:min-h-0">
@@ -188,7 +188,7 @@ class LiveClassesModule {
       const classroom = modal.querySelector("[data-agora-classroom]");
       const isOpen = classroom?.classList.toggle("agora-sidebar-open");
       sidebarButton.setAttribute("aria-expanded", String(Boolean(isOpen)));
-      sidebarButton.textContent = isOpen ? "Hide panel" : "Chat & details";
+      sidebarButton.textContent = isOpen ? "Hide chat" : "Open chat";
       if (isOpen) modal.querySelector("[name=message]")?.focus();
     });
     const preview = modal.querySelector("[data-agora-local-preview]");

@@ -598,20 +598,32 @@ svg {
 /* Keep the classroom video primary. Details/chat open only on demand, and
    the teacher's camera can be widened with the resize handle. */
 .agora-classroom {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
+  position: relative;
+  display: block;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
+}
+
+.agora-classroom .agora-video-stage {
+  height: 100%;
 }
 
 .agora-classroom.agora-sidebar-open {
-  grid-template-columns: minmax(0, 1fr) minmax(19rem, 24rem);
+  overflow: visible;
 }
 
 .agora-class-sidebar {
+  position: absolute;
+  z-index: 5;
+  top: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(24rem, calc(100% - 2rem));
   display: none;
   min-height: 0;
   overflow: hidden;
+  box-shadow: 0 1.5rem 3rem rgba(2, 6, 23, 0.55);
 }
 
 .agora-sidebar-open .agora-class-sidebar {
@@ -763,11 +775,17 @@ svg {
 
   .agora-classroom,
   .agora-classroom.agora-sidebar-open {
-    grid-template-columns: minmax(0, 1fr);
+    height: auto;
     overflow-y: auto;
   }
 
+  .agora-classroom .agora-video-stage {
+    height: auto;
+  }
+
   .agora-sidebar-open .agora-class-sidebar {
+    position: static;
+    width: 100%;
     min-height: 28rem;
   }
 

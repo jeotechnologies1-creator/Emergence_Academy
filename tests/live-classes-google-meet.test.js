@@ -82,6 +82,7 @@ const path = require('path');
   assert.ok(moduleCode.includes('data-agora-preview-resize'), 'publishers should be able to manually resize their camera preview');
   assert.ok(moduleCode.includes('data-toggle-camera-fill'), 'publishers should be able to expand their camera preview to fill the video stage');
   assert.ok(moduleCode.includes('data-toggle-agora-sidebar'), 'class details and chat should start in a collapsible sidebar');
+  assert.ok(moduleCode.includes('Open chat'), 'the live sidebar should remain hidden while chat stays available on demand');
   assert.ok(moduleCode.includes('createDataStream'), 'class chat comments should be delivered through Agora data streams');
   assert.ok(moduleCode.includes('sendStreamMessage'), 'participants should be able to send class chat comments');
   assert.ok(moduleCode.includes('createScreenVideoTrack'), 'teachers and approved students should be able to share their screen');
