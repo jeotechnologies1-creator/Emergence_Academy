@@ -5,7 +5,7 @@ class LearningPlannerModule {
 
   static safe(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
   static role() { return String(this.state.profile?.role || "").trim().toLowerCase(); }
-  static canUse() { return ["student", "teacher", "admin", "ceo"].includes(this.role()); }
+  static canUse() { return ["student", "teacher", "admin", "ceo", "executive"].includes(this.role()); }
   static day(value) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "Unscheduled" : date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }); }
   static time(value) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); }
   static dateKey(value) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "9999-12-31" : date.toISOString().slice(0, 10); }
@@ -32,20 +32,32 @@ class LearningPlannerModule {
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const cutoff = new Date(today); cutoff.setDate(cutoff.getDate() + 30);
-    const assignments = (assignmentsResult.data || []).map((assignment) => {
-      const dueAt = new Date(`${assignment.due_date}T23:59:59`);
+    const assignments = (assignmentsResult.data || []).flatMap((assignment) => {
+      const dueAt = new Date(`${String(assignment.due_date || "").slice(0, 10)}T23:59:59`);
+      // Older records may not have a due date. Do not let one incomplete
+      // assignment make the entire planner module fail to render.
+      if (Number.isNaN(dueAt.getTime())) {
+        console.warn("Skipping assignment with an invalid due date in learning planner:", assignment.id);
+        return [];
+      }
       return {
         id: assignment.id, type: "assignment", title: assignment.title, at: dueAt.toISOString(),
         meta: `${assignment.subjects?.subject_name || "Subject"} · ${assignment.classes?.class_name || "Class"}`,
         detail: `Due ${this.day(dueAt)} at 11:59 PM`, overdue: dueAt < today
       };
     });
-    const sessions = (sessionsResult.data || []).map((session) => ({
-      id: session.id, type: "live", title: session.title, at: session.starts_at,
-      meta: `${session.subject_name || "Live class"} · ${session.status === "live" ? "Live now" : "Scheduled"}`,
-      detail: `${this.day(session.starts_at)} · ${this.time(session.starts_at)}–${this.time(session.ends_at)}`,
-      live: session.status === "live", ended: ["ended", "cancelled"].includes(String(session.status || "").toLowerCase())
-    }));
+    const sessions = (sessionsResult.data || []).flatMap((session) => {
+      if (Number.isNaN(new Date(session.starts_at).getTime())) {
+        console.warn("Skipping live class with an invalid start time in learning planner:", session.id);
+        return [];
+      }
+      return {
+        id: session.id, type: "live", title: session.title, at: session.starts_at,
+        meta: `${session.subject_name || "Live class"} · ${session.status === "live" ? "Live now" : "Scheduled"}`,
+        detail: `${this.day(session.starts_at)} · ${this.time(session.starts_at)}–${this.time(session.ends_at)}`,
+        live: session.status === "live", ended: ["ended", "cancelled"].includes(String(session.status || "").toLowerCase())
+      };
+    });
     this.state.items = [...assignments, ...sessions]
       .filter((item) => item.live || (!item.ended && new Date(item.at) <= cutoff && new Date(item.at) >= new Date(today.getTime() - 86400000)))
       .sort((a, b) => new Date(a.at) - new Date(b.at));
