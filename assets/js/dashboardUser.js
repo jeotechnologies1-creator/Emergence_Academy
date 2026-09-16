@@ -61,10 +61,27 @@ async function displayUser() {
 
         document.querySelectorAll("[data-user-avatar]").forEach((el) => {
             const avatarUrl = normalizeAvatarUrl(profile.avatar_url || profile.profile_image || "");
-            el.textContent = avatarUrl ? "" : initials;
-            el.style.backgroundImage = avatarUrl ? `url("${avatarUrl.replace(/"/g, "%22")}")` : "";
-            el.style.backgroundSize = "cover";
-            el.style.backgroundPosition = "center";
+            const showInitials = () => {
+                el.replaceChildren(document.createTextNode(initials));
+                el.style.backgroundImage = "";
+                el.setAttribute("aria-label", `${fullName}'s initials`);
+            };
+
+            if (!avatarUrl) {
+                showInitials();
+                return;
+            }
+
+            // Use an actual image instead of a CSS background. Besides being
+            // more accessible, this gives failed or expired storage URLs a
+            // clean initials fallback rather than an empty blue circle.
+            const image = document.createElement("img");
+            image.src = avatarUrl;
+            image.alt = `${fullName}'s profile photo`;
+            image.className = "h-full w-full object-cover";
+            image.addEventListener("error", showInitials, { once: true });
+            el.replaceChildren(image);
+            el.style.backgroundImage = "";
             el.setAttribute("aria-label", `${fullName}'s profile image`);
         });
     } catch (error) {
