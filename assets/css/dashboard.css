@@ -2,6 +2,14 @@
   color-scheme: light;
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html, body, header, #dashboard-content, .theme-toggle, input, select, textarea, button, [data-modal] > div {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
 .overflow-auto,
 .overflow-y-auto,
 .overflow-x-auto,
@@ -22,6 +30,77 @@ body {
   min-height: 100dvh;
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+/* The static Tailwind stylesheet cannot theme dynamically rendered modules.
+   These scoped overrides keep cards, fields, tables, and dialogs legible. */
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] main {
+  background: #0b1120 !important;
+  color: #e2e8f0;
+}
+
+:root[data-theme="dark"] header,
+:root[data-theme="dark"] #global-loader > div,
+:root[data-theme="dark"] [data-modal] > div,
+:root[data-theme="dark"] .live-class-notification-modal > div {
+  background-color: #111827 !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+:root[data-theme="dark"] #dashboard-content {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.72));
+}
+
+:root[data-theme="dark"] #dashboard-content .bg-white,
+:root[data-theme="dark"] #dashboard-content .bg-slate-50,
+:root[data-theme="dark"] #dashboard-content .bg-slate-100,
+:root[data-theme="dark"] #dashboard-content .bg-gray-50,
+:root[data-theme="dark"] #dashboard-content .bg-gray-100 {
+  background-color: #111827 !important;
+}
+
+:root[data-theme="dark"] :is(.text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800) {
+  color: #f1f5f9 !important;
+}
+
+:root[data-theme="dark"] :is(.text-slate-600, .text-slate-500, .text-gray-600, .text-gray-500) {
+  color: #cbd5e1 !important;
+}
+
+:root[data-theme="dark"] :is(.border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300) {
+  border-color: #334155 !important;
+}
+
+:root[data-theme="dark"] :is(input, select, textarea, .theme-toggle) {
+  background-color: #0f172a !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+
+:root[data-theme="dark"] :is(input, select, textarea)::placeholder {
+  color: #94a3b8;
+}
+
+:root[data-theme="dark"] .theme-toggle:hover,
+:root[data-theme="dark"] header button:hover {
+  background-color: #1e293b !important;
+}
+
+.theme-toggle {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
 
 main,
@@ -256,6 +335,22 @@ nav button[data-route].active {
 }
 
 @media (max-width: 767px) {
+  .theme-toggle-label {
+    display: none;
+  }
+
+  header .user-email,
+  header .user-name {
+    max-width: min(11rem, calc(100vw - 10rem));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  header .flex.items-center.gap-3 {
+    justify-content: space-between;
+  }
+
   .student-admission-dialog {
     max-height: none;
   }
