@@ -50,6 +50,18 @@ class LiveClassesModule {
     }
     return data;
   }
+  static async authorizeLiveClassJoin(liveClassId) {
+    const { data, error } = await API.db.functions.invoke("join-live-class", {
+      body: { live_class_id: liveClassId }
+    });
+    if (error || data?.error) {
+      throw new Error(data?.error || await API.functionErrorMessage(
+        error,
+        "Unable to join the live class."
+      ));
+    }
+    return data;
+  }
   static async ensureAgoraSDK() {
     if (window.AgoraRTC) return;
     const existing = document.querySelector("script[data-agora-sdk='true']");
@@ -577,8 +589,7 @@ class LiveClassesModule {
         const session = this.state.sessions.find((item) => String(item.id) === String(id));
         if (!session) throw new Error("Live class session was not found.");
         if (action === "join") {
-          const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: id } });
-          if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message);
+          await this.authorizeLiveClassJoin(id);
           await this.connectAgoraRoom(session);
           return;
         }
@@ -587,8 +598,7 @@ class LiveClassesModule {
         if (error) throw error;
         statusChanged = true;
         if (action === "start") {
-          const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: id } });
-          if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message);
+          await this.authorizeLiveClassJoin(id);
           await this.connectAgoraRoom(session);
         }
         await this.render(this.state.container);
@@ -605,8 +615,7 @@ class LiveClassesModule {
     await this.load();
     const session = this.state.sessions.find((item) => String(item.id) === String(liveClassId));
     if (!session) throw new Error("This live class is no longer available.");
-    const result = await API.db.functions.invoke("join-live-class", { body: { live_class_id: liveClassId } });
-    if (result.error || result.data?.error) throw new Error(result.data?.error || result.error?.message || "Unable to join the live class.");
+    await this.authorizeLiveClassJoin(liveClassId);
     return this.connectAgoraRoom(session);
   }
   static async showLiveClassNotifications() {

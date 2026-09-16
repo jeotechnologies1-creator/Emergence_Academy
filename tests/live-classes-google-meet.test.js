@@ -66,6 +66,7 @@ const path = require('path');
   assert.ok(!schedule.includes('subjectEnrollments'), 'schedule endpoint must not reject class students who lack subject enrolment');
   assert.ok(join.includes('id,class_id,subject_id'), 'join authorization must load the live class class_id');
   assert.ok(moduleCode.includes('join-live-class'), 'browser must use the protected join endpoint');
+  assert.ok(moduleCode.includes('authorizeLiveClassJoin'), 'student join failures must show the Edge Function response rather than a generic non-2xx error');
   assert.ok(!moduleCode.includes('meet.jit.si'), 'Jitsi room generation must not remain');
   assert.ok(migration.includes('agora_channel_name'), 'database must persist the Agora channel identity');
   assert.ok(classAndTeacherMigration.includes("'Primary 3'"), 'standard class options must be seeded for class selectors');
