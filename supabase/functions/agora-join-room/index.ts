@@ -63,6 +63,11 @@ Deno.serve(async (req) => {
       if (!approval) return json({ error: "You are not approved for this live class." }, 403);
     }
 
+    // Approved students participate in this classroom, rather than watching a
+    // one-way broadcast, so they need the same publisher privilege as the
+    // teacher. Administrators remain observer-only on this join route.
+    const agoraRole = role === "student" ? RtcRole.PUBLISHER : RtcRole.SUBSCRIBER;
+    const roomRole = role === "student" ? "publisher" : "subscriber";
     const uid = Number(body.uid) || 0;
     const expirySeconds = 3600;
     const now = Math.floor(Date.now() / 1000);
@@ -73,7 +78,7 @@ Deno.serve(async (req) => {
       appCertificate,
       channelName,
       uid,
-      RtcRole.SUBSCRIBER,
+      agoraRole,
       privilegeExpiredTs,
     );
 
@@ -83,7 +88,7 @@ Deno.serve(async (req) => {
       app_id: appId,
       channel_name: channelName,
       uid,
-      role: "subscriber",
+      role: roomRole,
       live_class_id: liveClassId,
       expires_at: privilegeExpiredTs,
     });

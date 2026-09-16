@@ -115,7 +115,7 @@ class LiveClassesModule {
     }
     return (hash >>> 0) || 1;
   }
-  static openAgoraRoom(session, isTeacherHost) {
+  static openAgoraRoom(session, canPublish) {
     // The server stores the authoritative channel when the class is
     // scheduled and authorizes tokens only for that exact value. Never
     // re-sanitize/truncate a stored value here; that made the browser send a
@@ -136,12 +136,12 @@ class LiveClassesModule {
         <div class="grid gap-4 p-5 lg:grid-cols-[1.5fr_0.8fr]">
           <div class="agora-video-stage relative min-h-[420px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),transparent_42%),linear-gradient(135deg,#020617,#0f172a_48%,#111827)]">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(96,165,250,0.18),transparent_60%)]"></div>
-            <div id="agora-remote-player" class="absolute inset-0"></div>
+            <div data-agora-remote-grid class="agora-remote-grid absolute inset-0"></div>
             <div class="absolute inset-x-0 top-4 flex justify-between px-4">
               <span class="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-cyan-100">Live</span>
               <span class="rounded-full border border-white/10 bg-slate-900/50 px-3 py-1 text-xs font-medium text-slate-200">${this.safe(channel)}</span>
             </div>
-            ${isTeacherHost ? '<div class="absolute bottom-4 right-4 h-40 w-28 overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl shadow-slate-950/60"><div id="agora-local-player" class="h-full w-full bg-slate-800"></div></div>' : ""}
+            ${canPublish ? '<div class="absolute bottom-4 right-4 h-40 w-28 overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl shadow-slate-950/60"><div id="agora-local-player" class="h-full w-full bg-slate-800"></div></div>' : ""}
           </div>
           <aside class="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-slate-200">
             <div>
@@ -157,7 +157,7 @@ class LiveClassesModule {
               <p class="font-medium text-white">Required setup</p>
               <p class="mt-2">Add your Agora App ID in <strong>assets/js/config.js</strong> under <strong>CONFIG.AGORA</strong>; the token is fetched securely from the backend.</p>
             </div>
-            ${isTeacherHost ? '<div class="mt-auto flex gap-2"><button type="button" data-agora-toggle-mic class="flex-1 rounded-xl bg-slate-800 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700">Mute</button><button type="button" data-agora-toggle-camera class="flex-1 rounded-xl bg-cyan-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-cyan-500">Camera off</button></div>' : '<p class="mt-auto text-sm text-slate-300">You are connected as a viewer.</p>'}
+            ${canPublish ? '<div class="mt-auto flex gap-2"><button type="button" data-agora-toggle-mic class="flex-1 rounded-xl bg-slate-800 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700">Mute</button><button type="button" data-agora-toggle-camera class="flex-1 rounded-xl bg-cyan-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-cyan-500">Camera off</button></div>' : '<p class="mt-auto text-sm text-slate-300">You are connected as a viewer.</p>'}
           </aside>
         </div>
       </div>
@@ -175,7 +175,8 @@ class LiveClassesModule {
     }
     await this.ensureAgoraSDK();
     const isTeacherHost = this.canSchedule() && String(session?.teacher_id) === String(this.state.teacher?.id);
-    const modal = this.openAgoraRoom(session, isTeacherHost);
+    const canPublish = isTeacherHost || this.role() === "student";
+    const modal = this.openAgoraRoom(session, canPublish);
     const client = window.AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
     const channel = modal.dataset.channel;
     const uid = this.agoraUid(session);
@@ -187,15 +188,26 @@ class LiveClassesModule {
       const tokenResponse = await this.requestAgoraToken(channel, uid, session?.id || null, isTeacherHost ? "create" : "join");
       client.on("user-published", async (user, mediaType) => {
         await client.subscribe(user, mediaType);
-        if (mediaType === "video" && user.videoTrack) user.videoTrack.play("agora-remote-player");
+        if (mediaType === "video" && user.videoTrack) {
+          const grid = modal.querySelector("[data-agora-remote-grid]");
+          let tile = grid?.querySelector(`[data-agora-remote-uid="${String(user.uid)}"]`);
+          if (!tile && grid) {
+            tile = document.createElement("div");
+            tile.dataset.agoraRemoteUid = String(user.uid);
+            tile.className = "agora-remote-tile";
+            grid.appendChild(tile);
+          }
+          if (tile) user.videoTrack.play(tile);
+        }
         if (mediaType === "audio" && user.audioTrack) user.audioTrack.play();
       });
-      client.on("user-left", () => { status.textContent = "Remote participant left the room."; });
+      client.on("user-left", (user) => {
+        modal.querySelector(`[data-agora-remote-uid="${String(user.uid)}"]`)?.remove();
+        status.textContent = "Remote participant left the room.";
+      });
       await client.join(appId, channel, tokenResponse.token, Number(uid));
 
-      // Students receive a subscriber token. Creating or publishing local
-      // tracks for them makes Agora reject the call with INVALID_PARAMS.
-      if (isTeacherHost) {
+      if (tokenResponse.role === "publisher") {
         [localAudioTrack, localVideoTrack] = await window.AgoraRTC.createMicrophoneAndCameraTracks();
         if (!localAudioTrack || !localVideoTrack) {
           throw new Error("Agora could not create the teacher's microphone and camera tracks.");
