@@ -1,7 +1,7 @@
 /* A single, role-safe view of the work and live sessions already available
    to the signed-in user. Data access remains enforced by existing RLS/RPCs. */
 class LearningPlannerModule {
-  static state = { container: null, profile: null, items: [], filter: "all", warning: "", curriculum: null };
+  static state = { container: null, profile: null, items: [], filter: "all", warning: "", curriculum: null, submissions: [] };
 
   static safe(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
   static role() { return String(this.state.profile?.role || "").trim().toLowerCase(); }
@@ -13,10 +13,10 @@ class LearningPlannerModule {
   static async load() {
     this.state.profile = await Auth.profile(true);
     if (!this.canUse()) throw new Error("Your role does not have access to the learning planner.");
-    this.state.warning = "";
+    this.state.warning = ""; this.state.submissions = [];
     const [assignmentsResult, sessionsResult] = await Promise.all([
       API.db.from("assignments")
-        .select("id,title,due_date,status,subjects:subject_id(subject_name),classes:class_id(class_name)")
+        .select("id,title,due_date,status,class_id,subject_id,subjects:subject_id(subject_name),classes:class_id(class_name)")
         .in("status", ["published", "closed"])
         .order("due_date", { ascending: true }),
       API.db.rpc("get_live_classes")
@@ -30,6 +30,17 @@ class LearningPlannerModule {
       this.state.warning = "Live classes could not be loaded right now. Your assignments are still available below.";
     }
 
+    if (this.role() === "student") {
+      const { data: student, error: studentError } = await API.db.from("students").select("id").eq("profile_id", this.state.profile.id).maybeSingle();
+      if (studentError || !student) this.state.warning ||= "Your student record is unavailable, so assignment progress cannot be shown.";
+      else {
+        const { data: submissions, error: submissionsError } = await API.db.from("assignment_submissions")
+          .select("assignment_id,status,score,feedback,reviewed_at,submitted_at").eq("student_id", student.id);
+        if (submissionsError) this.state.warning ||= "Assignment progress could not be loaded right now.";
+        else this.state.submissions = submissions || [];
+      }
+    }
+
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const cutoff = new Date(today); cutoff.setDate(cutoff.getDate() + 30);
     const assignments = (assignmentsResult.data || []).flatMap((assignment) => {
@@ -41,7 +52,7 @@ class LearningPlannerModule {
         return [];
       }
       return {
-        id: assignment.id, type: "assignment", title: assignment.title, at: dueAt.toISOString(),
+        id: assignment.id, type: "assignment", title: assignment.title, at: dueAt.toISOString(), classId: assignment.class_id, subjectId: assignment.subject_id,
         meta: `${assignment.subjects?.subject_name || "Subject"} · ${assignment.classes?.class_name || "Class"}`,
         detail: `Due ${this.day(dueAt)} at 11:59 PM`, overdue: dueAt < today
       };
@@ -52,7 +63,7 @@ class LearningPlannerModule {
         return [];
       }
       return {
-        id: session.id, type: "live", title: session.title, at: session.starts_at,
+        id: session.id, type: "live", title: session.title, at: session.starts_at, classId: session.class_id, subjectId: session.subject_id,
         meta: `${session.subject_name || "Live class"} · ${session.status === "live" ? "Live now" : "Scheduled"}`,
         detail: `${this.day(session.starts_at)} · ${this.time(session.starts_at)}–${this.time(session.ends_at)}`,
         live: session.status === "live", ended: ["ended", "cancelled"].includes(String(session.status || "").toLowerCase())
@@ -99,7 +110,25 @@ class LearningPlannerModule {
     const items = this.state.items.filter((item) => this.state.filter === "all" || item.type === this.state.filter);
     const upcoming = this.state.items.filter((item) => !item.overdue && !item.ended).length;
     const live = this.state.items.filter((item) => item.live).length;
-    return `<div class="space-y-6"><section class="rounded-2xl bg-gradient-to-r from-indigo-700 to-cyan-600 p-6 text-white shadow"><p class="text-sm font-semibold uppercase tracking-[.18em] text-cyan-100">Your learning schedule</p><h2 class="mt-2 text-3xl font-bold">Learning Planner</h2><p class="mt-2 max-w-2xl text-indigo-100">Assignments and live classes in one focused timeline for the next 30 days.</p><div class="mt-5 flex flex-wrap gap-3 text-sm"><span class="rounded-full bg-white/15 px-3 py-1.5">${upcoming} upcoming items</span>${live ? `<span class="rounded-full bg-emerald-500/90 px-3 py-1.5">${live} class live now</span>` : ""}</div></section>${this.state.warning ? `<p class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="status">${this.safe(this.state.warning)}</p>` : ""}${this.curriculumTemplate()}<section class="rounded-xl bg-white p-5 shadow"><div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-xl font-bold text-slate-800">Upcoming work</h3><p class="mt-1 text-sm text-slate-500">Open an item to continue in its secure workspace.</p></div><div class="flex flex-wrap gap-2" role="group" aria-label="Planner filters">${filters.map(([key, label]) => `<button type="button" data-planner-filter="${key}" aria-pressed="${this.state.filter === key}" class="rounded-full px-3 py-1.5 text-sm font-medium ${this.state.filter === key ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}">${label}</button>`).join("")}</div></div><div class="mt-5 space-y-3">${items.length ? items.map((item) => this.item(item)).join("") : '<div class="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">Nothing is scheduled in the next 30 days.</div>'}</div></section></div>`;
+    return `<div class="space-y-6"><section class="rounded-2xl bg-gradient-to-r from-indigo-700 to-cyan-600 p-6 text-white shadow"><p class="text-sm font-semibold uppercase tracking-[.18em] text-cyan-100">Your learning schedule</p><h2 class="mt-2 text-3xl font-bold">Learning Planner</h2><p class="mt-2 max-w-2xl text-indigo-100">Assignments and live classes in one focused timeline for the next 30 days.</p><div class="mt-5 flex flex-wrap gap-3 text-sm"><span class="rounded-full bg-white/15 px-3 py-1.5">${upcoming} upcoming items</span>${live ? `<span class="rounded-full bg-emerald-500/90 px-3 py-1.5">${live} class live now</span>` : ""}</div></section>${this.state.warning ? `<p class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="status">${this.safe(this.state.warning)}</p>` : ""}${this.courseHomeTemplate()}${this.curriculumTemplate()}<section class="rounded-xl bg-white p-5 shadow"><div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-xl font-bold text-slate-800">Upcoming work</h3><p class="mt-1 text-sm text-slate-500">Open an item to continue in its secure workspace.</p></div><div class="flex flex-wrap gap-2" role="group" aria-label="Planner filters">${filters.map(([key, label]) => `<button type="button" data-planner-filter="${key}" aria-pressed="${this.state.filter === key}" class="rounded-full px-3 py-1.5 text-sm font-medium ${this.state.filter === key ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}">${label}</button>`).join("")}</div></div><div class="mt-5 space-y-3">${items.length ? items.map((item) => this.item(item)).join("") : '<div class="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">Nothing is scheduled in the next 30 days.</div>'}</div></section></div>`;
+  }
+
+  static courseHomeTemplate() {
+    const courses = new Map();
+    this.state.items.forEach((item) => {
+      const key = `${item.classId || ""}|${item.subjectId || ""}`;
+      if (!courses.has(key)) courses.set(key, { name: item.type === "assignment" ? item.meta : item.meta?.split(" · ")[0] || "Course", items: [] });
+      courses.get(key).items.push(item);
+    });
+    const cards = [...courses.values()].map((course) => {
+      const assignments = course.items.filter((item) => item.type === "assignment");
+      const sessions = course.items.filter((item) => item.type === "live" && !item.ended);
+      const returned = assignments.map((item) => this.state.submissions.find((submission) => String(submission.assignment_id) === String(item.id))).filter((submission) => submission?.status === "returned");
+      const missing = this.role() === "student" ? assignments.filter((item) => item.overdue && !this.state.submissions.some((submission) => String(submission.assignment_id) === String(item.id))).length : 0;
+      const next = [...course.items].filter((item) => !item.ended).sort((a, b) => new Date(a.at) - new Date(b.at))[0];
+      return `<article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div class="flex items-start justify-between gap-3"><div><h3 class="text-lg font-bold text-slate-900">${this.safe(course.name)}</h3><p class="mt-1 text-sm text-slate-500">${next ? `${this.safe(next.type === "live" ? "Next live class" : "Next assignment")}: ${this.safe(this.day(next.at))}` : "No upcoming activity"}</p></div><button type="button" data-planner-route="assignments" class="rounded-lg border border-indigo-200 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50">Open course work</button></div><div class="mt-4 flex flex-wrap gap-2 text-sm"><span class="rounded-full bg-indigo-50 px-3 py-1 text-indigo-800">${assignments.length} assignment${assignments.length === 1 ? "" : "s"}</span>${sessions.length ? `<span class="rounded-full bg-cyan-50 px-3 py-1 text-cyan-800">${sessions.length} live session${sessions.length === 1 ? "" : "s"}</span>` : ""}${returned.length ? `<span class="rounded-full bg-emerald-50 px-3 py-1 text-emerald-800">${returned.length} feedback returned</span>` : ""}${missing ? `<span class="rounded-full bg-red-50 px-3 py-1 text-red-800">${missing} missing</span>` : ""}</div></article>`;
+    }).join("");
+    return cards ? `<section class="rounded-xl bg-slate-50 p-5 shadow"><div><h3 class="text-xl font-bold text-slate-800">My courses</h3><p class="mt-1 text-sm text-slate-500">See the next action, live sessions, and returned feedback for each class and subject.</p></div><div class="mt-4 grid gap-4 lg:grid-cols-2">${cards}</div></section>` : "";
   }
 
   static curriculumTemplate() {
