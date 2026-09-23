@@ -1,6 +1,7 @@
 /* Agora live classes. Session access is authorized by the Edge Function before joining. */
 class LiveClassesModule {
   static state = { container: null, profile: null, teacher: null, subjects: [], classes: [], assignments: [], students: [], sessions: [] };
+  static MAX_VISIBLE_VIDEO_PARTICIPANTS = 6;
   static liveNotificationTimer = null;
   static safe(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
   static role() { return String(this.state.profile?.role || "").toLowerCase(); }
@@ -136,6 +137,40 @@ class LiveClassesModule {
     list.appendChild(row);
     list.scrollTop = list.scrollHeight;
   }
+  static participantLabel(uid) { return `Participant ${String(uid).slice(-4)}`; }
+  static renderVideoGallery(modal) {
+    if (!modal || modal.classList.contains("agora-screen-sharing")) return;
+    const primary = modal.querySelector("#agora-primary-player");
+    const gallery = modal.querySelector("[data-agora-remote-grid]");
+    const overflow = modal.querySelector("[data-agora-overflow-count]");
+    const remoteVideos = [...(modal.__remoteVideos?.values() || [])];
+    if (!primary || !gallery) return;
+    const active = remoteVideos.find((participant) => String(participant.uid) === String(modal.__activeSpeakerUid)) || remoteVideos[0];
+    const galleryVideos = remoteVideos.filter((participant) => participant !== active);
+    gallery.innerHTML = "";
+    if (active?.videoTrack) {
+      primary.replaceChildren();
+      active.videoTrack.play(primary);
+      modal.dataset.agoraActiveSpeaker = String(active.uid);
+    }
+    const galleryLimit = Math.max(0, this.MAX_VISIBLE_VIDEO_PARTICIPANTS - 1 - (modal.__hasLocalVideo ? 1 : 0));
+    galleryVideos.slice(0, galleryLimit).forEach((participant) => {
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = "agora-remote-tile";
+      tile.dataset.agoraRemoteUid = String(participant.uid);
+      tile.setAttribute("aria-label", `Make ${this.participantLabel(participant.uid)} the main participant`);
+      tile.innerHTML = `<span data-agora-video class="agora-video-tile-media"></span><span class="agora-video-tile-name">${this.safe(this.participantLabel(participant.uid))}</span>`;
+      tile.addEventListener("click", () => { modal.__activeSpeakerUid = String(participant.uid); this.renderVideoGallery(modal); });
+      gallery.appendChild(tile);
+      participant.videoTrack?.play(tile.querySelector("[data-agora-video]"));
+    });
+    const hiddenCount = Math.max(0, galleryVideos.length - galleryLimit);
+    if (overflow) {
+      overflow.hidden = hiddenCount === 0;
+      overflow.textContent = `+${hiddenCount} more participant${hiddenCount === 1 ? "" : "s"}`;
+    }
+  }
   static openAgoraRoom(session, canPublish, canEndClass = false) {
     // The server stores the authoritative channel when the class is
     // scheduled and authorizes tokens only for that exact value. Never
@@ -162,13 +197,14 @@ class LiveClassesModule {
         <div data-agora-classroom class="agora-classroom min-h-0 flex-1 p-4 lg:p-5">
           <div class="agora-video-stage relative min-h-[320px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),transparent_42%),linear-gradient(135deg,#020617,#0f172a_48%,#111827)] lg:min-h-0">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(96,165,250,0.18),transparent_60%)]"></div>
-            <div data-agora-remote-grid class="agora-remote-grid absolute inset-0"></div>
+            <div data-agora-remote-grid class="agora-remote-grid absolute inset-x-0 bottom-0 z-20"></div>
             <div id="agora-primary-player" class="agora-primary-player absolute inset-0" aria-label="Main live video"></div>
             <div class="agora-stage-meta absolute inset-x-0 top-4 flex justify-between px-4">
               <span class="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-cyan-100">Live</span>
               <span class="rounded-full border border-white/10 bg-slate-900/50 px-3 py-1 text-xs font-medium text-slate-200">${this.safe(channel)}</span>
             </div>
             <p data-agora-sharing-label class="agora-sharing-label" aria-live="polite">You are sharing your screen</p>
+            <span data-agora-overflow-count class="agora-overflow-count" hidden></span>
             ${canPublish ? '<div data-agora-local-preview class="agora-local-preview"><div id="agora-local-player" class="h-full w-full bg-slate-800"></div><button type="button" data-toggle-camera-fill class="agora-preview-expand" aria-pressed="false">Fill stage</button><button type="button" data-agora-preview-resize class="agora-preview-resize" aria-label="Resize camera preview" title="Drag to resize camera preview"></button></div>' : ""}
           </div>
           <aside data-agora-sidebar class="agora-class-sidebar flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-slate-200" aria-label="Class details and chat">
@@ -275,6 +311,7 @@ class LiveClassesModule {
     document.body.appendChild(modal);
     document.addEventListener("keydown", modal.__onKeydown);
     modal.__participantUids = new Set();
+    modal.__remoteVideos = new Map();
     const updateParticipantCount = () => {
       const total = modal.__participantUids.size + 1;
       const label = modal.querySelector("[data-agora-participant-count]");
@@ -308,22 +345,24 @@ class LiveClassesModule {
       // project and makes Agora reject the host connection.
       const appId = String(tokenResponse.app_id || this.getAgoraConfig().appId || "").trim();
       if (!appId) throw new Error("Agora did not return an App ID for this class. Check the server configuration.");
+      client.enableAudioVolumeIndicator();
       client.on("user-published", async (user, mediaType) => {
         modal.__participantUids?.add(String(user.uid));
         modal.__updateParticipantCount?.();
         await client.subscribe(user, mediaType);
         if (mediaType === "video" && user.videoTrack) {
-          const grid = modal.querySelector("[data-agora-remote-grid]");
-          let tile = grid?.querySelector(`[data-agora-remote-uid="${String(user.uid)}"]`);
-          if (!tile && grid) {
-            tile = document.createElement("div");
-            tile.dataset.agoraRemoteUid = String(user.uid);
-            tile.className = "agora-remote-tile";
-            grid.appendChild(tile);
-          }
-          if (tile) user.videoTrack.play(tile);
+          modal.__remoteVideos?.set(String(user.uid), { uid: user.uid, videoTrack: user.videoTrack });
+          this.renderVideoGallery(modal);
         }
         if (mediaType === "audio" && user.audioTrack) user.audioTrack.play();
+      });
+      client.on("volume-indicator", (volumes) => {
+        const loudest = (volumes || []).filter((entry) => entry.level > 5 && modal.__remoteVideos?.has(String(entry.uid)))
+          .sort((a, b) => b.level - a.level)[0];
+        if (loudest && String(modal.__activeSpeakerUid) !== String(loudest.uid)) {
+          modal.__activeSpeakerUid = String(loudest.uid);
+          this.renderVideoGallery(modal);
+        }
       });
       client.on("user-joined", (user) => {
         modal.__participantUids?.add(String(user.uid));
@@ -332,8 +371,16 @@ class LiveClassesModule {
       client.on("user-left", (user) => {
         modal.__participantUids?.delete(String(user.uid));
         modal.__updateParticipantCount?.();
-        modal.querySelector(`[data-agora-remote-uid="${String(user.uid)}"]`)?.remove();
+        modal.__remoteVideos?.delete(String(user.uid));
+        if (String(modal.__activeSpeakerUid) === String(user.uid)) modal.__activeSpeakerUid = null;
+        this.renderVideoGallery(modal);
         status.textContent = "Remote participant left the room.";
+      });
+      client.on("user-unpublished", (user, mediaType) => {
+        if (mediaType !== "video") return;
+        modal.__remoteVideos?.delete(String(user.uid));
+        if (String(modal.__activeSpeakerUid) === String(user.uid)) modal.__activeSpeakerUid = null;
+        this.renderVideoGallery(modal);
       });
       client.on("stream-message", (_uid, _streamId, payload) => {
         try {
@@ -388,6 +435,7 @@ class LiveClassesModule {
             localVideoTrack.play("agora-primary-player");
           }
           modal.classList.remove("agora-screen-sharing");
+          this.renderVideoGallery(modal);
           modal.__agora = { ...modal.__agora, screenVideoTrack };
           if (screenButton) screenButton.textContent = "Share screen";
         };
@@ -433,7 +481,9 @@ class LiveClassesModule {
         // this teacher client.
         await client.publish(localAudioTrack);
         await client.publish(localVideoTrack);
+        modal.__hasLocalVideo = true;
         localVideoTrack.play("agora-primary-player");
+        this.renderVideoGallery(modal);
       }
       status.textContent = "Connected to Agora";
       const elapsed = modal.querySelector("[data-agora-elapsed]");

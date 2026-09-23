@@ -600,9 +600,10 @@ body.agora-room-active #sidebar-overlay {
 
 .agora-remote-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 0.75rem;
-  padding: 3.75rem 0.75rem 0.75rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0.75rem;
+  pointer-events: none;
 }
 
 .agora-primary-player {
@@ -644,11 +645,30 @@ body.agora-room-active #sidebar-overlay {
 }
 
 .agora-remote-tile {
-  min-height: 10rem;
+  position: relative;
+  min-height: clamp(4.75rem, 12vh, 8.5rem);
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 1rem;
-  background: #0f172a;
+  border-radius: 0.75rem;
+  background: #172033;
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.35);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.agora-remote-tile:hover,
+.agora-remote-tile:focus-visible { border-color: rgba(34, 211, 238, 0.9); outline: none; transform: translateY(-2px); }
+.agora-video-tile-media,
+.agora-video-tile-media > div,
+.agora-video-tile-media video { display: block; width: 100% !important; height: 100% !important; object-fit: cover; }
+.agora-video-tile-name { position: absolute; inset: auto 0 0; overflow: hidden; padding: 0.4rem 0.55rem; background: linear-gradient(transparent, rgba(2, 6, 23, 0.88)); color: #f8fafc; font-size: 0.72rem; font-weight: 600; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.agora-overflow-count { position: absolute; right: 1rem; bottom: calc(0.75rem + clamp(4.75rem, 12vh, 8.5rem)); z-index: 30; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 999px; background: rgba(2, 6, 23, 0.82); padding: 0.35rem 0.65rem; color: #e2e8f0; font-size: 0.75rem; font-weight: 700; backdrop-filter: blur(8px); }
+
+@media (max-width: 720px) {
+  .agora-remote-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .agora-remote-tile { min-height: 5rem; }
+  .agora-overflow-count { bottom: 6.25rem; }
 }
 
 /* Keep the classroom video primary. Details/chat open only on demand, and
