@@ -11,6 +11,7 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), "utf8");
   const finance = read("assets", "js", "dashboard", "finance.js");
   const students = read("assets", "js", "dashboard", "students.js");
   const profileMigration = read("supabase", "migrations", "202608190006_admin_manage_all_profiles.sql");
+  const officeParentProfilesMigration = read("supabase", "migrations", "202609160004_allow_office_parent_profile_directory.sql");
 
   ["parent_name", "parent_email", "parent_phone", "children", "transformRows"].forEach((value) => {
     assert.ok(parents.includes(value), `Parents module should display ${value}.`);
@@ -29,6 +30,8 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), "utf8");
   assert.ok(parents.includes("parent_students"), "Parent edits should persist parent-student links.");
   assert.ok(parents.includes("Not linked — edit this parent"), "Unlinked parents should be clearly identified for repair.");
   assert.ok(profileMigration.includes("profiles_admin_manage"), "Admin profile management policy should be present.");
+  assert.ok(officeParentProfilesMigration.includes("office_read_parent_profiles"), "Office staff allowed to manage parents should read the linked parent profiles.");
+  assert.ok(officeParentProfilesMigration.includes("role::text = 'parent'"), "The office parent-profile policy must not grant a broad profile directory.");
 
   console.log("parent profile and payment visibility regression test passed");
 })();

@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
     const admin = adminClient();
     const [{ data: profile }, { data: liveClass, error }] = await Promise.all([
       admin.from("profiles").select("role").eq("id", user.id).maybeSingle(),
-      admin.from("live_classes").select("id,class_id,subject_id,teacher_id,starts_at,ends_at,status,meeting_url").eq("id", id).maybeSingle(),
+      admin.from("live_classes").select("id,class_id,subject_id,teacher_id,starts_at,ends_at,status,agora_channel_name").eq("id", id).maybeSingle(),
     ]);
     if (error || !liveClass) return json({ error: "Live class was not found." }, 404);
     const role = normalizedRole(profile?.role);
@@ -127,18 +127,28 @@ Deno.serve(async (req) => {
     const status = statusFor(liveClass.starts_at, liveClass.ends_at, liveClass.status);
     if (status === "upcoming") return json({ error: "This class has not started yet." }, 409);
     if (status === "ended" || status === "cancelled") return json({ error: status === "ended" ? "This live class has ended." : "This live class was cancelled." }, 409);
-    if (!liveClass.meeting_url) return json({ error: "The Agora room is currently unavailable." }, 409);
+    // The saved Agora channel, rather than the legacy meeting_url field, is
+    // the authoritative room identity. This keeps valid pre-Agora records
+    // from being rejected just because they have no display URL.
+    if (!liveClass.agora_channel_name) return json({ error: "The Agora room is currently unavailable." }, 409);
     if (role === "student") {
       const { data: student } = await admin.from("students").select("id").eq("profile_id", user.id).maybeSingle();
       if (!student) return json({ error: "Your student record could not be found." }, 403);
-      await recordStudentAttendanceOnJoin(admin, {
-        studentId: String(student.id),
-        classId: String(liveClass.class_id),
-        subjectId: String(liveClass.subject_id),
-        liveClassId: String(liveClass.id),
-      });
+      // Attendance is an audit side effect, not a prerequisite for an
+      // already-authorized student's lesson. A historic attendance schema or
+      // temporary write failure must never prevent the student joining Agora.
+      try {
+        await recordStudentAttendanceOnJoin(admin, {
+          studentId: String(student.id),
+          classId: String(liveClass.class_id),
+          subjectId: String(liveClass.subject_id),
+          liveClassId: String(liveClass.id),
+        });
+      } catch (attendanceError) {
+        console.error("Live-class attendance recording failed", attendanceError);
+      }
     }
-    return json({ success: true, meeting_url: liveClass.meeting_url });
+    return json({ success: true, agora_channel_name: liveClass.agora_channel_name });
   } catch (error) {
     console.error("join-live-class failed", error);
     return json({ error: error instanceof Error ? error.message : "Unable to join the live class." }, 500);

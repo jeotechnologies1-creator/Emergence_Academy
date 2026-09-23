@@ -17,6 +17,7 @@ const path = require("path");
   assert.ok(courseHubMigration.includes("course_resources"), "course resources need a protected database table");
   assert.ok(courseHubMigration.includes("course_announcements"), "class announcements need a protected database table");
   assert.ok(courseHubMigration.includes("guardian_digest_preferences"), "guardian digests must require stored opt-in preferences");
+  assert.ok(courseHubMigration.includes("course_announcements.subject_id is null or exists"), "subject-scoped announcements must respect student subject enrolment");
   assert.ok(dashboard.includes("learning-planner.js?v=1.0.2"), "the browser must load the repaired learning-planner asset");
   console.log("learning planner resilience test passed");
 })();
