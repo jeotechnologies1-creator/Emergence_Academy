@@ -440,3 +440,51 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/ai-chat/deno.json"
 entrypoint = "./functions/ai-chat/index.ts"
+
+# These functions authenticate callers in their handlers so they can return
+# actionable JSON errors instead of a gateway-level generic JWT error.
+[functions.ensure-profile]
+enabled = true
+verify_jwt = false
+import_map = "./functions/ensure-profile/deno.json"
+entrypoint = "./functions/ensure-profile/index.ts"
+
+[functions.list-profiles]
+enabled = true
+verify_jwt = false
+import_map = "./functions/list-profiles/deno.json"
+entrypoint = "./functions/list-profiles/index.ts"
+
+[functions.live-class-options]
+enabled = true
+verify_jwt = false
+import_map = "./functions/live-class-options/deno.json"
+entrypoint = "./functions/live-class-options/index.ts"
+
+[functions.schedule-live-class]
+enabled = true
+verify_jwt = false
+import_map = "./functions/schedule-live-class/deno.json"
+entrypoint = "./functions/schedule-live-class/index.ts"
+
+[functions.join-live-class]
+enabled = true
+verify_jwt = false
+import_map = "./functions/join-live-class/deno.json"
+entrypoint = "./functions/join-live-class/index.ts"
+
+[functions.agora-create-room]
+enabled = true
+verify_jwt = false
+
+[functions.agora-join-room]
+enabled = true
+verify_jwt = false
+
+[functions.agora-room]
+enabled = true
+verify_jwt = false
+
+[functions.agora-token]
+enabled = true
+verify_jwt = false

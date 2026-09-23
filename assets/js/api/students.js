@@ -149,7 +149,12 @@ class API {
                     ascending: false
                 });
 
-            if (error) throw error;
+            if (error) {
+                const message = typeof window.API?.functionErrorMessage === "function"
+                    ? await window.API.functionErrorMessage(error, "Unable to admit student.")
+                    : error.message;
+                throw new Error(message || "Unable to admit student.");
+            }
 
             return data || [];
 

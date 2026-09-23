@@ -3,6 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
+const supabaseConfig = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'config.toml'), 'utf8');
+for (const functionName of ['ensure-profile', 'list-profiles', 'live-class-options', 'schedule-live-class', 'join-live-class', 'agora-create-room', 'agora-join-room', 'agora-room', 'agora-token']) {
+  assert.match(supabaseConfig, new RegExp(`\\[functions\\.${functionName}\\][\\s\\S]*?verify_jwt = false`), `${functionName} should return its handler's actionable authentication errors.`);
+}
+
 (async () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'supabase.js'), 'utf8');
 

@@ -503,7 +503,12 @@
                                 status: payload.status
                             }
                         });
-                        if (error) throw new Error(error.message || "Unable to update profile.");
+                        if (error) {
+                            const message = typeof API.functionErrorMessage === "function"
+                                ? await API.functionErrorMessage(error, "Unable to update profile.")
+                                : error.message;
+                            throw new Error(message || "Unable to update profile.");
+                        }
                         if (data?.error) throw new Error(data.error);
                     }
                     this.closeModal();
