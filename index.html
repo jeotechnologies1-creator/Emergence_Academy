@@ -1263,12 +1263,11 @@
         </div>
     </footer>
 
-    <a href="dashboard.html#notifications" data-notification-bell class="global-notification-bell" aria-label="Open notifications">
-        <i class="fas fa-bell" aria-hidden="true"></i>
-    </a>
+    <button type="button" id="back-to-top" class="back-to-top" aria-label="Back to top" title="Back to top" aria-hidden="true" tabindex="-1">
+        <i class="fas fa-arrow-up" aria-hidden="true"></i>
+    </button>
 
     <!-- JavaScript -->
-    <script src="assets/js/notifications-bell.js?v=1.0.2"></script>
     <script>
         // Mobile Menu Toggle
         function toggleMobileMenu() {
@@ -1305,13 +1304,29 @@
         }
 
         // Navbar Scroll Effect
-        window.addEventListener('scroll', () => {
+        const updateNavbarAndBackToTop = () => {
             const navbar = document.getElementById('navbar');
+            const backToTop = document.getElementById('back-to-top');
             if (window.scrollY > 50) {
                 navbar.classList.add('scrolled');
+                backToTop.classList.add('is-visible');
+                backToTop.setAttribute('aria-hidden', 'false');
+                backToTop.removeAttribute('tabindex');
             } else {
                 navbar.classList.remove('scrolled');
+                backToTop.classList.remove('is-visible');
+                backToTop.setAttribute('aria-hidden', 'true');
+                backToTop.setAttribute('tabindex', '-1');
             }
+        };
+        window.addEventListener('scroll', updateNavbarAndBackToTop, { passive: true });
+        updateNavbarAndBackToTop();
+
+        document.getElementById('back-to-top')?.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+            });
         });
 
         // Intersection Observer for Animations

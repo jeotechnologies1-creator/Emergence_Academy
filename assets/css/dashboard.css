@@ -164,12 +164,16 @@ main {
    This keeps every field and action reachable on short viewports. */
 [data-modal],
 #profile-action-modal,
-.student-admission-overlay {
+.student-admission-overlay,
+.live-class-notification-modal,
+#initial-password-modal,
+.agora-room-modal {
   align-items: flex-start;
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable both-edges;
 }
 
 [data-modal] > div,
@@ -539,7 +543,8 @@ svg {
 [data-modal],
 #profile-action-modal,
 .student-admission-overlay,
-.live-class-notification-modal {
+.live-class-notification-modal,
+#initial-password-modal {
   padding-top: max(0.75rem, env(safe-area-inset-top));
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
@@ -547,6 +552,7 @@ svg {
 [data-modal] > div,
 #profile-action-modal > div,
 #profile-action-modal > form,
+#initial-password-modal > form,
 .student-admission-dialog,
 .agora-room-dialog,
 .live-class-notification-modal > div {
@@ -563,8 +569,8 @@ svg {
 }
 
 .agora-room-modal {
-  overflow-x: hidden;
-  overflow-y: hidden;
+  overflow-x: auto;
+  overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
@@ -578,7 +584,7 @@ body.agora-room-active #sidebar-overlay {
 }
 
 .live-class-notification-modal {
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -841,7 +847,7 @@ body.agora-room-active #sidebar-overlay {
 .agora-room-dialog {
   margin: 0;
   max-height: none;
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: hidden;
 }
 
