@@ -59,7 +59,7 @@ class AIModule {
       <div class="mt-3 flex items-center justify-between gap-3">
         <span class="text-xs text-slate-500">Signed in as ${role}</span>
         <div class="flex items-center gap-2">
-          <button id="aiClear" type="button" title="Clear conversation" aria-label="Clear conversation" class="rounded-lg border border-slate-300 p-2 text-slate-600 hover:bg-slate-50"><i class="ph ph-trash" aria-hidden="true"></i></button>
+          <button id="aiNewChat" type="button" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><i class="ph ph-plus" aria-hidden="true"></i><span>New chat</span></button>
           <button id="aiSend" type="submit" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"><i class="ph ph-paper-plane-right" aria-hidden="true"></i><span>Send</span></button>
         </div>
       </div>
@@ -106,7 +106,7 @@ class AIModule {
     const form = document.getElementById("aiChatForm");
     const promptInput = document.getElementById("aiPrompt");
     const send = document.getElementById("aiSend");
-    const clear = document.getElementById("aiClear");
+    const newChat = document.getElementById("aiNewChat");
 
     promptInput?.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
@@ -149,7 +149,7 @@ class AIModule {
       }
     });
 
-    clear?.addEventListener("click", () => {
+    newChat?.addEventListener("click", () => {
       localStorage.removeItem(this.storageKey(profile));
       this.showError();
       this.renderMessages(profile);
