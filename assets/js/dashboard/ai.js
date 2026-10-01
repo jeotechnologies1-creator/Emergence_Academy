@@ -108,6 +108,12 @@ class AIModule {
     const send = document.getElementById("aiSend");
     const clear = document.getElementById("aiClear");
 
+    promptInput?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+      event.preventDefault();
+      form?.requestSubmit();
+    });
+
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (send.disabled) return;
