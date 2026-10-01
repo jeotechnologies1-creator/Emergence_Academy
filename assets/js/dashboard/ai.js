@@ -1,6 +1,8 @@
 class AIModule {
   static HISTORY_PREFIX = "emergence_ai_assistant_history";
   static MAX_HISTORY = 12;
+  static MAX_CHATS = 50;
+  static showingHistory = false;
 
   static safe(value) {
     return String(value ?? "")
@@ -15,19 +17,76 @@ class AIModule {
     return `${this.HISTORY_PREFIX}:${profile?.id || "current"}`;
   }
 
-  static history(profile) {
+  static activeChatKey(profile) {
+    return `${this.storageKey(profile)}:active`;
+  }
+
+  static newChatId() {
+    return globalThis.crypto?.randomUUID?.() || `chat-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  static chats(profile) {
     try {
       const saved = JSON.parse(localStorage.getItem(this.storageKey(profile)) || "[]");
-      return Array.isArray(saved)
-        ? saved.filter((message) => ["user", "assistant"].includes(message?.role) && typeof message?.content === "string").slice(-this.MAX_HISTORY)
-        : [];
+      if (!Array.isArray(saved)) return [];
+
+      // Upgrade the previous single-conversation format without losing it.
+      if (saved.length && saved.every((item) => ["user", "assistant"].includes(item?.role))) {
+        const messages = saved.filter((item) => typeof item.content === "string").slice(-this.MAX_HISTORY);
+        const chat = {
+          id: this.newChatId(),
+          title: messages.find((item) => item.role === "user")?.content.slice(0, 60) || "Previous chat",
+          messages,
+          updatedAt: Date.now(),
+        };
+        this.saveChats(profile, [chat]);
+        localStorage.setItem(this.activeChatKey(profile), chat.id);
+        return [chat];
+      }
+
+      return saved.filter((chat) => chat && typeof chat.id === "string" && Array.isArray(chat.messages))
+        .map((chat) => ({
+          id: chat.id,
+          title: typeof chat.title === "string" ? chat.title : "Previous chat",
+          messages: chat.messages.filter((item) => ["user", "assistant"].includes(item?.role) && typeof item.content === "string").slice(-this.MAX_HISTORY),
+          updatedAt: Number(chat.updatedAt) || Date.now(),
+        })).slice(-this.MAX_CHATS);
     } catch {
       return [];
     }
   }
 
-  static saveHistory(profile, messages) {
-    localStorage.setItem(this.storageKey(profile), JSON.stringify(messages.slice(-this.MAX_HISTORY)));
+  static saveChats(profile, chats) {
+    localStorage.setItem(this.storageKey(profile), JSON.stringify(chats.slice(-this.MAX_CHATS)));
+  }
+
+  static activeChat(profile) {
+    const chats = this.chats(profile);
+    const activeId = localStorage.getItem(this.activeChatKey(profile));
+    const active = chats.find((chat) => chat.id === activeId) || chats[chats.length - 1];
+    if (active) {
+      localStorage.setItem(this.activeChatKey(profile), active.id);
+      return active;
+    }
+    const chat = { id: this.newChatId(), title: "New chat", messages: [], updatedAt: Date.now() };
+    this.saveChats(profile, [chat]);
+    localStorage.setItem(this.activeChatKey(profile), chat.id);
+    return chat;
+  }
+
+  static history(profile) {
+    return this.activeChat(profile).messages;
+  }
+
+  static saveHistory(profile, messages, chatId = this.activeChat(profile).id) {
+    const chats = this.chats(profile);
+    const chat = chats.find((item) => item.id === chatId) || {
+      id: chatId, title: "New chat", messages: [], updatedAt: Date.now(),
+    };
+    chat.messages = messages.slice(-this.MAX_HISTORY);
+    chat.title = chat.messages.find((item) => item.role === "user")?.content.slice(0, 60) || "New chat";
+    chat.updatedAt = Date.now();
+    this.saveChats(profile, [...chats.filter((item) => item.id !== chatId), chat]);
   }
 
   static message(message) {
@@ -60,6 +119,7 @@ class AIModule {
         <span class="text-xs text-slate-500">Signed in as ${role}</span>
         <div class="flex items-center gap-2">
           <button id="aiNewChat" type="button" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><i class="ph ph-plus" aria-hidden="true"></i><span>New chat</span></button>
+          <button id="aiChatHistory" type="button" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" aria-label="View previous chats"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i><span>Chat history</span></button>
           <button id="aiSend" type="submit" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"><i class="ph ph-paper-plane-right" aria-hidden="true"></i><span>Send</span></button>
         </div>
       </div>
@@ -72,11 +132,29 @@ class AIModule {
   static renderMessages(profile, pending = false) {
     const container = document.getElementById("aiMessages");
     if (!container) return;
+    if (this.showingHistory) {
+      this.renderChatHistory(profile, container);
+      return;
+    }
     const messages = this.history(profile);
     const empty = '<p class="py-12 text-center text-sm text-slate-500">Start a conversation with Emergence AI.</p>';
     container.innerHTML = messages.length ? messages.map((message) => this.message(message)).join("") : empty;
     if (pending) container.insertAdjacentHTML("beforeend", '<div id="aiPending" class="text-sm text-slate-500">Emergence AI is thinking...</div>');
     container.scrollTop = container.scrollHeight;
+  }
+
+  static renderChatHistory(profile, container) {
+    const previousChats = this.chats(profile).filter((chat) => chat.messages.length)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+    const list = previousChats.length
+      ? previousChats.map((chat) => {
+        const preview = chat.messages[chat.messages.length - 1]?.content || "";
+        const timestamp = new Date(chat.updatedAt).toLocaleString();
+        return `<button type="button" data-ai-open-chat="${this.safe(chat.id)}" class="w-full rounded-lg border border-slate-200 p-4 text-left hover:border-blue-300 hover:bg-blue-50"><span class="block truncate text-sm font-semibold text-slate-800">${this.safe(chat.title)}</span><span class="mt-1 block truncate text-sm text-slate-600">${this.safe(preview)}</span><span class="mt-2 block text-xs text-slate-500">${this.safe(timestamp)}</span></button>`;
+      }).join("")
+      : '<p class="py-12 text-center text-sm text-slate-500">Your previous chats will appear here.</p>';
+    container.innerHTML = `<div class="space-y-3"><h3 class="text-sm font-semibold text-slate-700">Previous chats</h3>${list}</div>`;
+    container.scrollTop = 0;
   }
 
   static showError(message = "") {
@@ -97,6 +175,8 @@ class AIModule {
   static async render(container) {
     const profile = await Auth.profile(true);
     if (!profile?.id) throw new Error("Your profile is required to use the AI Assistant.");
+    this.showingHistory = false;
+    this.activeChat(profile);
     container.innerHTML = this.template(profile);
     this.renderMessages(profile);
     this.bindEvents(profile);
@@ -107,6 +187,8 @@ class AIModule {
     const promptInput = document.getElementById("aiPrompt");
     const send = document.getElementById("aiSend");
     const newChat = document.getElementById("aiNewChat");
+    const historyButton = document.getElementById("aiChatHistory");
+    const messageContainer = document.getElementById("aiMessages");
 
     promptInput?.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
@@ -121,8 +203,10 @@ class AIModule {
       if (!prompt) return;
 
       this.showError();
-      const messages = [...this.history(profile), { role: "user", content: prompt }].slice(-this.MAX_HISTORY);
-      this.saveHistory(profile, messages);
+      const chatId = this.activeChat(profile).id;
+      const previousMessages = this.history(profile);
+      const messages = [...previousMessages, { role: "user", content: prompt }].slice(-this.MAX_HISTORY);
+      this.saveHistory(profile, messages, chatId);
       promptInput.value = "";
       send.disabled = true;
       this.renderMessages(profile, true);
@@ -138,9 +222,9 @@ class AIModule {
         if (data?.error) throw new Error(data.error);
         const reply = String(data?.reply || "").trim();
         if (!reply) throw new Error("The AI Assistant did not return a response. Please try again.");
-        this.saveHistory(profile, [...messages, { role: "assistant", content: reply }]);
+        this.saveHistory(profile, [...messages, { role: "assistant", content: reply }], chatId);
       } catch (error) {
-        this.saveHistory(profile, this.history(profile).slice(0, -1));
+        this.saveHistory(profile, previousMessages, chatId);
         this.showError(this.requestErrorMessage(error));
       } finally {
         send.disabled = false;
@@ -150,10 +234,31 @@ class AIModule {
     });
 
     newChat?.addEventListener("click", () => {
-      localStorage.removeItem(this.storageKey(profile));
+      const chats = this.chats(profile);
+      const chat = { id: this.newChatId(), title: "New chat", messages: [], updatedAt: Date.now() };
+      this.saveChats(profile, [...chats, chat]);
+      localStorage.setItem(this.activeChatKey(profile), chat.id);
+      this.showingHistory = false;
       this.showError();
       this.renderMessages(profile);
       promptInput?.focus();
+    });
+
+    historyButton?.addEventListener("click", () => {
+      this.showingHistory = !this.showingHistory;
+      historyButton.querySelector("span").textContent = this.showingHistory ? "Back to chat" : "Chat history";
+      historyButton.setAttribute("aria-label", this.showingHistory ? "Return to current chat" : "View previous chats");
+      this.renderMessages(profile);
+    });
+
+    messageContainer?.addEventListener("click", (event) => {
+      const chatButton = event.target.closest?.("[data-ai-open-chat]");
+      if (!chatButton) return;
+      localStorage.setItem(this.activeChatKey(profile), chatButton.dataset.aiOpenChat);
+      this.showingHistory = false;
+      historyButton.querySelector("span").textContent = "Chat history";
+      historyButton.setAttribute("aria-label", "View previous chats");
+      this.renderMessages(profile);
     });
   }
 }
