@@ -68,14 +68,15 @@ of a live session records attendance as present.
 ## AI Assistant
 
 The AI Assistant is available to authenticated teachers and students through
-the `ai-chat` Supabase Edge Function. Deploy the function and configure its
-server-side OpenAI key. Do not add this key to browser JavaScript or Vercel
-environment variables that are exposed to the client.
+the `ai-chat` Supabase Edge Function, which calls Ollama Cloud. Keep the
+Ollama API key in Supabase secrets, never in browser code or Vercel client
+environment variables.
 
 ```bash
+supabase secrets set OLLAMA_BASE_URL=https://ollama.com OLLAMA_MODEL=gpt-oss:20b OLLAMA_API_KEY=your_ollama_api_key
 supabase functions deploy ai-chat --no-verify-jwt
-supabase secrets set OPENAI_API_KEY=your_openai_api_key
 ```
 
-Optionally set `OPENAI_MODEL` to a model available to your OpenAI project; the
-function defaults to `gpt-5`.
+For local development, copy `supabase/functions/.env.example` to
+`supabase/functions/.env` and fill in the Ollama Cloud API key there. The
+function sends it as a server-side bearer token to Ollama Cloud.

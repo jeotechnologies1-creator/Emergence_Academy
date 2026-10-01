@@ -11,15 +11,17 @@ assert.match(client, /functions\.invoke\("ai-chat"/, "the dashboard should invok
 assert.match(client, /await API\.functionErrorMessage\(error/, "the dashboard should display Edge Function error bodies");
 assert.match(client, /deploy the ai-chat service/i, "the dashboard should explain a missing AI function deployment");
 assert.match(client, /HISTORY_PREFIX.*profile/, "chat history should be scoped to the signed-in profile");
-assert.doesNotMatch(client, /OPENAI_API_KEY/, "the OpenAI key must never be shipped to the browser");
+assert.doesNotMatch(client, /OLLAMA_BASE_URL/, "the model server URL must remain server-side");
 
 assert.match(functionSource, /await caller\(req\)/, "the Edge Function should authenticate each caller");
 assert.match(functionSource, /\['teacher', 'student'\]\.includes\(role\)/, "the Edge Function should limit access to teachers and students");
-assert.match(functionSource, /https:\/\/api\.openai\.com\/v1\/responses/, "the Edge Function should call the OpenAI Responses API");
-assert.match(functionSource, /Deno\.env\.get\("OPENAI_API_KEY"\)/, "the Edge Function should read the server-side OpenAI key");
-assert.match(functionSource, /store: false/, "the OpenAI request should not persist response state");
-assert.match(functionSource, /openAIErrorMessage/, "the Edge Function should return actionable OpenAI configuration errors");
-assert.match(functionSource, /status === 429/, "the Edge Function should identify OpenAI quota or rate-limit errors");
+assert.match(functionSource, /\/api\/chat/, "the Edge Function should call the Ollama chat API");
+assert.match(functionSource, /Deno\.env\.get\("OLLAMA_BASE_URL"\)/, "the Edge Function should read the Ollama server URL");
+assert.match(functionSource, /Deno\.env\.get\("OLLAMA_MODEL"\)/, "the Edge Function should read the Ollama model");
+assert.match(functionSource, /Deno\.env\.get\("OLLAMA_API_KEY"\)/, "the Edge Function should read the server-side Ollama API key");
+assert.match(functionSource, /Authorization.*Bearer/, "the Edge Function should authorize Ollama Cloud requests");
+assert.match(functionSource, /status === 401 \|\| status === 403/, "the Edge Function should explain Ollama Cloud authentication failures");
+assert.match(functionSource, /ollamaErrorMessage/, "the Edge Function should return actionable Ollama errors");
 
 const config = read("supabase", "config.toml");
 assert.match(config, /\[functions\.ai-chat\]/, "Supabase should register the AI chat function locally");

@@ -89,7 +89,7 @@ class AIModule {
   static requestErrorMessage(error) {
     const message = String(error?.message || "");
     if (/failed to send a request to the edge function/i.test(message)) {
-      return "AI Assistant is not available yet. An administrator must deploy the ai-chat service and configure its OpenAI key.";
+      return "AI Assistant is not available yet. An administrator must deploy the ai-chat service and configure its Ollama connection.";
     }
     return message || "Unable to reach the AI Assistant.";
   }
