@@ -6,6 +6,7 @@ class LiveClassesModule {
   static safe(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
   static role() { return String(this.state.profile?.role || "").toLowerCase(); }
   static canSchedule() { return this.role() === "teacher"; }
+  static canClearHistory() { return ["ceo", "admin", "executive"].includes(this.role()); }
   static async load() {
     const profile = await Auth.profile(true);
     if (!profile?.id) throw new Error("Your profile is required to access live classes.");
@@ -523,7 +524,11 @@ class LiveClassesModule {
   static async render(container) { this.state.container = container; container.innerHTML = '<div class="bg-white rounded-xl p-8 text-slate-500 shadow">Loading live classes...</div>'; try { await this.load(); this.draw(); } catch (error) { console.error(error); container.innerHTML = `<div class="bg-white rounded-xl p-8 text-red-600 shadow">${this.safe(error.message || "Unable to load live classes.")}</div>`; } }
   static draw() {
     const sessions = this.state.sessions.map((session) => this.card(session)).join("") || '<div class="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">No live classes are scheduled for you yet.</div>';
-    this.state.container.innerHTML = `<div class="space-y-6"><div class="rounded-2xl bg-gradient-to-r from-indigo-700 to-blue-600 p-6 text-white shadow"><h2 class="text-3xl font-bold">Live Classes</h2><p class="mt-2 text-indigo-100">${this.canSchedule() ? "Create secure Agora live sessions for subjects assigned to you." : "Join Agora live sessions for subjects in which you are enrolled."}</p></div>${this.canSchedule() ? this.form() : ""}<section><h3 class="mb-3 text-xl font-bold text-slate-800">My Live Classes</h3><div class="grid grid-cols-1 gap-4 lg:grid-cols-2">${sessions}</div></section></div>`;
+    const endedCount = this.state.sessions.filter((session) => String(session.status).toLowerCase() === "ended").length;
+    const clearHistoryButton = this.canClearHistory()
+      ? `<button type="button" data-clear-ended-classes ${endedCount ? "" : "disabled"} class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Clear ended history (${endedCount})</button>`
+      : "";
+    this.state.container.innerHTML = `<div class="space-y-6"><div class="rounded-2xl bg-gradient-to-r from-indigo-700 to-blue-600 p-6 text-white shadow"><h2 class="text-3xl font-bold">Live Classes</h2><p class="mt-2 text-indigo-100">${this.canSchedule() ? "Create secure Agora live sessions for subjects assigned to you." : "Join Agora live sessions for subjects in which you are enrolled."}</p></div>${this.canSchedule() ? this.form() : ""}<section><div class="mb-3 flex flex-wrap items-center justify-between gap-3"><h3 class="text-xl font-bold text-slate-800">My Live Classes</h3>${clearHistoryButton}</div><div class="grid grid-cols-1 gap-4 lg:grid-cols-2">${sessions}</div></section></div>`;
     this.bind();
   }
   static form() {
@@ -557,6 +562,23 @@ class LiveClassesModule {
     return `<article class="rounded-xl bg-white p-5 shadow"><div class="flex justify-between gap-3"><div><h4 class="font-bold text-slate-800">${this.safe(session.title)}</h4><p class="mt-1 text-sm text-slate-500">${this.safe(session.subject_name || "Subject")}</p></div><span class="rounded-full px-3 py-1 text-xs font-medium ${status === "live" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-700"}">${this.safe(status === "live" ? "LIVE NOW" : status)}</span></div><p class="mt-3 text-sm text-slate-600"><strong>Teacher:</strong> ${this.safe(teacherLabel)}<br><strong>Time:</strong> ${this.safe(this.format(session.starts_at))} – ${this.safe(this.format(session.ends_at))}</p>${session.description ? `<p class="mt-2 text-sm text-slate-600">${this.safe(session.description)}</p>` : ""}<div class="mt-4 flex flex-wrap gap-2"><button data-live-action="join" data-id="${this.safe(session.id)}" ${joinable ? "" : "disabled"} class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50">${joinable ? "Join Class" : status === "ended" ? "Class Ended" : status === "cancelled" ? "Cancelled" : "Not started"}</button>${teacherActions}</div></article>`;
   }
   static bind() {
+    this.state.container.querySelector("[data-clear-ended-classes]")?.addEventListener("click", async (event) => {
+      if (!this.canClearHistory()) return;
+      const endedCount = this.state.sessions.filter((session) => String(session.status).toLowerCase() === "ended").length;
+      if (!endedCount || !window.confirm(`Clear ${endedCount} ended live class record${endedCount === 1 ? "" : "s"}? Attendance records will be kept.`)) return;
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const { data, error } = await API.db.rpc("clear_ended_live_classes");
+        if (error) throw error;
+        const removed = Number(data) || 0;
+        window.Utils?.success?.(`${removed} ended live class record${removed === 1 ? "" : "s"} cleared. Attendance records were kept.`);
+        await this.render(this.state.container);
+      } catch (error) {
+        button.disabled = false;
+        window.Utils?.error?.(error.message || "Unable to clear ended live class history.") || window.alert(error.message || "Unable to clear ended live class history.");
+      }
+    });
     const form = this.state.container.querySelector("#live-class-form");
     const classSelect = this.state.container.querySelector("#live-class-id");
     const subjectSelect = this.state.container.querySelector("#live-subject-id");
